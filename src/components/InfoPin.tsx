@@ -15,7 +15,8 @@ export default function InfoPin() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await useVideos.getState().loadPopular(); // 不看缓存状态，强制重新请求
+      // 保留当前分类刷新（否则切到分类 tab 后点刷新会跳回「全部」）
+      await useVideos.getState().loadPopular(useVideos.getState().category);
     } finally {
       setRefreshing(false);
     }

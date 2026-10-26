@@ -54,6 +54,20 @@ export const REGIONS = [
   ["SG", "新加坡"],
 ] as const;
 
+/** 视频下载默认目录（需求指定） */
+export const DEFAULT_DOWNLOAD_DIR = "C:/download/youtube";
+
+/** 下载默认清晰度候选 */
+export const DOWNLOAD_QUALITIES = [
+  ["auto", "自动（最高）"],
+  ["1080p", "1080p"],
+  ["720p", "720p"],
+  ["480p", "480p"],
+  ["360p", "360p"],
+] as const;
+
+export type DownloadQuality = (typeof DOWNLOAD_QUALITIES)[number][0];
+
 interface SettingsState {
   /** 数据模式（固定 freeTube） */
   mode: DataMode;
@@ -63,9 +77,18 @@ interface SettingsState {
   languages: string[];
   /** API 请求代理（仅桌面端生效；留空则不走代理） */
   proxy: string;
+  /** 视频下载目录（离线视频保存位置） */
+  downloadDir: string;
+  /** 下载默认清晰度（弹窗预选档位） */
+  defaultQuality: DownloadQuality;
+  /** ffmpeg 路径覆盖（留空 = 首次使用时自动下载到应用数据目录） */
+  ffmpegPath: string;
   setRegionCode: (code: string) => void;
   setLanguages: (langs: string[]) => void;
   setProxy: (proxy: string) => void;
+  setDownloadDir: (dir: string) => void;
+  setDefaultQuality: (q: DownloadQuality) => void;
+  setFfmpegPath: (p: string) => void;
 }
 
 export const useSettings = create<SettingsState>()(
@@ -75,15 +98,22 @@ export const useSettings = create<SettingsState>()(
       regionCode: "US",
       languages: DEFAULT_LANGS,
       proxy: DEFAULT_PROXY,
+      downloadDir: DEFAULT_DOWNLOAD_DIR,
+      defaultQuality: "auto",
+      ffmpegPath: "",
       setRegionCode: (regionCode) => set({ regionCode }),
       setLanguages: (languages) => set({ languages }),
       setProxy: (proxy) => set({ proxy }),
+      setDownloadDir: (downloadDir) => set({ downloadDir }),
+      setDefaultQuality: (defaultQuality) => set({ defaultQuality }),
+      setFfmpegPath: (ffmpegPath) => set({ ffmpegPath }),
     }),
     {
       name: "yt-desktop-settings",
       // v2：官方 API 下线，移除凭证字段并强制 FreeTube 模式
       // v3：地区候选移除 CN（gl=CN 搜索返回空），已存的 CN 迁移为 US
-      version: 3,
+      // v4：新增视频下载配置（downloadDir/defaultQuality/ffmpegPath）
+      version: 4,
       migrate: (state, version) => {
         let s = state as Record<string, unknown>;
         if (version < 2) {

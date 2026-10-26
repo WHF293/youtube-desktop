@@ -69,6 +69,18 @@ pnpm tauri build     # 打包 Windows 安装包（NSIS + MSI）
 pnpm build           # 仅前端：tsc --noEmit + vite build
 ```
 
+## Tauri 命令清单（src-tauri/src/main.rs）
+
+| 命令 | 用途 |
+|---|---|
+| `yt_fetch` | 通用 HTTP 代理通道（GET/POST + 自定义 headers），InnerTube/BotGuard/GitHub 全走它 |
+| `yt_image` | 缩略图白名单代理（data URL + 内存缓存） |
+| `save_webview_proxy` | proxy 落盘（WebView 启动时注入） |
+| `yt_refresh_token` | OAuth 续期（历史遗留，官方 API 时代） |
+| `download_update` / `finish_update` | 应用自更新（流式下载 + 静默安装） |
+| `start_video_download` / `cancel_video_download` | 视频下载（单任务、进度事件 `video-download-progress`） |
+| `read_download_manifest` / `list_download_dir` / `delete_offline_video` | 离线清单读取 / 目录扫描 / 删除（含缩略图与清单条目） |
+
 ## 关键架构约定（改代码前必读）
 
 - **数据层唯一入口是 `src/lib/youtube.ts`**：store/页面只调 `ytApi.*`；新增数据源实现 `src/lib/innertube.ts` 的对应函数后在 `ytApi` 内分发，不要让 store 直接 import innertube。
@@ -77,3 +89,5 @@ pnpm build           # 仅前端：tsc --noEmit + vite build
 - **删除类操作必须二次确认**（分组删除、收藏删除等），确认态 3 秒自动复位。
 - **拖拽一律用 dnd-kit**（WebView2 下原生 HTML5 DnD 有兼容问题），不要用 draggable/dataTransfer。
 - 频道/地区等枚举数据经搜索反查 + RSS 实测验证后才可写入代码（参考 `FT_REGION_GROUPS` 的注释规范）。
+- **下载抽流层（`src/lib/extract.ts`）与数据层分离**：youtubei.js + ANDROID_VR client（2026-10-26 实测全分辨率经典流唯一可用 client，无需 PO Token；WEB client 的 adaptive 流已 SABR 化）。流地址不落盘、6h 过期，重试必须重新提取。任何环节失败直接报错展示（无降级方案），可经 `.ai/smoke-download.mjs` 复验。
+- **观看记录存 SQLite**（tauri-plugin-sql，`sqlite:history.db`，迁移在 main.rs 注册）：仅保留 7 天，应用启动时清理；重看同一视频刷新时间（置顶）而非新增记录。

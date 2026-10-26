@@ -52,6 +52,13 @@ export function formatDate(dateStr: string): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
+/** 字节数 → MB/GB 展示 */
+export function formatBytes(n: number | undefined): string {
+  if (!n || n <= 0) return "";
+  if (n >= 1024 * 1024 * 1024) return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 /** 视频缩略图：优先高清 */
 export function bestThumb(snippet: { thumbnails?: { medium?: { url: string }; high?: { url: string }; default?: { url: string } } }): string {
   const t = snippet.thumbnails;

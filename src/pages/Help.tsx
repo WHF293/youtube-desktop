@@ -66,6 +66,31 @@ export default function Help() {
         </Step>
       </Section>
 
+      <Section title="视频下载与离线观看">
+        <Step>
+          视频播放页<b>观看次数左侧的下载图标</b>：选择清晰度（144p~4K，标注单文件/需合流与预估大小）后开始下载。
+        </Step>
+        <Step>
+          侧栏「<b>离线视频</b>」页分「正在下载」与「下载完成」两个模块；完成的视频点击即用本地播放器观看，无需联网。
+        </Step>
+        <Step>
+          下载目录默认 <code className="rounded bg-flat px-1">C:/download/youtube</code>，可在设置页修改；
+          1080p 及以上需 ffmpeg 合流（首次使用自动下载，或指定本地 ffmpeg）。
+        </Step>
+        <Step>
+          下载失败会显示具体原因（网络/接口变更/ffmpeg 缺失等），点「重试」会重新提取流地址。
+        </Step>
+      </Section>
+
+      <Section title="观看记录">
+        <Step>
+          侧栏「<b>观看记录</b>」按日期分组展示最近 7 天看过的视频：今天自动展开，更早的日期点击展开。
+        </Step>
+        <Step>
+          记录保存在本机 SQLite 数据库，<b>每次打开应用自动清理 7 天前</b>的记录；重复观看同一视频只刷新时间。
+        </Step>
+      </Section>
+
       <Section title="地区与语言">
         <Step>
           侧栏底部「<b>地区</b>」：切换首页/热门的内容地区与搜索结果的地区倾向，选择即生效。

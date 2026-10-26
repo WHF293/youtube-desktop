@@ -13,6 +13,8 @@
 - **订阅**：本地频道列表逐频道拉取 RSS 聚合更新流；支持粘贴频道链接 / `@handle` 自动解析添加，或导入 Google Takeout 的 `subscriptions.csv`
 - **博主分组**：看板式分组页（[dnd-kit](https://dndkit.com/) 拖拽博主换组、列拖拽排序），订阅页侧栏按分组展示、可整体收起
 - **收藏**：视频播放页五角星一键收藏（可选收藏分组），收藏页按分组管理
+- **视频下载**：播放页选清晰度离线下载（144p~4K，mp4，1080p+ 自动 ffmpeg 合流），「离线视频」页查看进度、本地播放，无需联网
+- **观看记录**：按日期分组展示近 7 天观看历史（本机 SQLite 存储，启动自动清理过期记录）
 - **播放**：iframe 嵌入播放（走 WebView 代理），系统浏览器一键兜底；明暗双主题
 
 ## 安装
@@ -44,10 +46,12 @@ pnpm tauri build    # 打包 msi / nsis 安装包
 pnpm dev            # 仅前端（浏览器预览，InnerTube/RSS 因 CORS 不可用）
 ```
 
-技术栈：Tauri v2 · React 19 · Zustand · Tailwind CSS v4 · TypeScript · dnd-kit
+技术栈：Tauri v2 · React 19 · Zustand · Tailwind CSS v4 · TypeScript · dnd-kit · youtubei.js
 
 架构概览：前端 `src/lib/innertube.ts` 封装 InnerTube（search / browse / next / 评论二段式）与 RSS 解析，
-Rust `src-tauri` 提供带代理的 HTTP 传输（`yt_fetch`）、图片转存（`yt_image`）与 WebView 代理注入；
+`src/lib/extract.ts` 负责下载抽流（youtubei.js + ANDROID_VR client），
+Rust `src-tauri` 提供带代理的 HTTP 传输（`yt_fetch`）、图片转存（`yt_image`）、流式下载（更新包/视频分轨 + ffmpeg 合流）、
+WebView 代理注入与本地库（tauri-plugin-sql）；
 页面组件只依赖 `src/lib/youtube.ts` 门面，与数据来源解耦。
 
 ## 免责声明

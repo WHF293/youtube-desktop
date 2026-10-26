@@ -2,14 +2,22 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
-use std::sync::Mutex;
-use tauri::{Emitter, State};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use tauri::{Emitter, Manager, State};
 
 /// 缓存 (proxy 配置, reqwest Client)：proxy 没变就复用连接池
 struct HttpClient(Mutex<Option<(String, reqwest::Client)>>);
 
 /// 缩略图/头像缓存：url → data URL（超上限整体清空）
 struct ImageCache(Mutex<HashMap<String, String>>);
+
+/// 视频下载管理：当前任务 id + 各任务的取消标记
+struct DownloadState {
+    active: Mutex<Option<String>>,
+    cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
+}
 
 /// 允许代理加载图片的域名白名单（YouTube 缩略图 / 频道头像 / 评论头像）。
 /// ytimg.com 用后缀匹配：RSS 缩略图在 i1~i9.ytimg.com 分片域名上，
@@ -79,6 +87,7 @@ async fn yt_fetch(
     method: Option<String>,
     body: Option<String>,
     content_type: Option<String>,
+    headers: Option<std::collections::HashMap<String, String>>,
     state: State<'_, HttpClient>,
 ) -> Result<FetchResult, String> {
     let client = client_for(&proxy, &state)?;
@@ -92,6 +101,11 @@ async fn yt_fetch(
     };
     if let Some(ct) = content_type {
         req = req.header("Content-Type", ct);
+    }
+    if let Some(hs) = headers {
+        for (k, v) in hs {
+            req = req.header(&k, &v);
+        }
     }
     if let Some(b) = body {
         req = req.body(b);
@@ -254,6 +268,387 @@ fn finish_update(installer: String, app: tauri::AppHandle) -> Result<(), String>
     Ok(())
 }
 
+/* ============================ 视频下载 ============================ */
+
+/// 下载任务被用户取消的哨兵错误（对外不展示）
+const CANCELLED: &str = "__CANCELLED__";
+
+/// ffmpeg 自动下载源（gyan.dev release-essentials，约 35MB，含 ffmpeg.exe）
+const FFMPEG_URL: &str = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
+
+/// 前端下达的下载任务（camelCase 序列化）
+#[derive(serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct VideoDownloadTask {
+    video_id: String,
+    title: String,
+    channel_title: String,
+    duration: String,
+    thumb_url: String,
+    dir: String,
+    quality: String,
+    needs_merge: bool,
+    video_url: String,
+    video_size: u64,
+    audio_url: Option<String>,
+    audio_size: u64,
+    ffmpeg_path: Option<String>,
+}
+
+/// 下载媒体流：无总超时（大文件可持续很久），分块写盘 + 0.1% 步进限频的进度事件
+async fn download_to(
+    client: &reqwest::Client,
+    url: &str,
+    dest: &Path,
+    flag: &AtomicBool,
+    id: &str,
+    stage: &str,
+    start_pct: f64,
+    span_pct: f64,
+    app: &tauri::AppHandle,
+) -> Result<(), String> {
+    let mut resp = client.get(url).send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("下载失败（HTTP {}）", resp.status().as_u16()));
+    }
+    let total = resp.content_length().unwrap_or(0);
+    let mut file = std::fs::File::create(dest).map_err(|e| e.to_string())?;
+    let mut got: u64 = 0;
+    let mut last_emitted: i32 = -1;
+    use std::io::Write;
+    loop {
+        if flag.load(Ordering::Relaxed) {
+            return Err(CANCELLED.to_string());
+        }
+        match resp.chunk().await.map_err(|e| e.to_string())? {
+            Some(chunk) => {
+                file.write_all(&chunk).map_err(|e| e.to_string())?;
+                got += chunk.len() as u64;
+                if total > 0 {
+                    let pct = start_pct + span_pct * (got as f64 / total as f64);
+                    let step = (pct * 10.0) as i32;
+                    if step != last_emitted {
+                        last_emitted = step;
+                        let _ = app.emit(
+                            "video-download-progress",
+                            serde_json::json!({ "id": id, "stage": stage, "percent": pct }),
+                        );
+                    }
+                }
+            }
+            None => break,
+        }
+    }
+    file.flush().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 文件名安全主干：去非法字符/控制字符，限 80 字符，保证含 videoId 防重名
+fn safe_stem(title: &str, video_id: &str) -> String {
+    let cleaned: String = title
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => ' ',
+            _ => c,
+        })
+        .filter(|c| !c.is_control())
+        .collect();
+    let s: String = cleaned.trim().chars().take(80).collect();
+    let s = s.trim();
+    if s.is_empty() {
+        format!("video [{video_id}]")
+    } else {
+        format!("{s} [{video_id}]")
+    }
+}
+
+/// 追加（去重）清单条目：<下载目录>/.ytdl-manifest.json
+fn write_manifest_entry(task: &VideoDownloadTask, mp4_name: &str, jpg_name: &str, size: u64) -> Result<(), String> {
+    let mpath = Path::new(&task.dir).join(".ytdl-manifest.json");
+    let mut root: serde_json::Value = std::fs::read_to_string(&mpath)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({ "videos": [] }));
+    if !root.is_object() {
+        root = serde_json::json!({ "videos": [] });
+    }
+    let obj = root.as_object_mut().ok_or("清单格式异常")?;
+    let videos = obj.entry("videos").or_insert_with(|| serde_json::json!([]));
+    if let Some(arr) = videos.as_array_mut() {
+        arr.retain(|v| v.get("videoId").and_then(|x| x.as_str()) != Some(task.video_id.as_str()));
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        arr.push(serde_json::json!({
+            "videoId": task.video_id,
+            "title": task.title,
+            "channelTitle": task.channel_title,
+            "duration": task.duration,
+            "quality": task.quality,
+            "filename": mp4_name,
+            "thumb": jpg_name,
+            "thumbPath": Path::new(&task.dir).join(jpg_name).to_string_lossy(),
+            "size": size,
+            "path": Path::new(&task.dir).join(mp4_name).to_string_lossy(),
+            "downloadedAt": now,
+        }));
+    }
+    std::fs::write(&mpath, serde_json::to_string_pretty(&root).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+/// 确保 ffmpeg 可用：设置覆盖 → 应用数据目录已缓存 → 经代理自动下载 gyan.dev 包并解压
+async fn ensure_ffmpeg(
+    app: &tauri::AppHandle,
+    override_path: Option<&str>,
+    client: &reqwest::Client,
+    flag: &AtomicBool,
+    id: &str,
+) -> Result<PathBuf, String> {
+    if let Some(p) = override_path {
+        let p = p.trim();
+        if !p.is_empty() {
+            let pb = PathBuf::from(p);
+            if pb.exists() {
+                return Ok(pb);
+            }
+            return Err(format!("设置中指定的 ffmpeg 不存在：{p}"));
+        }
+    }
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let bundled = data_dir.join("ffmpeg").join("ffmpeg.exe");
+    if bundled.exists() {
+        return Ok(bundled);
+    }
+    let zip_path = std::env::temp_dir().join("ffmpeg-essentials.zip");
+    download_to(client, FFMPEG_URL, &zip_path, flag, id, "ffmpeg", 0.0, 99.0, app).await?;
+    let f = std::fs::File::open(&zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(f).map_err(|e| format!("ffmpeg 压缩包解析失败：{e}"))?;
+    let mut found = false;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name().map(|s| s.to_string()).unwrap_or_default();
+        if name.ends_with("bin/ffmpeg.exe") {
+            std::fs::create_dir_all(bundled.parent().unwrap()).map_err(|e| e.to_string())?;
+            let mut out = std::fs::File::create(&bundled).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+            found = true;
+            break;
+        }
+    }
+    let _ = std::fs::remove_file(&zip_path);
+    if !found {
+        return Err("ffmpeg 压缩包中未找到 ffmpeg.exe（源文件可能已变更）".into());
+    }
+    Ok(bundled)
+}
+
+/// 单任务下载主流程：视频轨/音频轨 → 缩略图 → 合流/直移 → 写清单
+async fn run_video_download(task: VideoDownloadTask, proxy: String, flag: Arc<AtomicBool>, app: tauri::AppHandle) -> Result<(), String> {
+    let emit = |stage: &str, percent: f64, error: Option<String>, filename: Option<String>| {
+        let _ = app.emit(
+            "video-download-progress",
+            serde_json::json!({ "id": task.video_id, "stage": stage, "percent": percent, "error": error, "filename": filename }),
+        );
+    };
+    // 媒体下载专用 client：不设总超时（请求头 Content-Length 仍在，进度按需计算）
+    let mut builder = reqwest::Client::builder()
+        .user_agent("youtube-desktop/0.2")
+        .connect_timeout(std::time::Duration::from_secs(20));
+    let p = proxy.trim();
+    if !p.is_empty() {
+        let p = if p.contains("://") { p.to_string() } else { format!("http://{p}") };
+        builder = builder.proxy(reqwest::Proxy::all(&p).map_err(|e| e.to_string())?);
+    }
+    let client = builder.build().map_err(|e| e.to_string())?;
+
+    let tmp = std::env::temp_dir().join(format!("ytdl-{}", task.video_id));
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let vpath = tmp.join("video.bin");
+    let apath = tmp.join("audio.bin");
+
+    let result: Result<(), String> = async {
+        download_to(&client, &task.video_url, &vpath, &flag, &task.video_id, "video", 0.0, 88.0, &app).await?;
+        if let Some(url) = &task.audio_url {
+            download_to(&client, url, &apath, &flag, &task.video_id, "audio", 88.0, 8.0, &app).await?;
+        }
+
+        std::fs::create_dir_all(&task.dir).map_err(|e| e.to_string())?;
+        let base = safe_stem(&task.title, &task.video_id);
+        let mp4_name = format!("{base}.mp4");
+        let jpg_name = format!("{base}.jpg");
+        // 缩略图尽力保存（失败不影响下载）
+        if !task.thumb_url.is_empty() {
+            if let Ok(resp) = client.get(&task.thumb_url).send().await {
+                if let Ok(bytes) = resp.bytes().await {
+                    let _ = std::fs::write(Path::new(&task.dir).join(&jpg_name), &bytes);
+                }
+            }
+        }
+
+        let dest = Path::new(&task.dir).join(&mp4_name);
+        emit("mux", 97.0, None, Some(mp4_name.clone()));
+        if task.needs_merge {
+            let ffmpeg = ensure_ffmpeg(&app, task.ffmpeg_path.as_deref(), &client, &flag, &task.video_id).await?;
+            if flag.load(Ordering::Relaxed) {
+                return Err(CANCELLED.to_string());
+            }
+            let v = vpath.clone();
+            let a = apath.clone();
+            let d = dest.clone();
+            let output = tauri::async_runtime::spawn_blocking(move || {
+                std::process::Command::new(&ffmpeg)
+                    .arg("-y")
+                    .arg("-i").arg(&v)
+                    .arg("-i").arg(&a)
+                    .args(["-c", "copy", "-movflags", "+faststart"])
+                    .arg(&d)
+                    .output()
+            })
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| format!("ffmpeg 执行失败：{e}"))?;
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let tail: String = stderr
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .rev()
+                    .take(3)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                return Err(format!("ffmpeg 合流失败：{tail}"));
+            }
+        } else {
+            // 单文件：跨卷 rename 会失败，失败时 copy 兜底
+            if std::fs::rename(&vpath, &dest).is_err() {
+                std::fs::copy(&vpath, &dest).map_err(|e| e.to_string())?;
+            }
+        }
+
+        let size = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(task.video_size + task.audio_size);
+        write_manifest_entry(&task, &mp4_name, &jpg_name, size)?;
+        emit("done", 100.0, None, Some(mp4_name));
+        Ok(())
+    }
+    .await;
+
+    // 无论成败清理临时目录
+    let _ = std::fs::remove_dir_all(&tmp);
+    result
+}
+
+/// 启动一个视频下载任务（同一时刻仅一个任务在跑，前端 store 负责排队）
+#[tauri::command]
+async fn start_video_download(
+    task: VideoDownloadTask,
+    proxy: String,
+    app: tauri::AppHandle,
+    state: State<'_, DownloadState>,
+) -> Result<(), String> {
+    {
+        let mut active = state.active.lock().map_err(|e| e.to_string())?;
+        if active.is_some() {
+            return Err("已有下载任务进行中".to_string());
+        }
+        *active = Some(task.video_id.clone());
+    }
+    let flag = Arc::new(AtomicBool::new(false));
+    if let Ok(mut m) = state.cancel_flags.lock() {
+        m.insert(task.video_id.clone(), flag.clone());
+    }
+    tauri::async_runtime::spawn(async move {
+        let result = run_video_download(task.clone(), proxy, flag, app.clone()).await;
+        if let Some(st) = app.try_state::<DownloadState>() {
+            if let Ok(mut a) = st.active.lock() {
+                *a = None;
+            }
+            if let Ok(mut m) = st.cancel_flags.lock() {
+                m.remove(&task.video_id);
+            }
+        }
+        match result {
+            Ok(()) => {}
+            Err(e) if e == CANCELLED => {
+                let _ = app.emit(
+                    "video-download-progress",
+                    serde_json::json!({ "id": task.video_id, "stage": "cancelled", "percent": 0.0 }),
+                );
+            }
+            Err(e) => {
+                let _ = app.emit(
+                    "video-download-progress",
+                    serde_json::json!({ "id": task.video_id, "stage": "error", "percent": 0.0, "error": e }),
+                );
+            }
+        }
+    });
+    Ok(())
+}
+
+/// 取消进行中的下载（前端 store 对排队中的任务直接本地移除）
+#[tauri::command]
+fn cancel_video_download(video_id: String, state: State<'_, DownloadState>) -> Result<(), String> {
+    if let Ok(m) = state.cancel_flags.lock() {
+        if let Some(f) = m.get(&video_id) {
+            f.store(true, Ordering::Relaxed);
+        }
+    }
+    Ok(())
+}
+
+/// 读取下载清单（不存在或损坏时返回空清单）
+#[tauri::command]
+fn read_download_manifest(dir: String) -> serde_json::Value {
+    let path = Path::new(&dir).join(".ytdl-manifest.json");
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| serde_json::json!({ "videos": [] })),
+        Err(_) => serde_json::json!({ "videos": [] }),
+    }
+}
+
+/// 扫描下载目录里的 mp4 文件名（离线页与清单交叉校验）
+#[tauri::command]
+fn list_download_dir(dir: String) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.to_lowercase().ends_with(".mp4") {
+                out.push(name);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// 删除离线视频（mp4 + 缩略图 + 清单条目；前端已做二次确认）
+#[tauri::command]
+fn delete_offline_video(dir: String, video_id: String, filename: String) -> Result<(), String> {
+    let base = Path::new(&dir);
+    let _ = std::fs::remove_file(base.join(&filename));
+    if let Some(stem) = Path::new(&filename).file_stem() {
+        let _ = std::fs::remove_file(base.join(format!("{}.jpg", stem.to_string_lossy())));
+    }
+    let mpath = base.join(".ytdl-manifest.json");
+    if let Ok(s) = std::fs::read_to_string(&mpath) {
+        if let Ok(mut root) = serde_json::from_str::<serde_json::Value>(&s) {
+            if let Some(arr) = root.get_mut("videos").and_then(|v| v.as_array_mut()) {
+                arr.retain(|v| v.get("videoId").and_then(|x| x.as_str()) != Some(video_id.as_str()));
+                if let Ok(txt) = serde_json::to_string_pretty(&root) {
+                    let _ = std::fs::write(&mpath, txt);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     // WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到。
     // 双保险：① setup 里创建窗口时用官方 proxy_url 挂代理（Windows 原生支持）；
@@ -267,10 +662,58 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        // 观看记录本地库（SQLite）；启动迁移建表
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations(
+                    "sqlite:history.db",
+                    vec![tauri_plugin_sql::Migration {
+                        version: 1,
+                        description: "create_watch_history",
+                        sql: "CREATE TABLE IF NOT EXISTS watch_history (video_id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', channel_id TEXT NOT NULL DEFAULT '', channel_title TEXT NOT NULL DEFAULT '', thumb TEXT NOT NULL DEFAULT '', duration TEXT NOT NULL DEFAULT '', watched_at INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS idx_wh_watched_at ON watch_history(watched_at);",
+                        kind: tauri_plugin_sql::MigrationKind::Up,
+                    }],
+                )
+                .build(),
+        )
         .manage(HttpClient(Mutex::new(None)))
         .manage(ImageCache(Mutex::new(HashMap::new())))
-        .invoke_handler(tauri::generate_handler![yt_fetch, yt_image, save_webview_proxy, yt_refresh_token, download_update, finish_update])
+        .manage(DownloadState {
+            active: Mutex::new(None),
+            cancel_flags: Mutex::new(HashMap::new()),
+        })
+        .invoke_handler(tauri::generate_handler![
+            yt_fetch,
+            yt_image,
+            save_webview_proxy,
+            yt_refresh_token,
+            download_update,
+            finish_update,
+            start_video_download,
+            cancel_video_download,
+            read_download_manifest,
+            list_download_dir,
+            delete_offline_video
+        ])
         .setup(|app| {
+            // 上次运行残留的下载临时目录（>24h）后台清理
+            std::thread::spawn(|| {
+                if let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) {
+                    for e in entries.flatten() {
+                        if !e.file_name().to_string_lossy().starts_with("ytdl-") {
+                            continue;
+                        }
+                        if let Ok(meta) = e.metadata() {
+                            if let Ok(modified) = meta.modified() {
+                                if modified.elapsed().map(|d| d.as_secs() > 86_400).unwrap_or(false) {
+                                    let _ = std::fs::remove_dir_all(e.path());
+                                }
+                            }
+                        }
+                    }
+                }
+            });
             // 主窗口代码创建（tauri.conf.json 不再声明窗口），以便按代理配置创建 WebView
             let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
                 .title("YouTube Desktop")

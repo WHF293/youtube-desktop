@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { usePlayer } from "../stores/player";
 import { useFavorites } from "../stores/favorites";
+import { useHistory } from "../stores/history";
+import DownloadModal from "../components/DownloadModal";
 import { VideoRow } from "../components/VideoCard";
 import Spinner, { ErrorBox } from "../components/Spinner";
 import Icon from "../components/Icon";
@@ -15,14 +17,30 @@ export default function Watch() {
   const player = usePlayer();
   const [descExpanded, setDescExpanded] = useState(false);
   const [favModalOpen, setFavModalOpen] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const isFav = useFavorites((s) => s.videos.some((v) => v.videoId === videoId));
 
   useEffect(() => {
     setDescExpanded(false);
     setFavModalOpen(false);
+    setDownloadOpen(false);
     void player.load(videoId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
+
+  // 观看记录：详情就绪后落库（重看 = 刷新时间置顶）
+  const playerVideo = player.video;
+  useEffect(() => {
+    if (!playerVideo || typeof playerVideo.id !== "string") return;
+    void useHistory.getState().record({
+      videoId,
+      title: playerVideo.snippet.title,
+      channelId: playerVideo.snippet.channelId,
+      channelTitle: playerVideo.snippet.channelTitle,
+      thumb: bestThumb(playerVideo.snippet),
+      duration: parseDuration(playerVideo.contentDetails?.duration),
+    });
+  }, [playerVideo, videoId]);
 
   if (player.status === "loading") return <Spinner label="加载视频…" />;
   if (player.status === "error" || !player.video) {
@@ -91,6 +109,16 @@ export default function Watch() {
           </div>
 
           <div className="flex items-center gap-4 text-sm text-ink-2">
+            {/* 下载：弹窗选清晰度后加入队列（离线视频页查看进度） */}
+            <button
+              type="button"
+              onClick={() => setDownloadOpen(true)}
+              aria-label="下载视频"
+              title="下载视频"
+              className="inline-flex items-center"
+            >
+              <Icon name="download" size={17} className="text-ink-2 hover:text-ink" />
+            </button>
             {/* 收藏星标：未收藏点击弹窗选分组收藏；已收藏点击打开管理（可取消/换分组） */}
             <button
               type="button"
@@ -188,6 +216,20 @@ export default function Watch() {
         <FavModal
           video={{ videoId, title: video.snippet.title, channelId: video.snippet.channelId, channelTitle: video.snippet.channelTitle, thumb: bestThumb(video.snippet) }}
           onClose={() => setFavModalOpen(false)}
+        />
+      )}
+
+      {/* 下载弹窗：选清晰度加入队列 */}
+      {downloadOpen && (
+        <DownloadModal
+          meta={{
+            videoId,
+            title: video.snippet.title,
+            channelTitle: video.snippet.channelTitle,
+            thumb: bestThumb(video.snippet),
+            duration: parseDuration(video.contentDetails?.duration),
+          }}
+          onClose={() => setDownloadOpen(false)}
         />
       )}
     </div>

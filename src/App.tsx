@@ -13,11 +13,16 @@ import Channel from "./pages/Channel";
 import Subscriptions from "./pages/Subscriptions";
 import Groups from "./pages/Groups";
 import Favorites from "./pages/Favorites";
+import History from "./pages/History";
+import Offline from "./pages/Offline";
+import OfflineWatch from "./pages/OfflineWatch";
 import Help from "./pages/Help";
 import Settings from "./pages/Settings";
 import { useTheme } from "./stores/theme";
 import { useVideos } from "./stores/videos";
 import { useSettings } from "./stores/settings";
+import { useHistory } from "./stores/history";
+import { initDownloads } from "./stores/downloads";
 
 export default function App() {
   const theme = useTheme((s) => s.theme);
@@ -50,9 +55,29 @@ export default function App() {
     invoke("save_webview_proxy", { proxy: useSettings.getState().proxy }).catch(() => {});
   }, []);
 
+  // 观看记录：打开应用即清理 7 天前的记录（SQLite）
+  useEffect(() => {
+    void useHistory.getState().init();
+  }, []);
+
+  // 下载进度事件 + 启动时把上次未完成的任务标记为失败
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void initDownloads().then((u) => {
+      if (disposed) u();
+      else unlisten = u;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
   // 是否有可返回的上一页（React Router 在 history.state.idx 记录栈深）；
-  // 仅二级页显示返回按钮——侧栏有入口的页面（首页/热门/我的订阅）不显示
-  const TOP_LEVEL_PATHS = new Set(["/", "/trending", "/subscriptions"]);
+  // 仅二级页显示返回按钮——侧栏有入口的页面不显示
+  const TOP_LEVEL_PATHS = new Set(["/", "/trending", "/subscriptions", "/history", "/favorites", "/offline"]);
   const canGoBack =
     (window.history.state?.idx ?? 0) > 0 && !TOP_LEVEL_PATHS.has(location.pathname);
 
@@ -96,6 +121,9 @@ export default function App() {
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/groups" element={<Groups />} />
             <Route path="/favorites" element={<Favorites />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/offline" element={<Offline />} />
+            <Route path="/offline/watch/:videoId" element={<OfflineWatch />} />
             <Route path="/help" element={<Help />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
