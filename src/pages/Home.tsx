@@ -77,9 +77,7 @@ export default function Home() {
     };
   }, [status, nextPageToken, loadingMore, loadMorePopular]);
 
-  if (status === "loading" || status === "idle") return <Spinner label="加载推荐视频…" />;
-  if (status === "error") return <ErrorBox message={error} onRetry={() => void loadPopular(category)} />;
-
+  // tab 栏常驻不随加载状态卸载（避免切换分类时按钮组闪烁），只有下方内容区切换加载态
   return (
     <div>
       {/* 分类 tab（whf-stock-board 高光玻璃按钮组：滑动玻璃气泡选中态） */}
@@ -93,14 +91,22 @@ export default function Home() {
         />
       </div>
 
-      {items.length === 0 ? (
-        <p className="p-6 text-sm text-ink-2">该分类下没有获取到视频。</p>
+      {status === "loading" || status === "idle" ? (
+        <Spinner label="加载推荐视频…" />
+      ) : status === "error" ? (
+        <ErrorBox message={error} onRetry={() => void loadPopular(category)} />
       ) : (
-        <VideoGrid videos={items} />
-      )}
-      {loadingMore && <Spinner label="加载更多…" />}
-      {!nextPageToken && items.length > 0 && (
-        <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
+        <>
+          {items.length === 0 ? (
+            <p className="p-6 text-sm text-ink-2">该分类下没有获取到视频。</p>
+          ) : (
+            <VideoGrid videos={items} />
+          )}
+          {loadingMore && <Spinner label="加载更多…" />}
+          {!nextPageToken && items.length > 0 && (
+            <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
+          )}
+        </>
       )}
     </div>
   );
