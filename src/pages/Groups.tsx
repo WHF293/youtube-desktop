@@ -378,7 +378,7 @@ export default function Groups() {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex items-center gap-1 rounded-full glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
+                className="flex items-center gap-1 rounded-lg glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
               >
                 <Icon name="plus" size={14} />
                 新建分组
@@ -389,7 +389,7 @@ export default function Groups() {
               type="button"
               onClick={() => setImportOpen(true)}
               title="从 JSON 导入博主与分组"
-              className="rounded-full glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
+              className="rounded-lg glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
             >
               导入
             </button>
@@ -397,7 +397,7 @@ export default function Groups() {
               type="button"
               onClick={() => void exportJson()}
               title="导出博主与分组为 JSON 文件"
-              className="rounded-full glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
+              className="rounded-lg glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
             >
               导出文件
             </button>
@@ -405,7 +405,7 @@ export default function Groups() {
               type="button"
               onClick={() => void copyJson()}
               title="复制博主与分组 JSON 到剪贴板"
-              className="rounded-full glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
+              className="rounded-lg glass-btn px-3 py-1.5 text-sm text-ink transition-colors hover:brightness-110"
             >
               {copied ? "已复制" : "复制 JSON"}
             </button>
@@ -502,7 +502,7 @@ export default function Groups() {
               <button
                 type="button"
                 onClick={() => void pickImportFile()}
-                className="rounded-full glass-btn px-3 py-1.5 text-xs text-ink transition-colors hover:brightness-110"
+                className="rounded-lg glass-btn px-3 py-1.5 text-xs text-ink transition-colors hover:brightness-110"
               >
                 选择文件
               </button>
@@ -512,7 +512,7 @@ export default function Groups() {
               <button
                 type="button"
                 onClick={() => setImportOpen(false)}
-                className="rounded-full glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
+                className="rounded-lg glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
               >
                 取消
               </button>
@@ -520,7 +520,7 @@ export default function Groups() {
                 type="button"
                 onClick={confirmImport}
                 disabled={!importText.trim()}
-                className="rounded-full glass-btn px-4 py-1.5 text-xs font-medium text-accent hover:brightness-110 disabled:opacity-50"
+                className="rounded-lg glass-btn px-4 py-1.5 text-xs font-medium text-accent hover:brightness-110 disabled:opacity-50"
               >
                 确认导入
               </button>

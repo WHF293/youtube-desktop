@@ -34,7 +34,7 @@ export default function GlassChipGroup<T extends string>({
       {rect && (
         <span
           aria-hidden
-          className={`glass-btn glass-thumb pointer-events-none left-0 top-0 rounded-full ${thumbPhaseCls(phase)}`}
+          className={`glass-btn glass-thumb pointer-events-none left-0 top-0 rounded-lg ${thumbPhaseCls(phase)}`}
           style={thumbStyle(rect, phase)}
         />
       )}
@@ -45,7 +45,7 @@ export default function GlassChipGroup<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           aria-pressed={o.value === value}
-          className={`relative shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs transition-colors ${
+          className={`relative shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs transition-colors ${
             o.value === value ? "font-medium text-accent" : "text-ink-2 hover:text-ink"
           }`}
         >

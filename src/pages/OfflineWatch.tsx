@@ -60,7 +60,7 @@ export default function OfflineWatch() {
         <button
           type="button"
           onClick={() => void openPath(downloadDir)}
-          className="flex shrink-0 items-center gap-1.5 rounded-full glass-btn px-3 py-1.5 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg glass-btn px-3 py-1.5 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
         >
           <Icon name="folder" size={14} />
           所在文件夹

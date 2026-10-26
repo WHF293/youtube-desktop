@@ -76,7 +76,7 @@ export default function ChannelManager() {
           type="button"
           onClick={() => void commitAdd()}
           disabled={busy || !input.trim()}
-          className="shrink-0 rounded-full glass-btn px-4 py-1.5 text-sm text-ink hover:brightness-110 disabled:opacity-50"
+          className="shrink-0 rounded-lg glass-btn px-4 py-1.5 text-sm text-ink hover:brightness-110 disabled:opacity-50"
         >
           {busy ? "解析中…" : "添加"}
         </button>
@@ -109,7 +109,7 @@ export default function ChannelManager() {
           type="button"
           onClick={() => commitImport(csv, "粘贴内容")}
           disabled={!csv.trim()}
-          className="mt-2 rounded-full glass-btn px-3 py-1 text-xs text-ink hover:brightness-110 disabled:opacity-50"
+          className="mt-2 rounded-lg glass-btn px-3 py-1 text-xs text-ink hover:brightness-110 disabled:opacity-50"
         >
           导入粘贴内容
         </button>

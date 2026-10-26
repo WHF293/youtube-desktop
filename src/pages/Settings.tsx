@@ -97,7 +97,7 @@ export default function Settings() {
                 settings.setDownloadDir(sel),
               );
             }}
-            className="shrink-0 rounded-full glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
+            className="shrink-0 rounded-lg glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
           >
             选择文件夹
           </button>
@@ -105,7 +105,7 @@ export default function Settings() {
             type="button"
             onClick={() => settings.setDownloadDir(DEFAULT_DOWNLOAD_DIR)}
             title="恢复默认目录"
-            className="shrink-0 rounded-full glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
+            className="shrink-0 rounded-lg glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
           >
             <Icon name="refresh" size={14} />
           </button>
@@ -152,7 +152,7 @@ export default function Settings() {
                 },
               );
             }}
-            className="shrink-0 rounded-full glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
+            className="shrink-0 rounded-lg glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
           >
             选择文件
           </button>
@@ -198,7 +198,7 @@ export default function Settings() {
             settings.setProxy(DEFAULT_PROXY);
             if (isTauri()) void invoke("save_webview_proxy", { proxy: DEFAULT_PROXY }).catch(() => {});
           }}
-          className="mt-2 rounded-full glass-btn px-3 py-1 text-xs text-ink-2 hover:brightness-110 hover:text-ink"
+          className="mt-2 rounded-lg glass-btn px-3 py-1 text-xs text-ink-2 hover:brightness-110 hover:text-ink"
         >
           恢复默认（{DEFAULT_PROXY}）
         </button>
@@ -218,7 +218,7 @@ export default function Settings() {
           type="button"
           onClick={() => void openExternal(REPO_URL)}
           title="在系统浏览器中打开仓库"
-          className="flex shrink-0 items-center gap-1.5 rounded-full glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg glass-btn px-3 py-2 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
         >
           查看
           <Icon name="openInNew" size={13} />

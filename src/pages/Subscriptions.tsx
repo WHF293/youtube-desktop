@@ -121,7 +121,7 @@ function FreeTubeFeed() {
                     </p>
                     <Link
                       to="/help"
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-full glass-btn px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-btn px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
                     >
                       查看使用说明
                     </Link>
@@ -269,7 +269,7 @@ function FreeTubeFeed() {
           <Link
             to="/groups"
             title="打开分组管理看板，整理分组"
-            className={`block rounded-full glass-btn px-3 py-1.5 text-center text-sm text-ink hover:brightness-110 ${
+            className={`block rounded-lg glass-btn px-3 py-1.5 text-center text-sm text-ink hover:brightness-110 ${
               collapsed ? "mx-auto w-9 px-0" : ""
             }`}
           >
