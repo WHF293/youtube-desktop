@@ -51,6 +51,10 @@ interface HistoryState {
   init: () => Promise<void>;
   /** 观看页加载完成后记录（重看 = 置顶刷新时间） */
   record: (video: Omit<HistoryEntry, "watchedAt">) => Promise<void>;
+  /** 按条删除观看记录 */
+  remove: (videoId: string) => Promise<void>;
+  /** 按天删除（传入该天任意一条记录的 watchedAt，删除其本地日期的全天记录） */
+  removeDay: (watchedAt: number) => Promise<void>;
 }
 
 export const useHistory = create<HistoryState>()((set, get) => ({
@@ -93,5 +97,32 @@ export const useHistory = create<HistoryState>()((set, get) => ({
     } catch {
       /* 记录失败不打断观看 */
     }
+  },
+
+  remove: async (videoId) => {
+    try {
+      const d = await getDb();
+      await d.execute("DELETE FROM watch_history WHERE video_id = $1", [videoId]);
+    } catch {
+      /* DB 异常时仍同步本地视图，下次 init 会再对齐 */
+    }
+    set({ entries: get().entries.filter((e) => e.videoId !== videoId) });
+  },
+
+  removeDay: async (watchedAt) => {
+    const start = new Date(watchedAt);
+    start.setHours(0, 0, 0, 0);
+    const startTime = start.getTime();
+    const endTime = startTime + 86_400_000;
+    try {
+      const d = await getDb();
+      await d.execute("DELETE FROM watch_history WHERE watched_at >= $1 AND watched_at < $2", [
+        startTime,
+        endTime,
+      ]);
+    } catch {
+      /* 同上 */
+    }
+    set({ entries: get().entries.filter((e) => e.watchedAt < startTime || e.watchedAt >= endTime) });
   },
 }));

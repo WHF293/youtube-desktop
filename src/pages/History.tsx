@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useHistory, type HistoryEntry } from "../stores/history";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
+import ConfirmDialog from "../components/ConfirmDialog";
 import Spinner, { ErrorBox } from "../components/Spinner";
 
 /** 观看记录页：按日期分组，今天自动展开，更早的日期默认收起（点击展开），时间倒序；
@@ -26,9 +27,12 @@ function timeLabel(ms: number): string {
 }
 
 export default function History() {
-  const { entries, status, error, init } = useHistory();
+  const { entries, status, error, init, remove, removeDay } = useHistory();
   // 默认只展开今天；手动展开过的日期记住状态
   const [openKeys, setOpenKeys] = useState<Set<string>>(() => new Set([dayKey(Date.now())]));
+  // 删除二次确认：按条 / 按天
+  const [confirmItem, setConfirmItem] = useState<HistoryEntry | null>(null);
+  const [confirmDay, setConfirmDay] = useState<{ key: string; label: string; count: number; watchedAt: number } | null>(null);
 
   useEffect(() => {
     void init();
@@ -77,20 +81,32 @@ export default function History() {
           const open = openKeys.has(key);
           return (
             <section key={key} className="mt-4">
-              <button
-                type="button"
-                onClick={() => toggle(key)}
-                aria-expanded={open}
-                className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-flat"
-              >
-                <Icon
-                  name="chevronRight"
-                  size={14}
-                  className={`shrink-0 text-ink-3 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
-                />
-                <span className="text-sm font-medium text-ink">{dayLabel(key)}</span>
-                <span className="text-xs text-ink-3">（{list.length}）</span>
-              </button>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(key)}
+                  aria-expanded={open}
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-flat"
+                >
+                  <Icon
+                    name="chevronRight"
+                    size={14}
+                    className={`shrink-0 text-ink-3 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+                  />
+                  <span className="text-sm font-medium text-ink">{dayLabel(key)}</span>
+                  <span className="text-xs text-ink-3">（{list.length}）</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmDay({ key, label: dayLabel(key), count: list.length, watchedAt: list[0].watchedAt })
+                  }
+                  title={`删除 ${dayLabel(key)} 的全部 ${list.length} 条记录`}
+                  className="shrink-0 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:text-accent"
+                >
+                  清空
+                </button>
+              </div>
               {/* 高度过渡的展开/收起 */}
               <div
                 className="grid transition-[grid-template-rows] duration-200"
@@ -99,32 +115,42 @@ export default function History() {
                 <div className="overflow-hidden">
                   <div className="flex flex-col gap-2 pt-2">
                     {list.map((e) => (
-                      <Link
+                      <div
                         key={e.videoId}
-                        to={`/watch/${e.videoId}`}
-                        className="flex items-center gap-3 rounded-xl border border-line bg-app p-2 transition-colors hover:bg-flat"
+                        className="flex items-center gap-1 rounded-xl border border-line bg-app p-2 transition-colors hover:bg-flat"
                       >
-                        {e.thumb ? (
-                          <span className="relative shrink-0">
-                            <Img src={e.thumb} alt="" className="h-12 w-20 rounded-lg bg-flat object-cover" />
-                            {e.duration && (
-                              <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] font-medium text-white">
-                                {e.duration}
-                              </span>
-                            )}
+                        <Link to={`/watch/${e.videoId}`} className="flex min-w-0 flex-1 items-center gap-3">
+                          {e.thumb ? (
+                            <span className="relative shrink-0">
+                              <Img src={e.thumb} alt="" className="h-12 w-20 rounded-lg bg-flat object-cover" />
+                              {e.duration && (
+                                <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] font-medium text-white">
+                                  {e.duration}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="h-12 w-20 shrink-0 rounded-lg bg-flat" />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="clamp-2 block text-sm font-medium text-ink">{e.title}</span>
+                            <span className="mt-0.5 block truncate text-xs text-ink-3">
+                              {e.channelTitle}
+                              {e.channelTitle && " · "}
+                              {timeLabel(e.watchedAt)}
+                            </span>
                           </span>
-                        ) : (
-                          <span className="h-12 w-20 shrink-0 rounded-lg bg-flat" />
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="clamp-2 block text-sm font-medium text-ink">{e.title}</span>
-                          <span className="mt-0.5 block truncate text-xs text-ink-3">
-                            {e.channelTitle}
-                            {e.channelTitle && " · "}
-                            {timeLabel(e.watchedAt)}
-                          </span>
-                        </span>
-                      </Link>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmItem(e)}
+                          title="删除该条记录"
+                          aria-label={`删除记录 ${e.title}`}
+                          className="shrink-0 rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-accent"
+                        >
+                          <Icon name="close" size={14} />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -132,6 +158,30 @@ export default function History() {
             </section>
           );
         })}
+
+        {/* 删除二次确认：按条 / 按天 */}
+        {confirmItem && (
+          <ConfirmDialog
+            title="删除该条观看记录？"
+            message={confirmItem.title}
+            onConfirm={() => {
+              void remove(confirmItem.videoId);
+              setConfirmItem(null);
+            }}
+            onCancel={() => setConfirmItem(null)}
+          />
+        )}
+        {confirmDay && (
+          <ConfirmDialog
+            title={`删除 ${confirmDay.label} 的全部记录？`}
+            message={`共 ${confirmDay.count} 条，删除后不可恢复。`}
+            onConfirm={() => {
+              void removeDay(confirmDay.watchedAt);
+              setConfirmDay(null);
+            }}
+            onCancel={() => setConfirmDay(null)}
+          />
+        )}
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useChannels, type SubChannel, buildChannelsExport } from "../stores/channels";
 import { refreshChannelsMeta } from "../stores/subsFeed";
 import { registerPageRefresh } from "../lib/refresh";
+import ConfirmDialog from "../components/ConfirmDialog";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
 
@@ -28,13 +29,16 @@ import Icon from "../components/Icon";
  * 不依赖 HTML5 原生 drag & drop（WebView2 下原生方案光标异常/事件不稳）。
  */
 
-/** 博主卡片（可拖拽；点击进频道页——传感器 distance 约束区分点击与拖拽） */
+/** 博主卡片（可拖拽；点击进频道页——传感器 distance 约束区分点击与拖拽；
+ *  右键弹出管理菜单，目前仅删除） */
 function BloggerCard({
   c,
   onOpen,
+  onContextMenu,
 }: {
   c: SubChannel;
   onOpen: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: c.id,
@@ -48,6 +52,7 @@ function BloggerCard({
       {...attributes}
       {...listeners}
       onClick={() => onOpen(c.id)}
+      onContextMenu={onContextMenu}
       className={`flex cursor-grab touch-none items-center gap-2.5 rounded-xl border border-line bg-app p-2 transition-colors hover:bg-flat active:cursor-grabbing ${
         isDragging ? "opacity-30 ring-1 ring-accent" : ""
       }`}
@@ -196,7 +201,7 @@ function GroupColumn({
 }
 
 export default function Groups() {
-  const { channels, groups, moveChannel, addGroup, removeGroup, moveGroup, reorderChannel, reorderGroups } =
+  const { channels, groups, moveChannel, addGroup, remove, removeGroup, moveGroup, reorderChannel, reorderGroups } =
     useChannels();
   const navigate = useNavigate();
   // 删除分组二次确认（3 秒自动复位）
@@ -223,6 +228,10 @@ export default function Groups() {
   const [importResult, setImportResult] = useState("");
   const [copied, setCopied] = useState(false);
   const { importJson } = useChannels();
+
+  // 博主卡片右键菜单 + 删除二次确认
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; channel: SubChannel } | null>(null);
+  const [confirmChannel, setConfirmChannel] = useState<SubChannel | null>(null);
 
   const buildExport = () => buildChannelsExport(channels, groups);
 
@@ -434,7 +443,15 @@ export default function Groups() {
               canMoveRight={groups[groups.length - 1]?.id !== col.groupId}
             >
               {col.list.map((c) => (
-                <BloggerCard key={c.id} c={c} onOpen={(id) => navigate(`/channel/${id}`)} />
+                <BloggerCard
+                  key={c.id}
+                  c={c}
+                  onOpen={(id) => navigate(`/channel/${id}`)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setCtxMenu({ x: e.clientX, y: e.clientY, channel: c });
+                  }}
+                />
               ))}
               {col.list.length === 0 && (
                 <p className="rounded-xl border border-dashed border-line px-2 py-6 text-center text-xs leading-5 text-ink-3">
@@ -527,6 +544,54 @@ export default function Groups() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 博主卡片右键菜单（仅删除） */}
+      {ctxMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[55]"
+            onClick={() => setCtxMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setCtxMenu(null);
+            }}
+            aria-hidden="true"
+          />
+          <div
+            role="menu"
+            className="fixed z-[56] w-32 rounded-lg border border-line bg-surface py-1 shadow-island"
+            style={{
+              left: Math.min(ctxMenu.x, window.innerWidth - 140),
+              top: Math.min(ctxMenu.y, window.innerHeight - 60),
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setConfirmChannel(ctxMenu.channel);
+                setCtxMenu(null);
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-ink transition-colors hover:bg-flat hover:text-accent"
+            >
+              删除
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* 删除博主二次确认 */}
+      {confirmChannel && (
+        <ConfirmDialog
+          title={`删除博主「${confirmChannel.title}」？`}
+          message="将从订阅列表中移除该博主（分组归属一并删除），确认后不可恢复。"
+          onConfirm={() => {
+            remove(confirmChannel.id);
+            setConfirmChannel(null);
+          }}
+          onCancel={() => setConfirmChannel(null)}
+        />
       )}
     </DndContext>
   );
