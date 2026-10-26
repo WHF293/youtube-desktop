@@ -199,7 +199,13 @@ export default function Sidebar() {
           )}
           {NAV_ITEMS.map((item) => (
             <li key={item.to}>
-              <NavLink to={item.to} end={item.end} className={navLinkCls} {...tipHandlers(item.label)}>
+              <NavLink
+                to={item.to}
+                end={item.end}
+                data-thumb-item
+                className={navLinkCls}
+                {...tipHandlers(item.label)}
+              >
                 <Icon name={item.icon} size={20} className="shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </NavLink>
