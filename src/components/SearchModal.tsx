@@ -129,6 +129,12 @@ export default function SearchModal({ open, onClose }: Props) {
       moveActive(-1);
     } else if (event.key === "Enter") {
       event.preventDefault();
+      // 有关键词时 Enter = 进入搜索页平铺全部结果；弹窗内点击具体条目才是快速打开
+      const q = keyword.trim();
+      if (!isIdle && q) {
+        goSearchPage(q);
+        return;
+      }
       confirmRow(rows[activeIndex]);
     } else if (event.key === "Escape") {
       event.preventDefault();
@@ -168,6 +174,24 @@ export default function SearchModal({ open, onClose }: Props) {
 
         {/* 列表区 */}
         <ul className="max-h-[50vh] space-y-1 overflow-auto p-2">
+          {/* 平铺入口：把当前关键词的完整结果展开到搜索页（多语言 + 无限滚动） */}
+          {!isIdle && (
+            <li>
+              <button
+                type="button"
+                onClick={() => goSearchPage(keyword.trim())}
+                className={`flex w-full items-center gap-2 rounded-xl border border-line px-3 py-2 text-left text-sm transition-colors ${
+                  activeIndex === -1 ? "bg-flat-strong" : "bg-flat/50 hover:bg-flat"
+                }`}
+              >
+                <Icon name="openInNew" size={14} className="shrink-0 text-accent" />
+                <span className="flex-1">
+                  在页面中展开「<b className="font-medium text-ink">{keyword.trim()}</b>」的全部结果
+                </span>
+                <span className="shrink-0 text-xs text-ink-3">Enter</span>
+              </button>
+            </li>
+          )}
           {!isIdle && searching && (
             <li className="px-3 py-2 text-xs text-ink-3">搜索中…</li>
           )}
@@ -222,7 +246,8 @@ export default function SearchModal({ open, onClose }: Props) {
         {/* 底部快捷键提示 */}
         <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-xs text-ink-3">
           <span>↑ ↓ 切换</span>
-          <span>Enter 打开</span>
+          <span>Enter 搜索页</span>
+          <span>点击结果直接播放</span>
           <span>Esc 关闭</span>
         </div>
       </div>

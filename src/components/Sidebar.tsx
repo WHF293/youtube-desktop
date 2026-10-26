@@ -2,20 +2,20 @@ import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import Icon from "./Icon";
 import { useUi } from "../stores/ui";
-import { useQuota, usageToday, DAILY_QUOTA_LIMIT } from "../stores/quota";
-import { useSettings } from "../stores/settings";
+import { useSettings, REGIONS } from "../stores/settings";
 
 const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },
   { to: "/trending", label: "热门", icon: "trending", end: false },
-  { to: "/subscriptions", label: "我的订阅", icon: "subscriptions", end: false },
+  { to: "/subscriptions", label: "订阅", icon: "subscriptions", end: false },
+  { to: "/favorites", label: "收藏", icon: "star", end: false },
 ];
 
 /** 侧栏底部固定入口（贴底） */
-const BOTTOM_ITEMS = [
-  { to: "/quota", label: "今日额度", icon: "gauge", extra: "quota" },
-  { to: "/settings", label: "设置", icon: "settings", extra: "settings" },
-];
+const BOTTOM_ITEMS = [{ to: "/settings", label: "设置", icon: "settings" }];
+
+/** 侧栏地区入口的 hover 说明 */
+const REGION_TIP = "切换首页/热门的内容地区与搜索结果的地区倾向（InnerTube context.gl），选择即生效。";
 
 /** 收起态 hover 气泡（fixed 定位，不受侧栏 overflow 裁剪） */
 function RailTip({ text, x, y }: { text: string; x: number; y: number }) {
@@ -29,14 +29,88 @@ function RailTip({ text, x, y }: { text: string; x: number; y: number }) {
   );
 }
 
+/** 侧栏地区入口：hover 显示说明，点击弹出地区选择浮层，选择即生效 */
+function RegionEntry({ collapsed }: { collapsed: boolean }) {
+  const regionCode = useSettings((s) => s.regionCode);
+  const setRegionCode = useSettings((s) => s.setRegionCode);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
+
+  const openMenu = (e: React.MouseEvent<HTMLElement>) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    // 浮层往右弹出，底部空间不足时上移（浮层最大 480px，超出内部滚动）
+    setMenu({ x: r.right + 8, y: Math.max(12, Math.min(r.top - 8, window.innerHeight - 504)) });
+  };
+
+  const hoverTip = (e: React.MouseEvent<HTMLElement>) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setTip({ text: collapsed ? `地区 · ${regionCode}。${REGION_TIP}` : REGION_TIP, x: r.right, y: r.top + r.height / 2 });
+  };
+
+  const itemCls = `group relative flex w-full items-center rounded-lg text-sm text-ink-2 hover:bg-flat hover:text-ink ${
+    collapsed ? "h-10 justify-center" : "gap-4 px-3 py-2.5"
+  }`;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={openMenu}
+        onMouseEnter={hoverTip}
+        onMouseLeave={() => setTip(null)}
+        aria-label={`地区，当前 ${regionCode}`}
+        className={itemCls}
+      >
+        <Icon name="language" size={20} className="shrink-0" />
+        {!collapsed && (
+          <>
+            <span className="truncate">地区</span>
+            <span className="ml-auto text-xs tabular-nums text-ink-3">{regionCode}</span>
+          </>
+        )}
+      </button>
+
+      {menu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} aria-hidden="true" />
+          <div
+            role="menu"
+            aria-label="选择地区"
+            className="fixed z-50 w-44 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-island"
+            style={{ left: menu.x, top: menu.y, maxHeight: "min(480px, calc(100vh - 24px))" }}
+          >
+            {REGIONS.map(([code, label]) => (
+              <button
+                key={code}
+                type="button"
+                role="menuitemradio"
+                aria-checked={code === regionCode}
+                onClick={() => {
+                  setRegionCode(code);
+                  setMenu(null);
+                }}
+                className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-flat ${
+                  code === regionCode ? "font-medium text-accent" : "text-ink"
+                }`}
+              >
+                <span>
+                  {label}（{code}）
+                </span>
+                {code === regionCode && <span className="text-xs">当前</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tip && <RailTip text={tip.text} x={tip.x} y={tip.y} />}
+    </>
+  );
+}
+
 export default function Sidebar() {
   const open = useUi((s) => s.sidebarOpen);
   const collapsed = !open;
-  // 订阅当日用量（每次请求后 store 更新，侧栏数字实时变化）
-  useQuota((s) => s.units);
-  useQuota((s) => s.date);
-  const { units } = usageToday();
-  const hasApiKey = useSettings((s) => s.apiKey.length > 0);
 
   // 收起态 hover 气泡
   const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -56,19 +130,6 @@ export default function Sidebar() {
           onMouseLeave: () => setTip(null),
         }
       : {};
-
-  const quotaSuffix = collapsed ? null : (
-    <span className="ml-auto text-xs tabular-nums text-ink-3">
-      {units}/{DAILY_QUOTA_LIMIT}
-    </span>
-  );
-
-  const settingsDot =
-    collapsed && !hasApiKey ? (
-      <span className="absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full bg-accent" aria-label="未配置 API Key" />
-    ) : !hasApiKey ? (
-      <span className="ml-auto h-2 w-2 rounded-full bg-accent" aria-label="未配置 API Key" />
-    ) : null;
 
   return (
     <aside
@@ -93,14 +154,15 @@ export default function Sidebar() {
       {/* 底部固定入口 */}
       <div className="shrink-0 px-2 pb-2">
         <hr className="my-2 border-line" />
+        <div className="mb-1">
+          <RegionEntry collapsed={collapsed} />
+        </div>
         <ul className="space-y-1">
           {BOTTOM_ITEMS.map((item) => (
             <li key={item.to}>
               <NavLink to={item.to} className={linkCls} {...tipHandlers(item.label)}>
                 <Icon name={item.icon} size={20} className="shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
-                {item.extra === "quota" && quotaSuffix}
-                {item.extra === "settings" && settingsDot}
               </NavLink>
             </li>
           ))}

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import TitleBar from "./components/TitleBar";
@@ -11,8 +11,10 @@ import Search from "./pages/Search";
 import Watch from "./pages/Watch";
 import Channel from "./pages/Channel";
 import Subscriptions from "./pages/Subscriptions";
+import Groups from "./pages/Groups";
+import Favorites from "./pages/Favorites";
+import Help from "./pages/Help";
 import Settings from "./pages/Settings";
-import Quota from "./pages/Quota";
 import { useTheme } from "./stores/theme";
 import { useVideos } from "./stores/videos";
 import { useSettings } from "./stores/settings";
@@ -21,13 +23,25 @@ export default function App() {
   const theme = useTheme((s) => s.theme);
   const videosStatus = useVideos((s) => s.status);
   const loadPopular = useVideos((s) => s.loadPopular);
+  const regionCode = useSettings((s) => s.regionCode);
   const location = useLocation();
   const navigate = useNavigate();
+  const prevRegion = useRef(regionCode);
 
   // 明暗模式：class 挂在 <html> 上
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+
+  // 地区变化：正处在首页/热门时立刻按新地区的频道组刷新「全部」数据
+  useEffect(() => {
+    if (prevRegion.current === regionCode) return;
+    prevRegion.current = regionCode;
+    if (location.pathname === "/" || location.pathname === "/trending") {
+      const { category } = useVideos.getState();
+      if (!category) void loadPopular(); // 分类 tab 的频道组与地区无关，不刷新
+    }
+  }, [regionCode, location.pathname, loadPopular]);
 
   // 把当前 proxy 同步到 Rust 侧落盘（下次启动 WebView 按 --proxy-server 挂代理，
   // 视频 iframe 播放依赖它）；API/图片请求的代理是即时生效的，无需重启。
@@ -80,8 +94,10 @@ export default function App() {
             <Route path="/watch/:videoId" element={<Watch />} />
             <Route path="/channel/:channelId" element={<Channel />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
+            <Route path="/groups" element={<Groups />} />
+            <Route path="/favorites" element={<Favorites />} />
+            <Route path="/help" element={<Help />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/quota" element={<Quota />} />
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>

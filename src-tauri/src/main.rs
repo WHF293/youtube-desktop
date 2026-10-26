@@ -11,9 +11,11 @@ struct HttpClient(Mutex<Option<(String, reqwest::Client)>>);
 /// 缩略图/头像缓存：url → data URL（超上限整体清空）
 struct ImageCache(Mutex<HashMap<String, String>>);
 
-/// 允许代理加载图片的域名白名单（YouTube 缩略图 / 频道头像 / 评论头像）
+/// 允许代理加载图片的域名白名单（YouTube 缩略图 / 频道头像 / 评论头像）。
+/// ytimg.com 用后缀匹配：RSS 缩略图在 i1~i9.ytimg.com 分片域名上，
+/// InnerTube 在 i.ytimg.com，统一放行 *.ytimg.com。
 const IMG_HOSTS: [&str; 4] = [
-    "i.ytimg.com",
+    "ytimg.com",
     "yt3.ggpht.com",
     "yt3.googleusercontent.com",
     "lh3.googleusercontent.com",
@@ -69,14 +71,32 @@ struct FetchResult {
 
 /// 前端 fetch 没法按请求设代理，YouTube API 请求统一走这里：
 /// 桌面端用 reqwest + 设置页配置的代理；网页端仍用浏览器自身网络栈。
+/// method/body/content_type 可选：官方 Data API 走 GET，InnerTube 端点走 POST + JSON。
 #[tauri::command]
 async fn yt_fetch(
     url: String,
     proxy: String,
+    method: Option<String>,
+    body: Option<String>,
+    content_type: Option<String>,
     state: State<'_, HttpClient>,
 ) -> Result<FetchResult, String> {
     let client = client_for(&proxy, &state)?;
-    let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    let m = method.unwrap_or_else(|| "GET".to_string());
+    let m = m.to_uppercase();
+    let mut req = match m.as_str() {
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        _ => client.get(&url),
+    };
+    if let Some(ct) = content_type {
+        req = req.header("Content-Type", ct);
+    }
+    if let Some(b) = body {
+        req = req.body(b);
+    }
+    let resp = req.send().await.map_err(|e| e.to_string())?;
     let status = resp.status().as_u16();
     let body = resp.text().await.map_err(|e| e.to_string())?;
     Ok(FetchResult { status, body })
@@ -173,9 +193,9 @@ async fn yt_refresh_token(
 }
 
 fn main() {
-    // WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到，
-    // 只能在 WebView 环境创建前通过启动参数挂代理。前端会把设置页的 proxy 同步到
-    // proxy.txt，这里在进程启动时读取并注入 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS。
+    // WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到。
+    // 双保险：① setup 里创建窗口时用官方 proxy_url 挂代理（Windows 原生支持）；
+    // ② 兜底再注入 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS 环境变量。
     if let Some(p) = read_webview_proxy() {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
@@ -188,6 +208,23 @@ fn main() {
         .manage(HttpClient(Mutex::new(None)))
         .manage(ImageCache(Mutex::new(HashMap::new())))
         .invoke_handler(tauri::generate_handler![yt_fetch, yt_image, save_webview_proxy, yt_refresh_token])
+        .setup(|app| {
+            // 主窗口代码创建（tauri.conf.json 不再声明窗口），以便按代理配置创建 WebView
+            let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+                .title("YouTube Desktop")
+                .inner_size(1360.0, 860.0)
+                .min_inner_size(900.0, 600.0)
+                .resizable(true)
+                .decorations(false);
+            if let Some(p) = read_webview_proxy() {
+                match p.parse::<tauri::Url>() {
+                    Ok(u) => builder = builder.proxy_url(u),
+                    Err(e) => eprintln!("代理地址解析失败（{p}）：{e}，WebView 将直连"),
+                }
+            }
+            builder.build()?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

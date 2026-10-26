@@ -13,11 +13,13 @@ export function parseDuration(iso: string | undefined): string {
 }
 
 /** 观看数/订阅数 → 中文习惯（万/亿） */
+/** 数值 → 中文习惯（万/亿），去掉无意义的 .0（2000.0万 → 2000万） */
 export function formatCount(n: string | number | undefined): string {
   const num = typeof n === "string" ? parseInt(n, 10) : n;
   if (num === undefined || Number.isNaN(num)) return "";
-  if (num >= 100_000_000) return `${(num / 100_000_000).toFixed(1)}亿`;
-  if (num >= 10_000) return `${(num / 10_000).toFixed(1)}万`;
+  const trim = (s: string) => s.replace(/\.0$/, "");
+  if (num >= 100_000_000) return `${trim((num / 100_000_000).toFixed(1))}亿`;
+  if (num >= 10_000) return `${trim((num / 10_000).toFixed(1))}万`;
   return String(num);
 }
 

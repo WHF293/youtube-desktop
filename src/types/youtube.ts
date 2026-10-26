@@ -92,19 +92,6 @@ export interface PlaylistItem {
   contentDetails?: { itemCount: number };
 }
 
-export interface SubscriptionSnippet {
-  title: string;
-  description: string;
-  publishedAt: string;
-  resourceId: { channelId: string };
-  thumbnails: Thumbnails;
-}
-
-export interface SubscriptionItem {
-  id: string;
-  snippet: SubscriptionSnippet;
-}
-
 export interface CommentSnippet {
   videoId?: string;
   textDisplay: string;
@@ -124,10 +111,4 @@ export interface CommentThreadItem {
     topLevelComment: { id: string; snippet: CommentSnippet };
     totalReplyCount: number;
   };
-}
-
-export interface ApiError {
-  code: number;
-  message: string;
-  errors?: { reason: string; message: string }[];
 }

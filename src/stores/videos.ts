@@ -1,26 +1,11 @@
 import { create } from "zustand";
-import { ytApi, YoutubeApiError } from "../lib/youtube";
+import { ytApi } from "../lib/youtube";
 import { useSettings } from "./settings";
 import type { VideoItem } from "../types/youtube";
 
 export type Status = "idle" | "loading" | "ready" | "error";
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof YoutubeApiError) {
-    // OAuth 凭证失效：access token 过期（一般 1 小时）或填错
-    if (e.code === 401 || /invalid authentication credentials/i.test(e.message)) {
-      return "访问凭证无效或已过期。OAuth access token 一般 1 小时左右过期，请到「设置」→ OAuth access token 重新生成并粘贴；若只想浏览视频，首页/热门/搜索不受影响。";
-    }
-    // 配额耗尽
-    if (e.code === 403 && /quota/i.test(e.reason ?? e.message)) {
-      return "今日 API 配额已用完（每项目每天 10,000 单位，太平洋时间午夜重置），明天再试或更换 API Key 所在项目。";
-    }
-    // API Key 无效
-    if (/API key not valid|referer/i.test(e.message)) {
-      return "API Key 无效，请到「设置」检查 API Key 是否粘贴完整、YouTube Data API v3 是否已启用。";
-    }
-    return e.message;
-  }
   if (e instanceof Error) return e.message;
   return String(e);
 }
@@ -75,7 +60,8 @@ export const useVideos = create<VideosState>()((set, get) => {
   };
 
   const runPopular = async (id: number, category?: string) => {
-    set({ mode: "popular", query: "", category, status: "loading", error: "", nextPageToken: null });
+    // loadingMore 必须一并重置：切分类打断上一次触底加载时，卡住的 true 会让后续触底永久失效
+    set({ mode: "popular", query: "", category, status: "loading", error: "", nextPageToken: null, loadingMore: false });
     try {
       const { regionCode } = useSettings.getState();
       const r = await ytApi.mostPopularPage(24, regionCode, undefined, category);
@@ -88,7 +74,7 @@ export const useVideos = create<VideosState>()((set, get) => {
   };
 
   const runSearch = async (id: number, q: string) => {
-    set({ mode: "search", query: q, status: "loading", error: "", nextPageToken: null });
+    set({ mode: "search", query: q, status: "loading", error: "", nextPageToken: null, loadingMore: false });
     try {
       searchLangs = langs();
       searchTokens = {};

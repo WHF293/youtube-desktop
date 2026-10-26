@@ -79,17 +79,8 @@ export default function TitleBar() {
       onDoubleClick={onDoubleClick}
       className="flex h-9 shrink-0 select-none items-center justify-between border-b border-line bg-surface pl-3"
     >
-      {/* 左侧：侧栏开关 + 品牌 */}
+      {/* 左侧：品牌 + 侧栏开关 */}
       <div className="flex min-w-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          aria-label="切换侧栏"
-          title="切换侧栏"
-          className="flex shrink-0 items-center justify-center rounded p-1.5 text-ink-2 hover:bg-flat hover:text-ink"
-        >
-          <Icon name="menu" size={18} />
-        </button>
         <button
           type="button"
           onClick={() => navigate("/")}
@@ -98,6 +89,15 @@ export default function TitleBar() {
         >
           <YouTubeLogo size={20} />
           <span className="truncate text-sm font-semibold text-ink">YouTube Desktop</span>
+        </button>
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="切换侧栏"
+          title="切换侧栏"
+          className="flex shrink-0 items-center justify-center rounded p-1.5 text-ink-2 hover:bg-flat hover:text-ink"
+        >
+          <Icon name="menu" size={18} />
         </button>
       </div>
 
@@ -122,6 +122,15 @@ export default function TitleBar() {
           className="flex w-11 items-center justify-center text-ink-2 hover:bg-flat hover:text-ink"
         >
           <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/help")}
+          aria-label="使用说明"
+          title="使用说明"
+          className="flex w-11 items-center justify-center text-ink-2 hover:bg-flat hover:text-ink"
+        >
+          <Icon name="book" size={16} />
         </button>
 
         {/* 窗口控制按钮（浏览器预览时禁用） */}
