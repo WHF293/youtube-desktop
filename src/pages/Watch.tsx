@@ -13,7 +13,8 @@ import { bestThumb, formatCount, formatDate, formatViews, parseDuration } from "
 import { openExternal } from "../lib/open";
 
 /** 观看页：iframe 播放器 + 标题/统计 + 频道信息 + 简介 + 评论 + 相关视频。
- *  播放器经 IFrame API 创建：开启简体中文字幕（无原生中文字幕时自动翻译） */
+ *  播放器经 IFrame API 创建：开启简体中文字幕（无原生中文字幕时自动翻译）；
+ *  主播放器滚出视口顶部时小窗接力播放（同一节点换 CSS 定位，播放不中断） */
 export default function Watch() {
   const { videoId = "" } = useParams();
   const player = usePlayer();
@@ -22,18 +23,56 @@ export default function Watch() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const isFav = useFavorites((s) => s.videos.some((v) => v.videoId === videoId));
 
-  // 播放器宿主（React 只管理外层容器，内部节点交给 IFrame API 创建/销毁）
+  // 播放器宿主（React 只管理外层容器，内部节点交给 IFrame API 创建/销毁）；
+  // videoSlot 是播放器的文档流占位（保持原布局尺寸），小窗态时播放器本体脱离文档流
   const ytHostRef = useRef<HTMLDivElement | null>(null);
+  const videoSlotRef = useRef<HTMLDivElement | null>(null);
   const [apiFailed, setApiFailed] = useState(false);
+  const [mini, setMini] = useState(false);
+  const [miniClosed, setMiniClosed] = useState(false);
 
   useEffect(() => {
     setDescExpanded(false);
     setFavModalOpen(false);
     setDownloadOpen(false);
     setApiFailed(false);
+    setMini(false);
+    setMiniClosed(false);
     void player.load(videoId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
+
+  // 小窗接力：主播放器完全滚出视口顶部 → 播放器本体 fixed 到右下角（同一 DOM 节点换
+  // CSS 定位，播放不中断）；回到可视区域 → 自动还原。可见性判定用 scroll + getBoundingClientRect
+  // （与触底加载同款确定性方案，本项目环境 IntersectionObserver 回调不触发）
+  useEffect(() => {
+    const slot = videoSlotRef.current;
+    if (!slot) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const rect = slot.getBoundingClientRect();
+      if (rect.bottom > 0) {
+        // 主播放器重新可见：还原 + 重置手动关闭标记
+        if (miniClosed) setMiniClosed(false);
+        setMini(false);
+      } else if (!miniClosed) {
+        setMini(true);
+      }
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    const scroller = document.getElementById("main-scroll");
+    scroller?.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    update();
+    return () => {
+      scroller?.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [player.status, miniClosed]);
 
   // 创建 IFrame API 播放器（视频切换 / API 失败重试时重建）；失败回退静态 iframe
   useEffect(() => {
@@ -102,34 +141,56 @@ export default function Watch() {
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 xl:flex-row">
       {/* 左列：播放器 + 信息 + 评论 */}
       <div className="min-w-0 flex-1">
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
-          {apiFailed ? (
-            <iframe
-              key={videoId}
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=zh-Hans`}
-              title={video.snippet.title}
-              className="h-full w-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          ) : (
-            <div ref={ytHostRef} className="absolute inset-0" />
-          )}
-          {/* 兜底：iframe 走 WebView 代理（改代理需重启生效），部分视频禁嵌入；
-              黑屏时一键跳系统浏览器播放 */}
-          <button
-            type="button"
-            onClick={() => void openExternal(`https://www.youtube.com/watch?v=${videoId}`)}
-            title="在系统浏览器中播放"
-            aria-label="在系统浏览器中播放"
-            className="absolute right-2 top-2 rounded-full bg-black/60 p-2 text-white/80 transition-colors hover:bg-black/80 hover:text-white"
+        {/* 视频占位：始终保持原布局尺寸；播放器本体在小窗态脱离文档流固定到右下角 */}
+        <div ref={videoSlotRef} className="relative aspect-video w-full">
+          <div
+            className={
+              mini
+                ? "fixed bottom-6 right-6 z-50 aspect-video w-[400px] overflow-hidden rounded-xl border border-line bg-black shadow-island"
+                : "absolute inset-0 overflow-hidden rounded-xl bg-black"
+            }
           >
-            <Icon name="openInNew" size={18} />
-          </button>
+            {apiFailed ? (
+              <iframe
+                key={videoId}
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=zh-Hans`}
+                title={video.snippet.title}
+                className="absolute inset-0 h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <div ref={ytHostRef} className="absolute inset-0" />
+            )}
+            {/* 悬浮操作：小窗关闭（仅小窗态）+ 系统浏览器兜底 */}
+            <div className="absolute right-2 top-2 z-10 flex gap-2">
+              {mini && (
+                <button
+                  type="button"
+                  onClick={() => setMiniClosed(true)}
+                  title="关闭小窗"
+                  aria-label="关闭小窗"
+                  className="rounded-full bg-black/60 p-2 text-white/80 transition-colors hover:bg-black/80 hover:text-white"
+                >
+                  <Icon name="close" size={18} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void openExternal(`https://www.youtube.com/watch?v=${videoId}`)}
+                title="在系统浏览器中播放"
+                aria-label="在系统浏览器中播放"
+                className="rounded-full bg-black/60 p-2 text-white/80 transition-colors hover:bg-black/80 hover:text-white"
+              >
+                <Icon name="openInNew" size={18} />
+              </button>
+            </div>
+          </div>
         </div>
         <p className="mt-1.5 text-xs leading-5 text-ink-3">
           视频经 WebView 加载，走启动时注入的代理（修改代理后需重启应用生效）；字幕自动开启并翻译为简体中文（无中文字幕的
-          AI 翻译可能有误差）；若个别视频黑屏，可能为该视频限制站外播放，点右上角按钮在系统浏览器中观看。
+          AI 翻译可能有误差）；播放器滚出视口时自动收进右下角小窗继续播放；若个别视频黑屏，可能为该视频限制站外播放，
+          点右上角按钮在系统浏览器中观看。
         </p>
 
         <h1 className="mt-3 text-xl font-semibold leading-7 text-ink">{video.snippet.title}</h1>
