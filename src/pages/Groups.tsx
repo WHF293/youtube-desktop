@@ -120,7 +120,7 @@ function GroupColumn({
         }`}
       >
         {isCustom && (
-          <Icon name="menu" size={12} className="shrink-0 text-ink-3" />
+          <Icon name="grip" size={12} className="shrink-0 text-ink-3" />
         )}
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{name}</h2>
         <span className="shrink-0 text-xs tabular-nums text-ink-3">{count}</span>

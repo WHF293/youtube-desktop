@@ -116,6 +116,12 @@ function FreeTubeFeed() {
                       在右侧「我的博主」下方添加频道（粘贴频道链接或 ID），或导入 Google Takeout 的
                       subscriptions.csv。订阅数据只存在本机，不需要登录 Google。
                     </p>
+                    <Link
+                      to="/help"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                    >
+                      查看使用说明
+                    </Link>
                   </div>
                 ))}
             </>
@@ -132,7 +138,7 @@ function FreeTubeFeed() {
       >
         <header className="flex shrink-0 items-center px-3 pb-1 pt-3">
           {collapsed ? (
-            /* 收起态：顶部为展开按钮（chevron 朝左），下方保留博主计数 */
+            /* 收起态：顶部为展开按钮（whf-stock-board 同款右栏开关图标），下方保留博主计数 */
             <button
               type="button"
               onClick={() => setCollapsed(false)}
@@ -140,7 +146,7 @@ function FreeTubeFeed() {
               aria-label="展开我的博主"
               className="mx-auto flex flex-col items-center gap-1 rounded-full p-1 text-ink-3 transition-colors hover:bg-flat hover:text-ink"
             >
-              <Icon name="chevronRight" size={16} className="rotate-180" />
+              <Icon name="panelRight" size={16} />
               <span className="text-[10px] font-semibold tabular-nums">{channels.length}</span>
             </button>
           ) : (
@@ -153,7 +159,7 @@ function FreeTubeFeed() {
                 aria-label="收起我的博主"
                 className="ml-auto rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-ink"
               >
-                <Icon name="chevronRight" size={16} />
+                <Icon name="panelRight" size={16} />
               </button>
             </>
           )}
@@ -255,16 +261,16 @@ function FreeTubeFeed() {
           </div>
         )}
 
-        {/* 底部固定：博主分组入口（分组的新建/拖拽整理在「博主分组」页） */}
+        {/* 底部固定：分组管理入口（分组的新建/拖拽整理在「分组管理」页） */}
         <footer className="shrink-0 px-2.5 pb-3">
           <Link
             to="/groups"
-            title="打开博主分组看板，整理分组"
+            title="打开分组管理看板，整理分组"
             className={`block rounded-full bg-flat px-3 py-1.5 text-center text-sm text-ink hover:bg-flat-strong ${
               collapsed ? "mx-auto w-9 px-0" : ""
             }`}
           >
-            {collapsed ? <Icon name="library" size={16} className="mx-auto" /> : "博主分组"}
+            {collapsed ? <Icon name="library" size={16} className="mx-auto" /> : "分组管理"}
           </Link>
         </footer>
       </aside>

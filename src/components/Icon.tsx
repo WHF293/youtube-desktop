@@ -1,6 +1,7 @@
-// 内联 SVG 图标（Material Design 风格 path），不依赖字体 CDN
+// 内联 SVG 图标，不依赖字体 CDN。两套风格：
+// - PATHS：Material Design 填充风格（fill=currentColor）
+// - STROKE_PATHS：24x24 线性风格（参考 whf-stock-board MenuIcon，fill=none + stroke=currentColor）
 const PATHS: Record<string, string> = {
-  menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
   search:
     "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
   home: "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
@@ -39,7 +40,6 @@ const PATHS: Record<string, string> = {
     "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z",
   close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
   plus: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
-  book: "M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z",
   star:
     "M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z",
   starBorder:
@@ -52,6 +52,18 @@ const PATHS: Record<string, string> = {
   play: "M8 5v14l11-7z",
 };
 
+/** 线性 stroke 图标（path 源自 whf-stock-board MenuIcon.vue，与该应用的图标语言保持一致） */
+const STROKE_PATHS: Record<string, string> = {
+  // 侧栏开关：面板 + 左侧竖线分隔（whf-stock-board 标题栏同款 panelLeft）
+  menu: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+  // 拖拽把手：两列圆点（whf-stock-board 分组拖拽同款 grip）
+  grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
+  // 右栏开关：panelLeft 的镜像（右侧竖线分隔），订阅页右栏收起/展开用
+  panelRight: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+  // 软件文档：摊开的书（左右两页 + 文本行，whf-stock-board 白皮书同款）
+  book: '<path d="M12 6.5C10.3 5.2 8.1 4.8 4 4.8V19c4.1 0 6.3.4 8 1.7 1.7-1.3 3.9-1.7 8-1.7V4.8c-4.1 0-6.3.4-8 1.7z"/><path d="M12 6.5v14.2"/><path d="M6.6 8.6h2.4M6.6 11.6h2.4M15 8.6h2.4M15 11.6h2.4"/>',
+};
+
 interface IconProps {
   name: keyof typeof PATHS | string;
   size?: number;
@@ -59,6 +71,24 @@ interface IconProps {
 }
 
 export default function Icon({ name, size = 24, className }: IconProps) {
+  const stroke = STROKE_PATHS[name];
+  if (stroke) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className={className}
+        dangerouslySetInnerHTML={{ __html: stroke }}
+      />
+    );
+  }
   const path = PATHS[name] ?? PATHS.error;
   return (
     <svg
