@@ -46,6 +46,17 @@ export default function Settings() {
     if (isTauri()) void invoke("save_webview_proxy", { proxy: p }).catch(() => {});
   };
 
+  /** 打开系统选择器并应用所选路径（失败弹窗提示，不静默） */
+  const pickPath = async (opts: Parameters<typeof open>[0], apply: (sel: string) => void) => {
+    try {
+      const sel = await open(opts);
+      if (typeof sel === "string" && sel) apply(sel.replaceAll("\\\\", "/").replaceAll("\\", "/"));
+    } catch (e) {
+      console.error(e);
+      alert(`选择器打开失败：${String(e)}`);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl p-6">
       <h1 className="text-lg font-semibold text-ink">设置</h1>
@@ -82,9 +93,9 @@ export default function Settings() {
           <button
             type="button"
             onClick={() => {
-              void open({ directory: true, multiple: false, defaultPath: settings.downloadDir }).then((sel) => {
-                if (typeof sel === "string" && sel) settings.setDownloadDir(sel.replaceAll("\\\\", "/").replaceAll("\\", "/"));
-              });
+              void pickPath({ directory: true, multiple: false, defaultPath: settings.downloadDir }, (sel) =>
+                settings.setDownloadDir(sel),
+              );
             }}
             className="shrink-0 rounded-full bg-flat px-3 py-2 text-xs text-ink-2 transition-colors hover:bg-flat-strong hover:text-ink"
           >
@@ -144,16 +155,13 @@ export default function Settings() {
           <button
             type="button"
             onClick={() => {
-              void open({
-                multiple: false,
-                filters: [{ name: "ffmpeg", extensions: ["exe"] }],
-              }).then((sel) => {
-                if (typeof sel === "string" && sel) {
-                  const p = sel.replaceAll("\\\\", "/").replaceAll("\\", "/");
-                  setFfmpegInput(p);
-                  settings.setFfmpegPath(p);
-                }
-              });
+              void pickPath(
+                { multiple: false, filters: [{ name: "ffmpeg", extensions: ["exe"] }] },
+                (sel) => {
+                  setFfmpegInput(sel);
+                  settings.setFfmpegPath(sel);
+                },
+              );
             }}
             className="shrink-0 rounded-full bg-flat px-3 py-2 text-xs text-ink-2 transition-colors hover:bg-flat-strong hover:text-ink"
           >

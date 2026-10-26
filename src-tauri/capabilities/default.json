@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "主窗口能力：窗口控制（自绘标题栏用）、事件监听（isMaximized 同步）、系统浏览器打开外链（opener）",
+  "description": "主窗口能力：窗口控制（自绘标题栏用）、事件监听（isMaximized/下载进度同步）、系统浏览器打开外链（opener）、文件夹/文件选择（dialog，下载目录与 ffmpeg 路径）、观看记录本地库（sql，含 execute 写入）",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -13,6 +13,9 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "opener:default",
-    "opener:allow-open-url"
+    "opener:allow-open-url",
+    "dialog:default",
+    "sql:default",
+    "sql:allow-execute"
   ]
 }
