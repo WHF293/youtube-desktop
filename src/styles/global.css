@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* class 策略暗色变体：<html class="dark"> 生效 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 主题 token：亮色 */
+:root {
+  --app-bg: #f9f9f9;
+  --app-surface: #ffffff;
+  --app-flat: #f2f2f2;
+  --app-flat-strong: #e5e5e5;
+  --app-line: #e5e5e5;
+  --app-ink: #0f0f0f;
+  --app-ink-2: #606060;
+  --app-ink-3: #909090;
+}
+
+/* 主题 token：暗色（YouTube 风格） */
+.dark {
+  --app-bg: #0f0f0f;
+  --app-surface: #212121;
+  --app-flat: #272727;
+  --app-flat-strong: #3f3f3f;
+  --app-line: #303030;
+  --app-ink: #f1f1f1;
+  --app-ink-2: #aaaaaa;
+  --app-ink-3: #717171;
+}
+
+@theme inline {
+  --color-app: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-flat: var(--app-flat);
+  --color-flat-strong: var(--app-flat-strong);
+  --color-line: var(--app-line);
+  --color-ink: var(--app-ink);
+  --color-ink-2: var(--app-ink-2);
+  --color-ink-3: var(--app-ink-3);
+  --color-accent: #ff0000;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "Segoe UI", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* 标题栏拖拽区内的元素恢复默认可交互 */
+[data-tauri-drag-region] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 细滚动条 */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--app-flat-strong);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 两行截断 */
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}

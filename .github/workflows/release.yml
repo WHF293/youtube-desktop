@@ -1,0 +1,105 @@
+# 发布流程（参考 whf-stock-board release.yml，裁剪为 Windows 桌面单平台）：
+# - 推送 v* tag → GitHub Actions 在 windows runner 上构建 msi / nsis 安装包，
+#   自动创建 GitHub Release 并上传产物
+# - Release 描述由上一个可到达 tag 到当前 tag 的提交主题自动生成
+#   （提交须遵循 conventional commits：feat:/fix:/refactor: ...）
+# - 守卫：tag 指向的提交必须可从 main 到达，防止绕过分支保护直接发版
+
+name: Release App (Desktop)
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+# 同一 tag 的发布串行化，避免竞写同一 Release
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    name: Desktop（Windows msi / nsis）
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 拉全量历史，供「tag 是否在 main 上」的祖先校验与变更列表生成使用
+          fetch-depth: 0
+
+      # 发布守卫：tag 指向的提交必须可从 main 到达
+      - name: Verify tag is on main
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          if git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "tag ${GITHUB_REF_NAME} 位于 main 分支历史上，允许发布"
+          else
+            echo "::error::tag ${GITHUB_REF_NAME} 的提交不在 main 分支上，拒绝发布"
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 从上一个可到达 tag 到当前 HEAD 的提交主题生成带编号的变更列表，
+      # 作为 Release 描述。锚定 HEAD^：tag 触发时 HEAD 即当前 tag（describe 取上一个 tag）
+      - name: Generate release notes
+        id: changelog
+        shell: bash
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null || true)
+          if [ -n "$PREV_TAG" ]; then
+            SUBJECTS=$(git log --pretty=format:"%s" "${PREV_TAG}..HEAD")
+          else
+            SUBJECTS=$(git log --pretty=format:"%s")
+          fi
+          NUMBERED=$(echo "$SUBJECTS" | sed '/^$/d' | awk '{printf "%d. %s\n", NR, $0}')
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "## 更新内容"
+            echo ""
+            echo "$NUMBERED"
+            echo ""
+            echo "下载下方 Assets 中的安装包（*_x64-setup.exe 或 *.msi）即可安装。"
+            echo ""
+            echo "## 安全提示"
+            echo ""
+            echo "本应用未购买代码签名证书，首次运行时 Windows SmartScreen / Defender 可能提示「已保护你的电脑」或误报病毒，属无签名二进制的常见误报，安装包由 GitHub Actions 从公开源码构建，可自行审计。"
+            echo "处理方式：点击「更多信息」→「仍要运行」；也可将安装包提交微软误报分析：https://www.microsoft.com/en-us/wdsi/filesubmission"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'YouTube Desktop v__VERSION__'
+          releaseBody: ${{ steps.changelog.outputs.body }}
+          releaseDraft: false
+          prerelease: false
