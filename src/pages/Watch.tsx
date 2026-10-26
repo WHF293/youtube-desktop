@@ -4,7 +4,6 @@ import { Link, useParams } from "react-router-dom";
 import { usePlayer } from "../stores/player";
 import { useFavorites } from "../stores/favorites";
 import { useHistory } from "../stores/history";
-import { enableChineseCaptions, loadYouTubeApi, type YtPlayer } from "../lib/youtubePlayer";
 import DownloadModal from "../components/DownloadModal";
 import { VideoRow } from "../components/VideoCard";
 import Spinner, { ErrorBox } from "../components/Spinner";
@@ -13,8 +12,8 @@ import { bestThumb, formatCount, formatDate, formatViews, parseDuration } from "
 import { openExternal } from "../lib/open";
 
 /** 观看页：iframe 播放器 + 标题/统计 + 频道信息 + 简介 + 评论 + 相关视频。
- *  播放器经 IFrame API 创建：开启简体中文字幕（无原生中文字幕时自动翻译）；
- *  主播放器滚出视口顶部时小窗接力播放（同一节点换 CSS 定位，播放不中断） */
+ *  播放器为静态 iframe（IFrame API 创建的播放器在本机 WebView2 实测黑屏，弃用），
+ *  URL 参数尽力默认中文字幕；主播放器滚出视口顶部时小窗接力播放（同一节点换 CSS 定位） */
 export default function Watch() {
   const { videoId = "" } = useParams();
   const player = usePlayer();
@@ -23,11 +22,8 @@ export default function Watch() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const isFav = useFavorites((s) => s.videos.some((v) => v.videoId === videoId));
 
-  // 播放器宿主（React 只管理外层容器，内部节点交给 IFrame API 创建/销毁）；
   // videoSlot 是播放器的文档流占位（保持原布局尺寸），小窗态时播放器本体脱离文档流
-  const ytHostRef = useRef<HTMLDivElement | null>(null);
   const videoSlotRef = useRef<HTMLDivElement | null>(null);
-  const [apiFailed, setApiFailed] = useState(false);
   const [mini, setMini] = useState(false);
   const [miniClosed, setMiniClosed] = useState(false);
 
@@ -35,7 +31,6 @@ export default function Watch() {
     setDescExpanded(false);
     setFavModalOpen(false);
     setDownloadOpen(false);
-    setApiFailed(false);
     setMini(false);
     setMiniClosed(false);
     void player.load(videoId);
@@ -44,7 +39,7 @@ export default function Watch() {
 
   // 小窗接力：主播放器完全滚出视口顶部 → 播放器本体 fixed 到右下角（同一 DOM 节点换
   // CSS 定位，播放不中断）；回到可视区域 → 自动还原。可见性判定用 scroll + getBoundingClientRect
-  // （与触底加载同款确定性方案，本项目环境 IntersectionObserver 回调不触发）
+  // （与触底加载同款确定性方案）
   useEffect(() => {
     const slot = videoSlotRef.current;
     if (!slot) return;
@@ -73,47 +68,6 @@ export default function Watch() {
       if (raf) cancelAnimationFrame(raf);
     };
   }, [player.status, miniClosed]);
-
-  // 创建 IFrame API 播放器（视频切换 / API 失败重试时重建）；失败回退静态 iframe
-  useEffect(() => {
-    if (apiFailed) return;
-    let destroyed = false;
-    let yt: YtPlayer | null = null;
-    void loadYouTubeApi()
-      .then((YT) => {
-        if (destroyed || !ytHostRef.current) return;
-        yt = new YT.Player(ytHostRef.current, {
-          width: "100%",
-          height: "100%",
-          videoId,
-          playerVars: {
-            autoplay: 1,
-            rel: 0,
-            cc_load_policy: 1,
-            cc_lang_pref: "zh-Hans",
-            origin: window.location.origin,
-          },
-          events: {
-            onReady: (e) => enableChineseCaptions(e.target),
-            onStateChange: (e) => {
-              if (e.data === 1) enableChineseCaptions(e.target); // PLAYING：字幕模块此时才就绪
-            },
-          },
-        });
-      })
-      .catch(() => {
-        if (!destroyed) setApiFailed(true);
-      });
-    return () => {
-      destroyed = true;
-      try {
-        yt?.destroy?.();
-      } catch {
-        /* ignore */
-      }
-      if (ytHostRef.current) ytHostRef.current.innerHTML = "";
-    };
-  }, [videoId, apiFailed]);
 
   // 观看记录：详情就绪后落库（重看 = 刷新时间置顶）
   const playerVideo = player.video;
@@ -150,18 +104,14 @@ export default function Watch() {
                 : "absolute inset-0 overflow-hidden rounded-xl bg-black"
             }
           >
-            {apiFailed ? (
-              <iframe
-                key={videoId}
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=zh-Hans`}
-                title={video.snippet.title}
-                className="absolute inset-0 h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            ) : (
-              <div ref={ytHostRef} className="absolute inset-0" />
-            )}
+            <iframe
+              key={videoId}
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=zh-Hans&hl=zh-CN`}
+              title={video.snippet.title}
+              className="absolute inset-0 h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
             {/* 悬浮操作：小窗关闭（仅小窗态）+ 系统浏览器兜底 */}
             <div className="absolute right-2 top-2 z-10 flex gap-2">
               {mini && (
@@ -188,9 +138,9 @@ export default function Watch() {
           </div>
         </div>
         <p className="mt-1.5 text-xs leading-5 text-ink-3">
-          视频经 WebView 加载，走启动时注入的代理（修改代理后需重启应用生效）；字幕自动开启并翻译为简体中文（无中文字幕的
-          AI 翻译可能有误差）；播放器滚出视口时自动收进右下角小窗继续播放；若个别视频黑屏，可能为该视频限制站外播放，
-          点右上角按钮在系统浏览器中观看。
+          视频经 WebView 加载，走启动时注入的代理（修改代理后需重启应用生效）；播放器尽力默认开启中文字幕
+          （无原生中文字幕时可在播放器设置里选「自动翻译 → 中文（简体）」）；播放器滚出视口时自动收进右下角小窗继续播放；
+          若个别视频黑屏，可能为该视频限制站外播放，点右上角按钮在系统浏览器中观看。
         </p>
 
         <h1 className="mt-3 text-xl font-semibold leading-7 text-ink">{video.snippet.title}</h1>

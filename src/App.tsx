@@ -22,6 +22,7 @@ import { useVideos } from "./stores/videos";
 import { useSettings } from "./stores/settings";
 import { NEWS_CATEGORY_ID } from "./lib/youtube";
 import { useHistory } from "./stores/history";
+import { refreshChannelsMeta } from "./stores/subsFeed";
 import { initDownloads } from "./stores/downloads";
 
 export default function App() {
@@ -59,6 +60,12 @@ export default function App() {
   // 观看记录：打开应用即清理 7 天前的记录（SQLite）
   useEffect(() => {
     void useHistory.getState().init();
+  }, []);
+
+  // 博主元数据后台自愈：启动即拉取全部博主的头像/标题（覆盖本地数据缺失或损坏的场景，
+  // 结果持久化，失败静默下次再试）
+  useEffect(() => {
+    void refreshChannelsMeta();
   }, []);
 
   // 下载进度事件 + 启动时把上次未完成的任务标记为失败

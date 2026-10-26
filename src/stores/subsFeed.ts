@@ -74,28 +74,35 @@ export const useSubsFeed = create<SubsFeedState>()((set) => {
 });
 
 /** 刷新全部博主的远端元数据（头像/损坏标题），并发 4 拉取，失败静默。
- *  供分组看板、收藏页的刷新固钉调用（看板头像/订阅右栏即时更新） */
+ *  供应用启动自愈、分组看板/收藏页的刷新固钉调用（看板头像/订阅右栏即时更新） */
+let metaRefreshing = false;
 export async function refreshChannelsMeta(): Promise<void> {
-  const channels = useChannels.getState().channels;
-  const queue = [...channels];
-  await Promise.all(
-    Array.from({ length: Math.min(4, queue.length) }, async () => {
-      for (;;) {
-        const c = queue.shift();
-        if (!c) return;
-        try {
-          const ch = await ftChannel(c.id);
-          if (!ch) continue;
-          const thumb = ch.snippet.thumbnails.medium?.url;
-          if (thumb) useChannels.getState().setThumb(c.id, thumb);
-          const remoteTitle = ch.snippet.title;
-          if (remoteTitle && titleLooksBroken(c.title, c.id) && !titleLooksBroken(remoteTitle, c.id)) {
-            useChannels.getState().setTitle(c.id, remoteTitle);
+  if (metaRefreshing) return;
+  metaRefreshing = true;
+  try {
+    const channels = useChannels.getState().channels;
+    const queue = [...channels];
+    await Promise.all(
+      Array.from({ length: Math.min(4, queue.length) }, async () => {
+        for (;;) {
+          const c = queue.shift();
+          if (!c) return;
+          try {
+            const ch = await ftChannel(c.id);
+            if (!ch) continue;
+            const thumb = ch.snippet.thumbnails.medium?.url;
+            if (thumb) useChannels.getState().setThumb(c.id, thumb);
+            const remoteTitle = ch.snippet.title;
+            if (remoteTitle && titleLooksBroken(c.title, c.id) && !titleLooksBroken(remoteTitle, c.id)) {
+              useChannels.getState().setTitle(c.id, remoteTitle);
+            }
+          } catch {
+            /* 静默 */
           }
-        } catch {
-          /* 静默 */
         }
-      }
-    }),
-  );
+      }),
+    );
+  } finally {
+    metaRefreshing = false;
+  }
 }

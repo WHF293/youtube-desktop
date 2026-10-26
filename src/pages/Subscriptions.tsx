@@ -59,8 +59,11 @@ function FreeTubeFeed() {
   }, [confirmDeleteKey]);
 
   useEffect(() => {
-    if (status === "idle") void load();
-  }, [status, load]);
+    // idle 正常首载；「ready 但 items 空」且本地有频道 = 上次加载异常中断的残留态，重载一次自愈
+    if (status === "idle" || (status === "ready" && items.length === 0 && channels.length > 0)) {
+      void load();
+    }
+  }, [status, items.length, channels.length, load]);
 
   // 右下角刷新固钉：重新拉取订阅流
   useEffect(() => registerPageRefresh("/subscriptions", () => void load()), [load]);

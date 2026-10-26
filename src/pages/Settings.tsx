@@ -2,8 +2,12 @@ import { useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSettings, DEFAULT_PROXY, CONTENT_LANGS, DEFAULT_DOWNLOAD_DIR, DOWNLOAD_QUALITIES } from "../stores/settings";
+import { openExternal } from "../lib/open";
 import ChannelManager from "./ChannelManager";
 import Icon from "../components/Icon";
+
+/** 项目仓库地址（设置页「关于」展示 + 系统浏览器打开） */
+const REPO_URL = "https://github.com/WHF293/youtube-desktop";
 
 function GroupTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-3 text-xs font-medium tracking-wide text-ink-3 uppercase">{children}</h2>;
@@ -65,7 +69,7 @@ export default function Settings() {
         无需 API Key 和任何 Google 登录；订阅频道在下方管理，数据只存本机。
       </p>
 
-      <hr className="my-6 border-line" />
+      <hr className="my-6 border-accent" />
 
       <GroupTitle>订阅</GroupTitle>
       <FieldTitle>订阅频道管理</FieldTitle>
@@ -74,7 +78,7 @@ export default function Settings() {
       </FieldDesc>
       <ChannelManager />
 
-      <hr className="my-6 border-line" />
+      <hr className="my-6 border-accent" />
 
       <GroupTitle>视频下载</GroupTitle>
 
@@ -170,7 +174,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <hr className="my-6 border-line" />
+      <hr className="my-6 border-accent" />
 
       <GroupTitle>通用</GroupTitle>
 
@@ -224,6 +228,27 @@ export default function Settings() {
           className="mt-2 rounded-full bg-flat px-3 py-1 text-xs text-ink-2 hover:bg-flat-strong hover:text-ink"
         >
           恢复默认（{DEFAULT_PROXY}）
+        </button>
+      </div>
+
+      <hr className="my-6 border-accent" />
+
+      <GroupTitle>关于</GroupTitle>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <FieldTitle>项目仓库</FieldTitle>
+          <FieldDesc>
+            GitHub 开源仓库（版本发布与问题反馈）：{REPO_URL.replace("https://", "")}
+          </FieldDesc>
+        </div>
+        <button
+          type="button"
+          onClick={() => void openExternal(REPO_URL)}
+          title="在系统浏览器中打开仓库"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-flat px-3 py-2 text-xs text-ink-2 transition-colors hover:bg-flat-strong hover:text-ink"
+        >
+          查看
+          <Icon name="openInNew" size={13} />
         </button>
       </div>
     </div>
