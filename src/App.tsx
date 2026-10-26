@@ -111,7 +111,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto" key={location.pathname}>
+          <div id="main-scroll" className="min-h-0 flex-1 overflow-y-auto" key={location.pathname}>
             <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/home" element={<Navigate to="/" replace />} />

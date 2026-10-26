@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useVideos } from "../stores/videos";
 import { registerPageRefresh } from "../lib/refresh";
 import { VideoGrid } from "../components/VideoCard";
@@ -29,7 +29,6 @@ export default function Home() {
     loadMorePopular,
     category,
   } = useVideos();
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     // 从搜索页返回等场景：store 残留的是搜索结果（mode=search），回到首页必须复位为推荐流，
@@ -53,18 +52,24 @@ export default function Home() {
     void loadPopular(catId);
   };
 
-  // IntersectionObserver 触底加载（提前 600px 预取）
+  // 触底加载（提前 600px 预取）：直接监听主滚动容器 scroll 事件——
+  // IntersectionObserver 方案在 WebView2 下实测不触发（历史三次失效均为同症状），弃用
   useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || status !== "ready") return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) void loadMorePopular();
-      },
-      { rootMargin: "600px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
+    if (status !== "ready") return;
+    const scroller = document.getElementById("main-scroll");
+    if (!scroller) return;
+    const check = () => {
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 600) {
+        void loadMorePopular();
+      }
+    };
+    check(); // 挂载/翻页后立即查一次：首屏未填满或已停在底部时也能续载
+    scroller.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      scroller.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
   }, [status, nextPageToken, loadingMore, loadMorePopular]);
 
   if (status === "loading" || status === "idle") return <Spinner label="加载推荐视频…" />;
@@ -104,7 +109,6 @@ export default function Home() {
       ) : (
         <VideoGrid videos={items} />
       )}
-      <div ref={sentinelRef} aria-hidden="true" />
       {loadingMore && <Spinner label="加载更多…" />}
       {!nextPageToken && items.length > 0 && (
         <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
