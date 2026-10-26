@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useVideos } from "../stores/videos";
+import { registerPageRefresh } from "../lib/refresh";
 import { VideoGrid } from "../components/VideoCard";
 import Spinner, { ErrorBox } from "../components/Spinner";
 
@@ -33,6 +34,16 @@ export default function Home() {
   useEffect(() => {
     if (status === "idle") void loadPopular(category);
   }, [status, loadPopular, category]);
+
+  // 右下角刷新固钉：保留当前分类刷新
+  useEffect(
+    () =>
+      registerPageRefresh("/", () => {
+        const { category: cat } = useVideos.getState();
+        void useVideos.getState().loadPopular(cat);
+      }),
+    [],
+  );
 
   // 切换分类
   const pickCategory = (catId?: string) => {

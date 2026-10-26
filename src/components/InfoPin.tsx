@@ -1,28 +1,31 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import Icon from "./Icon";
-import { useVideos } from "../stores/videos";
+import { runPageRefresh } from "../lib/refresh";
 
-/** 右下角固钉：刷新（仅首页/热门显示） */
+/** 右下角固钉：刷新（首页 / 订阅 / 收藏 / 博主分组 / 离线视频）。
+ *  各页面挂载时经 registerPageRefresh 注册自己的刷新动作，未注册的路径不显示 */
+const REFRESH_PATHS = new Set(["/", "/subscriptions", "/favorites", "/groups", "/offline"]);
+
 export default function InfoPin() {
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
-
-  // 刷新固钉只在首页 / 热门显示（两页共用 mostPopular 数据集）
-  const showRefresh = location.pathname === "/" || location.pathname === "/trending";
 
   const refresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      // 保留当前分类刷新（否则切到分类 tab 后点刷新会跳回「全部」）
-      await useVideos.getState().loadPopular(useVideos.getState().category);
+      // 最少转 500ms：本地数据页（收藏/分组元数据）刷新很快，避免按钮一闪而过
+      await Promise.all([
+        Promise.resolve().then(() => runPageRefresh(location.pathname)),
+        new Promise((r) => setTimeout(r, 500)),
+      ]);
     } finally {
       setRefreshing(false);
     }
   };
 
-  if (!showRefresh) return null;
+  if (!REFRESH_PATHS.has(location.pathname)) return null;
 
   return (
     <div className="fixed right-[26px] bottom-[26px] z-40">

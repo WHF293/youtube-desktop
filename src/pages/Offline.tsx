@@ -5,6 +5,7 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import { useDownloads } from "../stores/downloads";
 import { useSettings } from "../stores/settings";
 import { errorMessage } from "../stores/videos";
+import { registerPageRefresh } from "../lib/refresh";
 import type { ManifestEntry } from "../types/offline";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
@@ -118,6 +119,9 @@ export default function Offline() {
   }, [downloadDir]);
 
   useEffect(load, [load, completedTick]);
+
+  // 右下角刷新固钉：重新扫描清单与下载目录
+  useEffect(() => registerPageRefresh("/offline", load), [load]);
 
   useEffect(() => {
     if (!confirmKey) return;

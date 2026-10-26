@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSubsFeed } from "../stores/subsFeed";
 import { useChannels, type SubChannel } from "../stores/channels";
+import { registerPageRefresh } from "../lib/refresh";
 import { VideoRow } from "../components/VideoCard";
 import Icon from "../components/Icon";
 import Spinner, { ErrorBox } from "../components/Spinner";
@@ -60,6 +61,9 @@ function FreeTubeFeed() {
   useEffect(() => {
     if (status === "idle") void load();
   }, [status, load]);
+
+  // 右下角刷新固钉：重新拉取订阅流
+  useEffect(() => registerPageRefresh("/subscriptions", () => void load()), [load]);
 
   const groupName = (id?: string) => groups.find((g) => g.id === id)?.name;
 

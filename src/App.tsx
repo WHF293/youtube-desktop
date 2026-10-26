@@ -6,7 +6,6 @@ import Sidebar from "./components/Sidebar";
 import InfoPin from "./components/InfoPin";
 import Icon from "./components/Icon";
 import Home from "./pages/Home";
-import Trending from "./pages/Trending";
 import Search from "./pages/Search";
 import Watch from "./pages/Watch";
 import Channel from "./pages/Channel";
@@ -21,6 +20,7 @@ import Settings from "./pages/Settings";
 import { useTheme } from "./stores/theme";
 import { useVideos } from "./stores/videos";
 import { useSettings } from "./stores/settings";
+import { NEWS_CATEGORY_ID } from "./lib/youtube";
 import { useHistory } from "./stores/history";
 import { initDownloads } from "./stores/downloads";
 
@@ -38,13 +38,14 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // 地区变化：正处在首页/热门时立刻按新地区的频道组刷新「全部」数据
+  // 地区变化：正处在首页时立刻刷新「全部」（地区频道组）与「新闻」分类（搜索地区化）；
+  // 其余分类为全球精选频道组，与地区无关不刷新
   useEffect(() => {
     if (prevRegion.current === regionCode) return;
     prevRegion.current = regionCode;
-    if (location.pathname === "/" || location.pathname === "/trending") {
+    if (location.pathname === "/") {
       const { category } = useVideos.getState();
-      if (!category) void loadPopular(); // 分类 tab 的频道组与地区无关，不刷新
+      if (!category || category === NEWS_CATEGORY_ID) void loadPopular(category);
     }
   }, [regionCode, location.pathname, loadPopular]);
 
@@ -77,11 +78,11 @@ export default function App() {
 
   // 是否有可返回的上一页（React Router 在 history.state.idx 记录栈深）；
   // 仅二级页显示返回按钮——侧栏有入口的页面不显示
-  const TOP_LEVEL_PATHS = new Set(["/", "/trending", "/subscriptions", "/history", "/favorites", "/offline"]);
+  const TOP_LEVEL_PATHS = new Set(["/", "/subscriptions", "/history", "/favorites", "/offline"]);
   const canGoBack =
     (window.history.state?.idx ?? 0) > 0 && !TOP_LEVEL_PATHS.has(location.pathname);
 
-  // 首次进入预热热门数据（Home / Trending 共用）
+  // 首次进入预热首页数据
   useEffect(() => {
     if (videosStatus === "idle") void loadPopular();
   }, [videosStatus, loadPopular]);
@@ -114,7 +115,7 @@ export default function App() {
             <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/home" element={<Navigate to="/" replace />} />
-            <Route path="/trending" element={<Trending />} />
+            <Route path="/trending" element={<Navigate to="/" replace />} />
             <Route path="/search" element={<Search />} />
             <Route path="/watch/:videoId" element={<Watch />} />
             <Route path="/channel/:channelId" element={<Channel />} />

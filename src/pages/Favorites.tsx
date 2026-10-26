@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useFavorites, type FavVideo } from "../stores/favorites";
+import { refreshChannelsMeta } from "../stores/subsFeed";
+import { registerPageRefresh } from "../lib/refresh";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
 import { formatRelativeDate } from "../lib/format";
@@ -15,6 +17,9 @@ export default function Favorites() {
     const t = setTimeout(() => setConfirmKey(null), 3000);
     return () => clearTimeout(t);
   }, [confirmKey]);
+
+  // 右下角刷新固钉：刷新博主远端元数据（头像/标题自愈，全应用共享数据）
+  useEffect(() => registerPageRefresh("/favorites", () => void refreshChannelsMeta()), []);
 
   // 区块：自定义收藏分组在前，默认分组收尾（无视频则不显示）
   const sections: { key: string; name: string; groupId: string | undefined; list: FavVideo[] }[] = [

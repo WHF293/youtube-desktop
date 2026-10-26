@@ -6,7 +6,6 @@ import { useSettings, REGIONS } from "../stores/settings";
 
 const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },
-  { to: "/trending", label: "热门", icon: "trending", end: false },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions", end: false },
   { to: "/history", label: "观看记录", icon: "history", end: false },
   { to: "/favorites", label: "收藏", icon: "star", end: false },
@@ -17,7 +16,7 @@ const NAV_ITEMS = [
 const BOTTOM_ITEMS = [{ to: "/settings", label: "设置", icon: "settings" }];
 
 /** 侧栏地区入口的 hover 说明 */
-const REGION_TIP = "切换首页/热门的内容地区与搜索结果的地区倾向（InnerTube context.gl），选择即生效。";
+const REGION_TIP = "切换首页「全部/新闻」的内容地区与搜索结果的地区倾向（InnerTube context.gl），选择即生效。";
 
 /** 收起态 hover 气泡（fixed 定位，不受侧栏 overflow 裁剪） */
 function RailTip({ text, x, y }: { text: string; x: number; y: number }) {

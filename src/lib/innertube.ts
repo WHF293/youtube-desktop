@@ -239,6 +239,30 @@ export async function ftSearchPage(
   return { items, nextPageToken: pageTokenOf(data, "CONTINUATION_REQUEST_TYPE_SEARCH") };
 }
 
+/* ---------- 分类 tab：新闻（search 端点地区化） ---------- */
+
+/** 新闻分类：官方 mostPopular / FEtrending 等 explore 端点匿名全部返回空壳
+ *  （2026-10-27 实测，富上下文亦然），改用 search 端点实现地区化：
+ *  query=news + params=CAI%3D%3D（按上传时间排序），内容跟随 context.gl 地区 */
+export async function ftNewsPage(
+  pageToken?: string,
+): Promise<{ items: VideoItem[]; nextPageToken: string | null }> {
+  const body: AnyRec = pageToken ? { continuation: pageToken } : { query: "news", params: "CAI%3D%3D" };
+  const data = await innertubePost<AnyRec>("search", body);
+  const items: VideoItem[] = [];
+  for (const vr of collect<AnyRec>(data, "videoRenderer")) {
+    const v = videoFromVideoRenderer(vr);
+    if (v) items.push(v);
+  }
+  if (items.length === 0) {
+    for (const vm of collect<AnyRec>(data, "lockupViewModel")) {
+      const v = videoFromLockup(vm);
+      if (v) items.push(v);
+    }
+  }
+  return { items, nextPageToken: pageTokenOf(data, "CONTINUATION_REQUEST_TYPE_SEARCH") };
+}
+
 /* ---------- 视频详情（/next：标题/统计/作者/描述） ---------- */
 
 export async function ftVideoDetail(videoId: string): Promise<VideoItem | undefined> {

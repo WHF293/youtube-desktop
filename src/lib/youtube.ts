@@ -9,14 +9,19 @@ import type { ChannelItem, CommentThreadItem, PlaylistItem, VideoItem } from "..
  */
 export type Params = Record<string, string | number | undefined>;
 
+/** 新闻分类（videoCategoryId=25）改走 InnerTube 搜索（地区化 + 时效排序）；
+ *  其余分类为精选频道组 RSS（全球固定，见 innertube.ts FT_HOME_GROUPS） */
+export const NEWS_CATEGORY_ID = "25";
+
 export const ytApi = {
-  /** 首页/热门：内置频道组 RSS 聚合，pageToken 为页码 */
+  /** 首页：内置频道组 RSS 聚合，pageToken 为页码（分类「新闻」走搜索地区化） */
   async mostPopularPage(
     _maxResults = 24,
     _regionCode?: string,
     pageToken?: string,
     videoCategoryId?: string,
   ): Promise<{ items: VideoItem[]; nextPageToken: string | null }> {
+    if (videoCategoryId === NEWS_CATEGORY_ID) return ft.ftNewsPage(pageToken);
     return ft.ftPopularPage(videoCategoryId, pageToken);
   },
 

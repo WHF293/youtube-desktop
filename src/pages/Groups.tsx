@@ -15,6 +15,8 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useChannels, type SubChannel } from "../stores/channels";
+import { refreshChannelsMeta } from "../stores/subsFeed";
+import { registerPageRefresh } from "../lib/refresh";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
 
@@ -209,6 +211,9 @@ export default function Groups() {
     const t = setTimeout(() => setConfirmDeleteKey(null), 3000);
     return () => clearTimeout(t);
   }, [confirmDeleteKey]);
+
+  // 右下角刷新固钉：刷新博主远端元数据（头像/损坏标题自愈）
+  useEffect(() => registerPageRefresh("/groups", () => void refreshChannelsMeta()), []);
 
   // 列：默认分组固定第一列，自定义分组按用户排序跟在后面
   const columns: { key: string; name: string; groupId: string | undefined; list: SubChannel[] }[] = [
