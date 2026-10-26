@@ -62,6 +62,8 @@ const STROKE_PATHS: Record<string, string> = {
   panelRight: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
   // 软件文档：摊开的书（左右两页 + 文本行，whf-stock-board 白皮书同款）
   book: '<path d="M12 6.5C10.3 5.2 8.1 4.8 4 4.8V19c4.1 0 6.3.4 8 1.7 1.7-1.3 3.9-1.7 8-1.7V4.8c-4.1 0-6.3.4-8 1.7z"/><path d="M12 6.5v14.2"/><path d="M6.6 8.6h2.4M6.6 11.6h2.4M15 8.6h2.4M15 11.6h2.4"/>',
+  // 筛选：漏斗（whf-stock-board 同款）
+  filter: '<path d="M4 5h16l-6 7v6l-4 2v-8z"/>',
 };
 
 interface IconProps {

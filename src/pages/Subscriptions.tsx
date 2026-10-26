@@ -41,12 +41,97 @@ function bloggerItem(
   );
 }
 
+/** 订阅分组筛选弹窗：checkbox + 分组列表，确认后订阅流只拉取勾选分组内的博主 */
+function FilterModal({ onClose }: { onClose: () => void }) {
+  const { channels, groups } = useChannels();
+  const selectedGroups = useSubsFeed((s) => s.selectedGroups);
+  const setSelectedGroups = useSubsFeed((s) => s.setSelectedGroups);
+  const load = useSubsFeed((s) => s.load);
+
+  // 全部分组 key（默认分组固定第一，key "ungrouped"）
+  const allKeys = ["ungrouped", ...groups.map((g) => g.id)];
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(selectedGroups ?? allKeys));
+
+  const toggle = (key: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const countOf = (key: string) => channels.filter((c) => (c.groupId ?? "ungrouped") === key).length;
+  const allSelected = allKeys.every((k) => checked.has(k));
+
+  const confirm = () => {
+    // 全勾选等价于不限分组（存 null，新增分组时自动包含）
+    setSelectedGroups(allSelected ? null : [...checked]);
+    void load();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="relative flex w-full max-w-xs flex-col rounded-xl border border-line bg-surface p-4 shadow-island">
+        <h3 className="text-sm font-semibold text-ink">筛选订阅分组</h3>
+        <p className="mt-1 text-xs leading-5 text-ink-3">确认后订阅流只拉取勾选分组内博主的更新。</p>
+        <div className="mt-3 max-h-72 min-h-0 overflow-y-auto">
+          {[{ key: "ungrouped", name: "默认分组" }, ...groups.map((g) => ({ key: g.id, name: g.name }))].map((g) => (
+            <label
+              key={g.key}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-flat"
+            >
+              <input
+                type="checkbox"
+                checked={checked.has(g.key)}
+                onChange={() => toggle(g.key)}
+                className="accent-[var(--color-accent)]"
+              />
+              <span className="min-w-0 flex-1 truncate text-ink">{g.name}</span>
+              <span className="text-xs text-ink-3">{countOf(g.key)}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setChecked(allSelected ? new Set() : new Set(allKeys))}
+            className="rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:text-ink"
+          >
+            {allSelected ? "全不选" : "全选"}
+          </button>
+          {checked.size === 0 && <span className="text-xs text-accent">至少勾选一个分组</span>}
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={checked.size === 0}
+            className="rounded-lg glass-btn px-4 py-1.5 text-xs font-medium text-accent hover:brightness-110 disabled:opacity-50"
+          >
+            确认
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** 左侧订阅流岛 + 右栏博主分组岛 */
 function FreeTubeFeed() {
-  const { items, failed, status, error, load } = useSubsFeed();
+  const { items, failed, status, error, load, selectedGroups } = useSubsFeed();
   const { channels, groups, removeGroup } = useChannels();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   // 分组区块展开状态（默认全开）
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
   // 删除分组的二次确认：点过 X 的分组 key，3 秒不确认自动复位
@@ -86,7 +171,20 @@ function FreeTubeFeed() {
       {/* 左岛：标题 + 视频流（独立滚动） */}
       <section className="flex min-w-0 flex-1 flex-col rounded-2xl bg-surface shadow-island">
         <header className="shrink-0 px-4 pb-2 pt-4">
-          <h1 className="text-lg font-semibold text-ink">订阅</h1>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-lg font-semibold text-ink">订阅</h1>
+            <button
+              type="button"
+              onClick={() => setFilterOpen(true)}
+              title="筛选订阅分组"
+              className={`flex items-center gap-1.5 rounded-lg glass-btn px-3 py-1.5 text-xs hover:brightness-110 ${
+                selectedGroups ? "text-accent" : "text-ink"
+              }`}
+            >
+              <Icon name="filter" size={13} />
+              筛选{selectedGroups ? `（${selectedGroups.length} 组）` : ""}
+            </button>
+          </div>
           {failed.length > 0 && (
             <p className="mt-2 text-xs leading-5 text-ink-3">
               {failed.length} 个频道拉取失败（可能频道 ID 无效或网络波动）：{failed.join("、")}
@@ -114,17 +212,28 @@ function FreeTubeFeed() {
                   </div>
                 ) : (
                   <div className="mx-2 my-6 rounded-lg border border-line bg-app p-5 text-sm text-ink">
-                    <p className="font-medium">还没有订阅频道</p>
-                    <p className="mt-2 leading-6 text-ink-2">
-                      在右侧「我的博主」下方添加频道（粘贴频道链接或 ID），或导入 Google Takeout 的
-                      subscriptions.csv。订阅数据只存在本机，不需要登录 Google。
-                    </p>
-                    <Link
-                      to="/help"
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-btn px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
-                    >
-                      查看使用说明
-                    </Link>
+                    {selectedGroups !== null && channels.length > 0 ? (
+                      <>
+                        <p className="font-medium">筛选结果为空</p>
+                        <p className="mt-2 leading-6 text-ink-2">
+                          当前勾选的分组里没有订阅博主，点右上角「筛选」调整勾选。
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium">还没有订阅频道</p>
+                        <p className="mt-2 leading-6 text-ink-2">
+                          在右侧「我的博主」下方添加频道（粘贴频道链接或 ID），或导入 Google Takeout 的
+                          subscriptions.csv。订阅数据只存在本机，不需要登录 Google。
+                        </p>
+                        <Link
+                          to="/help"
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-btn px-4 py-1.5 text-xs font-medium text-accent hover:brightness-110"
+                        >
+                          查看使用说明
+                        </Link>
+                      </>
+                    )}
                   </div>
                 ))}
             </>
@@ -277,6 +386,9 @@ function FreeTubeFeed() {
           </Link>
         </footer>
       </aside>
+
+      {/* 订阅分组筛选弹窗 */}
+      {filterOpen && <FilterModal onClose={() => setFilterOpen(false)} />}
     </div>
   );
 }
