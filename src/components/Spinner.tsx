@@ -24,7 +24,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
         <button
           type="button"
           onClick={onRetry}
-          className="mt-3 rounded-full bg-flat px-4 py-1.5 text-sm text-ink hover:bg-flat-strong"
+          className="mt-3 rounded-full glass-btn px-4 py-1.5 text-sm text-ink hover:brightness-110"
         >
           重试
         </button>

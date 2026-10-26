@@ -143,7 +143,7 @@ export default function Offline() {
           <button
             type="button"
             onClick={() => void openPath(downloadDir)}
-            className="flex items-center gap-1.5 rounded-full bg-flat px-3 py-1.5 text-xs text-ink-2 transition-colors hover:bg-flat-strong hover:text-ink"
+            className="flex items-center gap-1.5 rounded-full glass-btn px-3 py-1.5 text-xs text-ink-2 transition-colors hover:brightness-110 hover:text-ink"
           >
             <Icon name="folder" size={14} />
             打开文件夹
@@ -210,7 +210,7 @@ export default function Offline() {
                     type="button"
                     onClick={() => void retry(t.videoId)}
                     title="重试（重新提取流地址）"
-                    className="shrink-0 rounded-full bg-flat px-2.5 py-1 text-xs text-ink transition-colors hover:bg-flat-strong"
+                    className="shrink-0 rounded-full glass-btn px-2.5 py-1 text-xs text-ink transition-colors hover:brightness-110"
                   >
                     重试
                   </button>

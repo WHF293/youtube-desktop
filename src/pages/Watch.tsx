@@ -390,7 +390,7 @@ function FavModal({
                   remove(video.videoId);
                   onClose();
                 }}
-                className="rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white"
+                className="rounded-full glass-btn px-3 py-1.5 text-xs font-medium text-accent"
               >
                 确认取消收藏
               </button>
@@ -410,14 +410,14 @@ function FavModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-flat px-3 py-1.5 text-xs text-ink hover:bg-flat-strong"
+              className="rounded-full glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
             >
               关闭
             </button>
             <button
               type="button"
               onClick={save}
-              className="rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:opacity-90"
+              className="rounded-full glass-btn px-4 py-1.5 text-xs font-medium text-accent hover:brightness-110"
             >
               {fav ? "保存" : "收藏"}
             </button>

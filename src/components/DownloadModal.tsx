@@ -110,7 +110,7 @@ export default function DownloadModal({
             <button
               type="button"
               onClick={load}
-              className="mr-auto rounded-full bg-flat px-3 py-1.5 text-xs text-ink hover:bg-flat-strong"
+              className="mr-auto rounded-full glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
             >
               重试
             </button>
@@ -118,7 +118,7 @@ export default function DownloadModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full bg-flat px-3 py-1.5 text-xs text-ink hover:bg-flat-strong"
+            className="rounded-full glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
           >
             取消
           </button>
@@ -126,7 +126,7 @@ export default function DownloadModal({
             type="button"
             onClick={start}
             disabled={!picked || starting}
-            className="rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-full glass-btn px-4 py-1.5 text-xs font-medium text-accent hover:brightness-110 disabled:opacity-50"
           >
             开始下载
           </button>
