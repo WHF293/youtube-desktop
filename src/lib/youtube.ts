@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../stores/settings";
+import { useQuota, endpointCost } from "../stores/quota";
 import type {
   ApiError,
   ChannelItem,
@@ -34,15 +35,56 @@ async function httpGet(url: string): Promise<{ status: number; body: string }> {
   return { status: res.status, body: await res.text() };
 }
 
+/* ---------- OAuth access token 自动续期（refresh token 方案） ---------- */
+
+let lastRefreshAt = 0;
+/** access token 约 1 小时过期，提前 15 分钟刷新 */
+const REFRESH_MARGIN_MS = 45 * 60 * 1000;
+
+function hasRefreshConfig(): boolean {
+  const { refreshToken, oauthClientId, oauthClientSecret } = useSettings.getState();
+  return Boolean(refreshToken && oauthClientId && oauthClientSecret);
+}
+
+/**
+ * 用 refresh token 换新 access token。
+ * @param force true = 无条件刷新（401 后重试）；false = 仅在无 token 或临近过期时刷
+ * @returns 是否实际执行了刷新
+ */
+async function refreshAccessToken(force = false): Promise<boolean> {
+  if (!hasRefreshConfig()) return false;
+  const s = useSettings.getState();
+  if (!force && s.accessToken && Date.now() - lastRefreshAt < REFRESH_MARGIN_MS) return false;
+  const at = await invoke<string>("yt_refresh_token", {
+    refreshToken: s.refreshToken,
+    clientId: s.oauthClientId,
+    clientSecret: s.oauthClientSecret,
+    proxy: s.proxy,
+  });
+  useSettings.getState().setAccessToken(at);
+  lastRefreshAt = Date.now();
+  return true;
+}
+
 /** 统一请求入口：自动带上 settings 里的 API Key；带 auth 的端点改用 accessToken */
-async function request<T>(endpoint: string, params: Params, useAuth = false): Promise<T> {
-  const { apiKey, accessToken } = useSettings.getState();
+async function request<T>(
+  endpoint: string,
+  params: Params,
+  useAuth = false,
+  retried = false,
+): Promise<T> {
+  const { apiKey, accessToken, refreshToken } = useSettings.getState();
   const merged: Params = { ...params };
   if (useAuth) {
-    if (!accessToken) {
-      throw new YoutubeApiError("缺少 OAuth access token，请到「设置」里配置", "missingToken");
+    if (!accessToken && !refreshToken) {
+      throw new YoutubeApiError(
+        "缺少 OAuth access token，请到「设置」里配置",
+        "missingToken",
+      );
     }
-    merged.access_token = accessToken;
+    // 配置了 refresh token：启动或临近过期时自动续期
+    await refreshAccessToken().catch(() => {});
+    merged.access_token = useSettings.getState().accessToken || accessToken;
   } else {
     if (!apiKey) {
       throw new YoutubeApiError("缺少 YouTube Data API Key，请到「设置」里配置", "missingApiKey");
@@ -63,6 +105,11 @@ async function request<T>(endpoint: string, params: Params, useAuth = false): Pr
     throw new YoutubeApiError(`响应不是合法 JSON（HTTP ${status}）`, undefined, status);
   }
   if (status < 200 || status >= 300) {
+    // 401 且配置了 refresh token：强刷一次并重试本请求（仅一次，防循环）
+    if (status === 401 && useAuth && !retried && hasRefreshConfig()) {
+      const refreshed = await refreshAccessToken(true).catch(() => false);
+      if (refreshed) return request<T>(endpoint, params, useAuth, true);
+    }
     const err = (body as { error?: ApiError })?.error;
     throw new YoutubeApiError(
       err?.message ?? `请求失败（HTTP ${status}）`,
@@ -70,6 +117,8 @@ async function request<T>(endpoint: string, params: Params, useAuth = false): Pr
       err?.code ?? status,
     );
   }
+  // 配额统计：YouTube 按「配额单位」计费（search=100，其余端点=1），只计成功请求
+  useQuota.getState().record(endpoint, endpointCost(endpoint));
   return body as T;
 }
 
@@ -98,6 +147,7 @@ export const ytApi = {
     maxResults = 24,
     regionCode?: string,
     pageToken?: string,
+    videoCategoryId?: string,
   ): Promise<{ items: VideoItem[]; nextPageToken: string | null }> {
     const data = await request<{ items: VideoItem[]; nextPageToken?: string }>("videos", {
       part: "snippet,statistics,contentDetails",
@@ -105,6 +155,7 @@ export const ytApi = {
       maxResults,
       regionCode,
       pageToken,
+      videoCategoryId,
     });
     return { items: data.items, nextPageToken: data.nextPageToken ?? null };
   },

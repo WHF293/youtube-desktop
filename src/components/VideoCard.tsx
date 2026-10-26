@@ -12,7 +12,7 @@ export function VideoRow({ video, rank }: { video: VideoItem; rank?: number }) {
   const id = videoIdOf(video);
   if (!id) return null;
   return (
-    <div className="flex gap-4 rounded-lg p-2 hover:bg-flat">
+    <div className="flex gap-4 rounded-lg p-2 transition-transform duration-200 hover:scale-[1.05] hover:bg-flat">
       {rank !== undefined && (
         <span className="w-6 shrink-0 self-center text-center text-lg font-semibold text-ink-3">
           {rank}
@@ -53,7 +53,7 @@ export function VideoCard({ video }: { video: VideoItem }) {
   const id = videoIdOf(video);
   if (!id) return null;
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 transition-transform duration-200 hover:scale-[1.05]">
       <Link to={`/watch/${id}`} className="relative block">
         <Img
           src={bestThumb(video.snippet)}

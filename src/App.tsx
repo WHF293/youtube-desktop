@@ -1,8 +1,10 @@
 import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
+import InfoPin from "./components/InfoPin";
+import Icon from "./components/Icon";
 import Home from "./pages/Home";
 import Trending from "./pages/Trending";
 import Search from "./pages/Search";
@@ -10,6 +12,7 @@ import Watch from "./pages/Watch";
 import Channel from "./pages/Channel";
 import Subscriptions from "./pages/Subscriptions";
 import Settings from "./pages/Settings";
+import Quota from "./pages/Quota";
 import { useTheme } from "./stores/theme";
 import { useVideos } from "./stores/videos";
 import { useSettings } from "./stores/settings";
@@ -18,6 +21,8 @@ export default function App() {
   const theme = useTheme((s) => s.theme);
   const videosStatus = useVideos((s) => s.status);
   const loadPopular = useVideos((s) => s.loadPopular);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // 明暗模式：class 挂在 <html> 上
   useEffect(() => {
@@ -31,6 +36,12 @@ export default function App() {
     invoke("save_webview_proxy", { proxy: useSettings.getState().proxy }).catch(() => {});
   }, []);
 
+  // 是否有可返回的上一页（React Router 在 history.state.idx 记录栈深）；
+  // 仅二级页显示返回按钮——侧栏有入口的页面（首页/热门/我的订阅）不显示
+  const TOP_LEVEL_PATHS = new Set(["/", "/trending", "/subscriptions"]);
+  const canGoBack =
+    (window.history.state?.idx ?? 0) > 0 && !TOP_LEVEL_PATHS.has(location.pathname);
+
   // 首次进入预热热门数据（Home / Trending 共用）
   useEffect(() => {
     if (videosStatus === "idle") void loadPopular();
@@ -39,10 +50,29 @@ export default function App() {
   return (
     <div className="flex h-full flex-col bg-app text-ink">
       <TitleBar />
-      <div className="flex min-h-0 flex-1">
+      {/* Islands 布局（参考 whf-stock-board）：p-2.5 露出画布底色、gap-2.5 是岛间隙；
+          侧栏与主区各自为独立浮岛（rounded-2xl + shadow-island），标题栏不岛化保持通栏 */}
+      <div className="flex min-h-0 flex-1 gap-2.5 p-2.5">
         <Sidebar />
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          <Routes>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface shadow-island">
+          {/* 返回上一页：二级/三级页面（观看、频道、搜索、额度等）顶部细页头，
+              仅历史栈里存在 back 记录时显示 */}
+          {canGoBack && (
+            <div className="flex h-10 shrink-0 items-center border-b border-line px-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                aria-label="返回上一页"
+                title="返回上一页"
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-ink-2 hover:bg-flat hover:text-ink"
+              >
+                <Icon name="arrowLeft" size={16} />
+                返回
+              </button>
+            </div>
+          )}
+          <div className="min-h-0 flex-1 overflow-y-auto" key={location.pathname}>
+            <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/home" element={<Navigate to="/" replace />} />
             <Route path="/trending" element={<Trending />} />
@@ -51,10 +81,13 @@ export default function App() {
             <Route path="/channel/:channelId" element={<Channel />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/quota" element={<Quota />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+            </Routes>
+          </div>
         </main>
       </div>
+      <InfoPin />
     </div>
   );
 }

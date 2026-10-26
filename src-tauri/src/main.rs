@@ -131,6 +131,47 @@ async fn yt_image(
     Ok(data_url)
 }
 
+/// 用 refresh token 换新 access token（OAuth 2 标准流程）。
+/// access token 约 1 小时过期，配置 refresh token 后前端 401 时自动续期。
+#[tauri::command]
+async fn yt_refresh_token(
+    refresh_token: String,
+    client_id: String,
+    client_secret: String,
+    proxy: String,
+    http: State<'_, HttpClient>,
+) -> Result<String, String> {
+    let client = client_for(&proxy, &http)?;
+    let params = [
+        ("grant_type", "refresh_token"),
+        ("refresh_token", refresh_token.as_str()),
+        ("client_id", client_id.as_str()),
+        ("client_secret", client_secret.as_str()),
+    ];
+    let resp = client
+        .post("https://oauth2.googleapis.com/token")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    let body: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("解析 token 响应失败: {e}"))?;
+    if status != 200 {
+        let msg = body
+            .get("error_description")
+            .and_then(|v| v.as_str())
+            .or_else(|| body.get("error").and_then(|v| v.as_str()))
+            .unwrap_or("刷新失败");
+        return Err(msg.to_string());
+    }
+    body.get("access_token")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "token 响应缺少 access_token".to_string())
+}
+
 fn main() {
     // WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到，
     // 只能在 WebView 环境创建前通过启动参数挂代理。前端会把设置页的 proxy 同步到
@@ -146,7 +187,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(HttpClient(Mutex::new(None)))
         .manage(ImageCache(Mutex::new(HashMap::new())))
-        .invoke_handler(tauri::generate_handler![yt_fetch, yt_image, save_webview_proxy])
+        .invoke_handler(tauri::generate_handler![yt_fetch, yt_image, save_webview_proxy, yt_refresh_token])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

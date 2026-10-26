@@ -13,6 +13,8 @@
   --app-ink: #0f0f0f;
   --app-ink-2: #606060;
   --app-ink-3: #909090;
+  /* Islands 浮岛阴影（参考 whf-stock-board） */
+  --shadow-island: 0 2px 6px rgb(31 39 51 / 0.06), 0 8px 24px rgb(31 39 51 / 0.08);
 }
 
 /* 主题 token：暗色（YouTube 风格） */
@@ -25,6 +27,7 @@
   --app-ink: #f1f1f1;
   --app-ink-2: #aaaaaa;
   --app-ink-3: #717171;
+  --shadow-island: 0 2px 6px rgb(0 0 0 / 0.35), 0 8px 24px rgb(0 0 0 / 0.35);
 }
 
 @theme inline {
@@ -37,6 +40,7 @@
   --color-ink-2: var(--app-ink-2);
   --color-ink-3: var(--app-ink-3);
   --color-accent: #ff0000;
+  --shadow-island: var(--shadow-island);
 }
 
 html,

@@ -19,18 +19,36 @@ const REGIONS = [
 /** 输入框置灰态：disabled + 半透明，与可编辑态区分 */
 const LOCKED_CLS = "disabled:cursor-not-allowed disabled:opacity-50";
 
+/** 横线风格分组：组标题 + 紧凑条目，两大组之间用横线分隔 */
+function GroupTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-3 text-xs font-medium tracking-wide text-ink-3 uppercase">{children}</h2>
+  );
+}
+
+function FieldTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-sm font-semibold text-ink">{children}</h2>;
+}
+
+function FieldDesc({ children }: { children: React.ReactNode }) {
+  return <p className="mt-1 text-xs leading-5 text-ink-2">{children}</p>;
+}
+
 /**
- * 设置页：API Key / 代理 / OAuth token / 地区。
- * 默认整体置灰只读，点「编辑」进入可编辑模式，保存（或取消）后恢复置灰。
+ * 设置页，两组：
+ * - 「API Key / OAuth token / 搜索内容语言」：默认置灰，点「编辑」进入可编辑，保存/取消后恢复；
+ * - 「请求代理 / 热门视频地区」：直接修改、即时生效，不受编辑门控。
  */
 export default function Settings() {
   const settings = useSettings();
   const [editing, setEditing] = useState(false);
   const [apiKey, setApiKey] = useState(settings.apiKey);
   const [token, setToken] = useState(settings.accessToken);
-  const [proxy, setProxy] = useState(settings.proxy);
-  const [region, setRegion] = useState(settings.regionCode);
+  const [refreshToken, setRefreshToken] = useState(settings.refreshToken);
+  const [clientId, setClientId] = useState(settings.oauthClientId);
+  const [clientSecret, setClientSecret] = useState(settings.oauthClientSecret);
   const [langs, setLangs] = useState<string[]>(settings.languages);
+  const [proxy, setProxy] = useState(settings.proxy);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -48,8 +66,9 @@ export default function Settings() {
     // 以 store 当前值为准进入编辑（防止别处修改后本地 state 过期）
     setApiKey(settings.apiKey);
     setToken(settings.accessToken);
-    setProxy(settings.proxy);
-    setRegion(settings.regionCode);
+    setRefreshToken(settings.refreshToken);
+    setClientId(settings.oauthClientId);
+    setClientSecret(settings.oauthClientSecret);
     setLangs(settings.languages);
     setTestResult(null);
     setEditing(true);
@@ -61,15 +80,13 @@ export default function Settings() {
   };
 
   const save = () => {
-    const p = proxy.trim();
     settings.setApiKey(apiKey.trim());
     settings.setAccessToken(token.trim());
-    settings.setProxy(p);
-    settings.setRegionCode(region);
+    settings.setRefreshToken(refreshToken.trim());
+    settings.setOauthClientId(clientId.trim());
+    settings.setOauthClientSecret(clientSecret.trim());
     settings.setLanguages(langs);
-    // 同步给 Rust 落盘，下次启动 WebView 按 --proxy-server 挂代理（视频 iframe 播放用）
-    if (isTauri()) void invoke("save_webview_proxy", { proxy: p }).catch(() => {});
-    setTestResult({ ok: true, msg: "已保存。代理修改后重启应用对视频播放生效。" });
+    setTestResult({ ok: true, msg: "已保存。" });
     setEditing(false);
   };
 
@@ -92,6 +109,13 @@ export default function Settings() {
     }
   };
 
+  /** 代理输入框失焦 / 回车即保存（API 与图片请求即时生效） */
+  const commitProxy = () => {
+    const p = proxy.trim();
+    settings.setProxy(p);
+    if (isTauri()) void invoke("save_webview_proxy", { proxy: p }).catch(() => {});
+  };
+
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="flex items-center justify-between">
@@ -107,7 +131,7 @@ export default function Settings() {
         )}
       </div>
 
-      <p className="mt-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs leading-5 text-ink-2">
+      <p className="mt-2 text-xs leading-5 text-ink-2">
         还没有 API Key？参考图文教程：{" "}
         <a
           href="https://cloud.tencent.com/developer/article/2414978"
@@ -121,9 +145,12 @@ export default function Settings() {
         </a>
       </p>
 
-      <section className="mt-4 rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">YouTube Data API v3 Key（必填）</h2>
-        <p className="mt-1 text-xs leading-5 text-ink-2">
+      {/* ——— 第一组：需点「编辑」才能修改 ——— */}
+      <GroupTitle>需编辑后修改</GroupTitle>
+
+      <div className="mt-3">
+        <FieldTitle>YouTube Data API v3 Key（必填）</FieldTitle>
+        <FieldDesc>
           在{" "}
           <a
             href="https://console.cloud.google.com/apis/credentials"
@@ -136,7 +163,7 @@ export default function Settings() {
             Google Cloud Console
           </a>{" "}
           创建 API Key 并启用 YouTube Data API v3。Key 只存在本机（localStorage），不经过任何第三方。
-        </p>
+        </FieldDesc>
         <input
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
@@ -162,38 +189,12 @@ export default function Settings() {
             )}
           </div>
         )}
-      </section>
+      </div>
 
-      <section className="mt-4 rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">网络代理（桌面端）</h2>
-        <p className="mt-1 text-xs leading-5 text-ink-2">
-          国内直连 googleapis 不可达，API 请求默认走本地代理。支持 host:port 或完整
-          http(s) URL；清空则不走代理。API 与图片请求即时生效；视频播放 iframe
-          走 WebView 代理，修改后需重启应用生效。
-        </p>
-        <input
-          value={proxy}
-          onChange={(e) => setProxy(e.target.value)}
-          placeholder={DEFAULT_PROXY}
-          spellCheck={false}
-          disabled={!editing}
-          className={`mt-3 w-full rounded-lg border border-line bg-app px-3 py-2 font-mono text-sm text-ink outline-none focus:border-ink-3 ${LOCKED_CLS}`}
-        />
-        {editing && (
-          <button
-            type="button"
-            onClick={() => setProxy(DEFAULT_PROXY)}
-            className="mt-2 rounded-full bg-flat px-3 py-1 text-xs text-ink-2 hover:bg-flat-strong hover:text-ink"
-          >
-            恢复默认（{DEFAULT_PROXY}）
-          </button>
-        )}
-      </section>
-
-      <section className="mt-4 rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">OAuth access token（可选）</h2>
-        <p className="mt-1 text-xs leading-5 text-ink-2">
-          用于「我的订阅」等只读功能。在{" "}
+      <div className="mt-5">
+        <FieldTitle>OAuth access token（可选，用于「我的订阅」）</FieldTitle>
+        <FieldDesc>
+          token 约 1 小时过期。在{" "}
           <a
             href="https://developers.google.com/oauthplayground/"
             onClick={(e) => {
@@ -204,42 +205,53 @@ export default function Settings() {
           >
             OAuth Playground
           </a>{" "}
-          勾选 YouTube Data API v3 权限自行换取，粘贴到这里即可。
-        </p>
+          点右上角齿轮 → 勾选「Use your own OAuth credentials」填入下方 client_id / secret，
+          Scope 填 https://www.googleapis.com/auth/youtube.readonly，Authorize 前勾选
+          「Force approval prompt」（否则不发 refresh token），Exchange 后把 access_token、
+          refresh_token 一并粘贴到下面。配置 refresh token 后应用会自动续期，无需再手动更换。
+        </FieldDesc>
         <textarea
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder="ya29.…"
-          rows={3}
+          placeholder="access_token（ya29.…，也可留空由 refresh token 自动获取）"
+          rows={2}
           spellCheck={false}
           disabled={!editing}
           className={`mt-3 w-full resize-y rounded-lg border border-line bg-app px-3 py-2 font-mono text-xs text-ink outline-none focus:border-ink-3 ${LOCKED_CLS}`}
         />
-      </section>
-
-      <section className="mt-4 rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">热门视频地区</h2>
-        <p className="mt-1 text-xs text-ink-2">影响首页与热门页 mostPopular 的地区（regionCode）。</p>
-        <select
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
+        <input
+          value={refreshToken}
+          onChange={(e) => setRefreshToken(e.target.value)}
+          placeholder="refresh_token（1//…，长期有效，配置后自动续期）"
+          spellCheck={false}
           disabled={!editing}
-          className={`mt-3 rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none ${LOCKED_CLS}`}
-        >
-          {REGIONS.map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}（{code}）
-            </option>
-          ))}
-        </select>
-      </section>
+          className={`mt-2 w-full rounded-lg border border-line bg-app px-3 py-2 font-mono text-xs text-ink outline-none focus:border-ink-3 ${LOCKED_CLS}`}
+        />
+        <input
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+          placeholder="client_id（…apps.googleusercontent.com）"
+          spellCheck={false}
+          disabled={!editing}
+          className={`mt-2 w-full rounded-lg border border-line bg-app px-3 py-2 font-mono text-xs text-ink outline-none focus:border-ink-3 ${LOCKED_CLS}`}
+        />
+        <input
+          value={clientSecret}
+          onChange={(e) => setClientSecret(e.target.value)}
+          placeholder="client_secret（GOCSPX-…）"
+          type="password"
+          spellCheck={false}
+          disabled={!editing}
+          className={`mt-2 w-full rounded-lg border border-line bg-app px-3 py-2 font-mono text-xs text-ink outline-none focus:border-ink-3 ${LOCKED_CLS}`}
+        />
+      </div>
 
-      <section className="mt-4 rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">搜索内容语言</h2>
-        <p className="mt-1 text-xs leading-5 text-ink-2">
+      <div className="mt-5">
+        <FieldTitle>搜索内容语言</FieldTitle>
+        <FieldDesc>
           多选，影响搜索结果的偏好语言（relevanceLanguage）与元数据本地化（hl）。
           每多选一种语言，一次搜索多消耗 100 配额单位。
-        </p>
+        </FieldDesc>
         <div className={`mt-3 flex flex-wrap gap-2 ${editing ? "" : "opacity-50"}`}>
           {CONTENT_LANGS.map(([code, label]) => {
             const on = langs.includes(code);
@@ -251,7 +263,9 @@ export default function Settings() {
                 onClick={() => toggleLang(code)}
                 aria-pressed={on}
                 className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
-                  on ? "bg-accent text-white" : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
+                  on
+                    ? "bg-accent text-white"
+                    : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
                 } ${LOCKED_CLS}`}
               >
                 {label}
@@ -259,8 +273,9 @@ export default function Settings() {
             );
           })}
         </div>
-      </section>
+      </div>
 
+      {/* 编辑组操作按钮 */}
       {editing && (
         <div className="mt-4 flex items-center gap-3">
           <button
@@ -279,6 +294,59 @@ export default function Settings() {
           </button>
         </div>
       )}
+
+      {/* ——— 组分隔横线 ——— */}
+      <hr className="my-6 border-line" />
+
+      {/* ——— 第二组：直接修改、即时生效 ——— */}
+      <GroupTitle>直接生效</GroupTitle>
+
+      <div className="mt-3">
+        <FieldTitle>请求代理（桌面端）</FieldTitle>
+        <FieldDesc>
+          国内直连 googleapis 不可达，API 请求默认走本地代理。支持 host:port 或完整
+          http(s) URL，失焦即保存。API 与图片请求即时生效；视频播放 iframe
+          走 WebView 代理，修改后需重启应用生效。
+        </FieldDesc>
+        <input
+          value={proxy}
+          onChange={(e) => setProxy(e.target.value)}
+          onBlur={commitProxy}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          placeholder={DEFAULT_PROXY}
+          spellCheck={false}
+          className="mt-3 w-full rounded-lg border border-line bg-app px-3 py-2 font-mono text-sm text-ink outline-none focus:border-ink-3"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setProxy(DEFAULT_PROXY);
+            settings.setProxy(DEFAULT_PROXY);
+            if (isTauri()) void invoke("save_webview_proxy", { proxy: DEFAULT_PROXY }).catch(() => {});
+          }}
+          className="mt-2 rounded-full bg-flat px-3 py-1 text-xs text-ink-2 hover:bg-flat-strong hover:text-ink"
+        >
+          恢复默认（{DEFAULT_PROXY}）
+        </button>
+      </div>
+
+      <div className="mt-5">
+        <FieldTitle>热门视频地区</FieldTitle>
+        <FieldDesc>影响首页与热门页 mostPopular 的地区（regionCode），选择即生效。</FieldDesc>
+        <select
+          value={settings.regionCode}
+          onChange={(e) => settings.setRegionCode(e.target.value)}
+          className="mt-3 rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none"
+        >
+          {REGIONS.map(([code, label]) => (
+            <option key={code} value={code}>
+              {label}（{code}）
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

@@ -5,13 +5,14 @@ import Spinner, { ErrorBox } from "../components/Spinner";
 
 /** 热门：mostPopular 排行列表（带名次），滚动到底自动加载下一页 */
 export default function Trending() {
-  const { items, status, error, loadPopular, nextPageToken, loadingMore, loadMorePopular } =
+  const { items, status, error, loadPopular, nextPageToken, loadingMore, loadMorePopular, category } =
     useVideos();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (status === "idle") void loadPopular();
-  }, [status, loadPopular]);
+    // 热门页固定显示「全部」排行：若首页切过分类，进入时重置
+    if (category || status === "idle") void loadPopular();
+  }, [category, status, loadPopular]);
 
   // IntersectionObserver 触底加载（提前 600px 预取）
   useEffect(() => {

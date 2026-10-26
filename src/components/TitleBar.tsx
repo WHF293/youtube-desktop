@@ -6,7 +6,6 @@ import Icon, { YouTubeLogo } from "./Icon";
 import SearchModal from "./SearchModal";
 import { useUi } from "../stores/ui";
 import { useTheme } from "../stores/theme";
-import { useSettings } from "../stores/settings";
 
 /**
  * 自绘标题栏（参照 whf-stock-board 的 TitleBar 模式）：
@@ -20,7 +19,6 @@ export default function TitleBar() {
   const navigate = useNavigate();
   const toggleSidebar = useUi((s) => s.toggleSidebar);
   const { theme, toggle: toggleTheme } = useTheme();
-  const hasApiKey = useSettings((s) => s.apiKey.length > 0);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -124,18 +122,6 @@ export default function TitleBar() {
           className="flex w-11 items-center justify-center text-ink-2 hover:bg-flat hover:text-ink"
         >
           <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/settings")}
-          aria-label="设置"
-          title="设置"
-          className="relative flex w-11 items-center justify-center text-ink-2 hover:bg-flat hover:text-ink"
-        >
-          <Icon name="settings" size={16} />
-          {!hasApiKey && (
-            <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
-          )}
         </button>
 
         {/* 窗口控制按钮（浏览器预览时禁用） */}

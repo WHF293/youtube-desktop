@@ -6,7 +6,21 @@ import type { VideoItem } from "../types/youtube";
 export type Status = "idle" | "loading" | "ready" | "error";
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof YoutubeApiError) return e.message;
+  if (e instanceof YoutubeApiError) {
+    // OAuth 凭证失效：access token 过期（一般 1 小时）或填错
+    if (e.code === 401 || /invalid authentication credentials/i.test(e.message)) {
+      return "访问凭证无效或已过期。OAuth access token 一般 1 小时左右过期，请到「设置」→ OAuth access token 重新生成并粘贴；若只想浏览视频，首页/热门/搜索不受影响。";
+    }
+    // 配额耗尽
+    if (e.code === 403 && /quota/i.test(e.reason ?? e.message)) {
+      return "今日 API 配额已用完（每项目每天 10,000 单位，太平洋时间午夜重置），明天再试或更换 API Key 所在项目。";
+    }
+    // API Key 无效
+    if (/API key not valid|referer/i.test(e.message)) {
+      return "API Key 无效，请到「设置」检查 API Key 是否粘贴完整、YouTube Data API v3 是否已启用。";
+    }
+    return e.message;
+  }
   if (e instanceof Error) return e.message;
   return String(e);
 }
@@ -33,13 +47,15 @@ function interleave(groups: VideoItem[][]): VideoItem[] {
 interface VideosState {
   mode: "popular" | "search";
   query: string;
+  /** popular 当前分类（videoCategoryId）；undefined = 全部 */
+  category: string | undefined;
   items: VideoItem[];
   status: Status;
   error: string;
   /** 下一页 token；null 表示没有更多了（search 多语言时为聚合标记） */
   nextPageToken: string | null;
   loadingMore: boolean;
-  loadPopular: () => Promise<void>;
+  loadPopular: (categoryId?: string) => Promise<void>;
   loadMorePopular: () => Promise<void>;
   loadSearch: (q: string) => Promise<void>;
   loadMoreSearch: () => Promise<void>;
@@ -58,11 +74,11 @@ export const useVideos = create<VideosState>()((set, get) => {
     return l.length > 0 ? l : ["en"];
   };
 
-  const runPopular = async (id: number) => {
-    set({ mode: "popular", query: "", status: "loading", error: "", nextPageToken: null });
+  const runPopular = async (id: number, category?: string) => {
+    set({ mode: "popular", query: "", category, status: "loading", error: "", nextPageToken: null });
     try {
       const { regionCode } = useSettings.getState();
-      const r = await ytApi.mostPopularPage(24, regionCode);
+      const r = await ytApi.mostPopularPage(24, regionCode, undefined, category);
       if (id !== seq) return; // 过期响应
       set({ items: r.items, status: "ready", nextPageToken: r.nextPageToken });
     } catch (e) {
@@ -102,15 +118,16 @@ export const useVideos = create<VideosState>()((set, get) => {
   return {
     mode: "popular",
     query: "",
+    category: undefined,
     items: [],
     status: "idle",
     error: "",
     nextPageToken: null,
     loadingMore: false,
 
-    loadPopular: () => {
+    loadPopular: (categoryId?: string) => {
       const id = ++seq;
-      return runPopular(id);
+      return runPopular(id, categoryId);
     },
 
     loadSearch: (q: string) => {
@@ -119,12 +136,12 @@ export const useVideos = create<VideosState>()((set, get) => {
     },
 
     loadMorePopular: async () => {
-      const { nextPageToken, loadingMore } = get();
+      const { nextPageToken, loadingMore, category } = get();
       if (loadingMore || !nextPageToken) return;
       set({ loadingMore: true });
       try {
         const { regionCode } = useSettings.getState();
-        const r = await ytApi.mostPopularPage(24, regionCode, nextPageToken);
+        const r = await ytApi.mostPopularPage(24, regionCode, nextPageToken, category);
         const current = get();
         if (current.mode !== "popular") return; // 期间切换了列表
         const seen = new Set(
