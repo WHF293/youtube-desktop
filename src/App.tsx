@@ -62,6 +62,18 @@ export default function App() {
     void useHistory.getState().init();
   }, []);
 
+  // 屏蔽 WebView 原生右键菜单（自绘应用不需要「返回/刷新/打印」菜单）；
+  // 输入框/文本域保留原生菜单以便复制粘贴，博主卡片右键走自绘菜单
+  useEffect(() => {
+    const onCtx = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", onCtx);
+    return () => document.removeEventListener("contextmenu", onCtx);
+  }, []);
+
   // 博主元数据后台自愈：启动即拉取全部博主的头像/标题（覆盖本地数据缺失或损坏的场景，
   // 结果持久化，失败静默下次再试）
   useEffect(() => {
