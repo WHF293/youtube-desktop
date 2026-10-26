@@ -42,6 +42,29 @@ interface ChannelsState {
   reorderGroups: (activeGroupId: string, overGroupId: string) => void;
   /** Google Takeout 的 subscriptions.csv 文本导入，返回导入条数 */
   importTakeout: (csv: string) => number;
+  /** JSON 导入（博主管理跨设备同步），返回 {导入数, 跳过数, 新增分组数} */
+  importJson: (data: unknown) => { imported: number; skipped: number; groupsAdded: number };
+}
+
+/** JSON 导出载荷（博主管理跨设备同步） */
+export interface ChannelsExport {
+  app: string;
+  version: number;
+  exportedAt: string;
+  channels: SubChannel[];
+  groups: ChannelGroup[];
+}
+
+/** 构建导出 JSON 文本（Groups 页导出/复制共用） */
+export function buildChannelsExport(channels: SubChannel[], groups: ChannelGroup[]): string {
+  const payload: ChannelsExport = {
+    app: "youtube-desktop",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    channels,
+    groups,
+  };
+  return JSON.stringify(payload, null, 2);
 }
 
 const newGroupId = () => `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -159,6 +182,58 @@ export const useChannels = create<ChannelsState>()(
         }
         if (fresh.length > 0) set({ channels: [...channels, ...fresh] });
         return fresh.length;
+      },
+      importJson: (data) => {
+        const obj = (data ?? {}) as Record<string, unknown>;
+        const incoming = Array.isArray(obj.channels) ? (obj.channels as Record<string, unknown>[]) : [];
+        const incomingGroups = Array.isArray(obj.groups) ? (obj.groups as Record<string, unknown>[]) : [];
+
+        // 分组：同名复用本地分组，缺失新建
+        const { channels, groups } = get();
+        const nameToLocal = new Map<string, string>();
+        for (const g of groups) nameToLocal.set(g.name, g.id);
+        const nextGroups = [...groups];
+        let groupsAdded = 0;
+        // 导出分组 id → 名称（博主归属映射用）
+        const incomingGroupName = new Map<string, string>();
+        for (const g of incomingGroups) {
+          const name = typeof g?.name === "string" ? g.name.trim() : "";
+          const gid = typeof g?.id === "string" ? g.id : "";
+          if (name) incomingGroupName.set(gid, name);
+          if (!name || nameToLocal.has(name)) continue;
+          const created: ChannelGroup = { id: newGroupId(), name };
+          nextGroups.push(created);
+          nameToLocal.set(name, created.id);
+          groupsAdded++;
+        }
+
+        // 博主：按 ID 去重合并（已存在跳过，保留本地分组归属）
+        const existing = new Set(channels.map((c) => c.id));
+        const fresh: SubChannel[] = [];
+        let skipped = 0;
+        for (const c of incoming) {
+          const id = typeof c?.id === "string" ? c.id : "";
+          if (!/^UC[\w-]{22}$/.test(id)) continue;
+          if (existing.has(id)) {
+            skipped++;
+            continue;
+          }
+          existing.add(id);
+          const rawTitle = typeof c?.title === "string" ? c.title : "";
+          const title =
+            rawTitle.replace(/[\u0000-\u001F\uFFFD]/g, "").replace(/\s+/g, " ").trim() || id;
+          const incomingGid = typeof c?.groupId === "string" ? c.groupId : "";
+          const groupName = incomingGroupName.get(incomingGid);
+          fresh.push({
+            id,
+            title,
+            addedAt: typeof c?.addedAt === "string" ? c.addedAt : new Date().toISOString(),
+            thumb: typeof c?.thumb === "string" && c.thumb ? c.thumb : undefined,
+            groupId: groupName ? nameToLocal.get(groupName) : undefined,
+          });
+        }
+        set({ channels: [...channels, ...fresh], groups: nextGroups });
+        return { imported: fresh.length, skipped, groupsAdded };
       },
     }),
     { name: "yt-desktop-channels" },

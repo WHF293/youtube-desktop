@@ -542,6 +542,21 @@ async fn run_video_download(task: VideoDownloadTask, proxy: String, flag: Arc<At
     result
 }
 
+/// 读取文本文件（博主管理 JSON 导入等；路径经 dialog 选择器产生）
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+/// 写入文本文件（博主管理 JSON 导出等；路径经 dialog 选择器产生）
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
+
 /// 启动一个视频下载任务（同一时刻仅一个任务在跑，前端 store 负责排队）
 #[tauri::command]
 async fn start_video_download(
@@ -694,7 +709,9 @@ fn main() {
             cancel_video_download,
             read_download_manifest,
             list_download_dir,
-            delete_offline_video
+            delete_offline_video,
+            read_text_file,
+            write_text_file
         ])
         .setup(|app| {
             // 上次运行残留的下载临时目录（>24h）后台清理

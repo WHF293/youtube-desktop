@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { Link, useNavigate } from "react-router-dom";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   DndContext,
   DragOverlay,
@@ -14,7 +16,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useChannels, type SubChannel } from "../stores/channels";
+import { useChannels, type SubChannel, buildChannelsExport } from "../stores/channels";
 import { refreshChannelsMeta } from "../stores/subsFeed";
 import { registerPageRefresh } from "../lib/refresh";
 import Img from "../components/Img";
@@ -215,6 +217,67 @@ export default function Groups() {
   // 右下角刷新固钉：刷新博主远端元数据（头像/损坏标题自愈）
   useEffect(() => registerPageRefresh("/groups", () => void refreshChannelsMeta()), []);
 
+  // ---------- 博主管理 JSON 导入/导出（跨设备同步） ----------
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importResult, setImportResult] = useState("");
+  const [copied, setCopied] = useState(false);
+  const { importJson } = useChannels();
+
+  const buildExport = () => buildChannelsExport(channels, groups);
+
+  const exportJson = async () => {
+    try {
+      const path = await save({
+        defaultPath: "youtube-desktop-订阅备份.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!path) return;
+      await invoke("write_text_file", { path, contents: buildExport() });
+      alert(`已导出到：${path}`);
+    } catch (e) {
+      alert(`导出失败：${String(e)}`);
+    }
+  };
+
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(buildExport());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("复制到剪贴板失败，请改用「导出文件」");
+    }
+  };
+
+  const pickImportFile = async () => {
+    try {
+      const sel = await open({ multiple: false, filters: [{ name: "JSON", extensions: ["json"] }] });
+      if (typeof sel === "string" && sel) {
+        setImportText(await invoke<string>("read_text_file", { path: sel }));
+        setImportResult("");
+      }
+    } catch (e) {
+      setImportResult(`读取文件失败：${String(e)}`);
+    }
+  };
+
+  const confirmImport = () => {
+    try {
+      const r = importJson(JSON.parse(importText));
+      setImportResult(`已导入 ${r.imported} 位博主（跳过已有 ${r.skipped}），新增 ${r.groupsAdded} 个分组`);
+      if (r.imported > 0 || r.groupsAdded > 0) {
+        setTimeout(() => {
+          setImportOpen(false);
+          setImportText("");
+          setImportResult("");
+        }, 1200);
+      }
+    } catch (e) {
+      setImportResult(`导入失败：${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   // 列：默认分组固定第一列，自定义分组按用户排序跟在后面
   const columns: { key: string; name: string; groupId: string | undefined; list: SubChannel[] }[] = [
     { key: "ungrouped", name: "默认分组", groupId: undefined, list: channels.filter((c) => !c.groupId) },
@@ -286,7 +349,7 @@ export default function Groups() {
           <p className="text-xs text-ink-3">
             {channels.length} 位博主 · 拖拽卡片到不同分组即完成归类，点击卡片进入频道页
           </p>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             {creating ? (
               <input
                 autoFocus
@@ -321,6 +384,31 @@ export default function Groups() {
                 新建分组
               </button>
             )}
+            {/* 跨设备同步：JSON 导入/导出（合并语义，见弹窗说明） */}
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              title="从 JSON 导入博主与分组"
+              className="rounded-full bg-flat px-3 py-1.5 text-sm text-ink transition-colors hover:bg-flat-strong"
+            >
+              导入
+            </button>
+            <button
+              type="button"
+              onClick={() => void exportJson()}
+              title="导出博主与分组为 JSON 文件"
+              className="rounded-full bg-flat px-3 py-1.5 text-sm text-ink transition-colors hover:bg-flat-strong"
+            >
+              导出文件
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyJson()}
+              title="复制博主与分组 JSON 到剪贴板"
+              className="rounded-full bg-flat px-3 py-1.5 text-sm text-ink transition-colors hover:bg-flat-strong"
+            >
+              {copied ? "已复制" : "复制 JSON"}
+            </button>
           </div>
         </header>
 
@@ -392,6 +480,54 @@ export default function Groups() {
           })()
         ) : null}
       </DragOverlay>
+
+      {/* JSON 导入弹窗（合并导入：已有博主跳过，同名分组复用） */}
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setImportOpen(false)} aria-hidden="true" />
+          <div className="relative flex w-full max-w-md flex-col rounded-2xl border border-line bg-surface p-4 shadow-island">
+            <h3 className="text-sm font-semibold text-ink">导入博主与分组（JSON）</h3>
+            <p className="mt-1 text-xs leading-5 text-ink-3">
+              合并导入：已存在的博主跳过（保留本地分组归属），同名分组复用本地分组，其余按导出时的分组归属还原。
+            </p>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              rows={8}
+              spellCheck={false}
+              placeholder="粘贴此前导出的 JSON，或点「选择文件」读取备份文件"
+              className="mt-3 w-full resize-none rounded-lg border border-line bg-app p-2 font-mono text-xs text-ink outline-none focus:border-ink-3"
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void pickImportFile()}
+                className="rounded-full bg-flat px-3 py-1.5 text-xs text-ink transition-colors hover:bg-flat-strong"
+              >
+                选择文件
+              </button>
+              {importResult && <span className="min-w-0 flex-1 truncate text-xs text-ink-2">{importResult}</span>}
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setImportOpen(false)}
+                className="rounded-full bg-flat px-3 py-1.5 text-xs text-ink hover:bg-flat-strong"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={confirmImport}
+                disabled={!importText.trim()}
+                className="rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                确认导入
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DndContext>
   );
 }

@@ -77,6 +77,14 @@ body {
   background: transparent;
 }
 
+/* 可点击元素统一小手光标（button 默认是箭头，含所有 icon 按钮在内） */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+select,
+summary {
+  cursor: pointer;
+}
+
 /* 两行截断 */
 .clamp-2 {
   display: -webkit-box;
