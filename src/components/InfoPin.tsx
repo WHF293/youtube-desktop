@@ -34,7 +34,7 @@ export default function InfoPin() {
         aria-label="刷新"
         title="刷新"
         onClick={() => void refresh()}
-        className="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-full bg-accent text-white shadow-md transition-transform hover:scale-105 hover:opacity-90 active:scale-95"
+        className="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-full bg-accent text-white opacity-80 shadow-md transition-transform hover:scale-105 hover:opacity-90 active:scale-95"
       >
         <Icon name="refresh" size={21} className={refreshing ? "animate-spin" : ""} />
       </button>

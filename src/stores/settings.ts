@@ -73,7 +73,7 @@ interface SettingsState {
   mode: DataMode;
   /** mostPopular 的地区码（FreeTube 模式下作为 InnerTube 的 gl 地区偏好） */
   regionCode: string;
-  /** 搜索内容语言偏好（多选，InnerTube context.hl 按语言注入） */
+  /** 搜索内容语言偏好（单选，InnerTube context.hl；历史多选数据取第一个） */
   languages: string[];
   /** API 请求代理（仅桌面端生效；留空则不走代理） */
   proxy: string;

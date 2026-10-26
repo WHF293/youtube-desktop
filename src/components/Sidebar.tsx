@@ -91,13 +91,13 @@ function RegionEntry({ collapsed }: { collapsed: boolean }) {
                   setMenu(null);
                 }}
                 className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-flat ${
-                  code === regionCode ? "font-medium text-accent" : "text-ink"
+                  code === regionCode ? "glass-btn glass-btn--primary font-medium text-accent" : "text-ink"
                 }`}
               >
                 <span>
                   {label}（{code}）
                 </span>
-                {code === regionCode && <span className="text-xs">当前</span>}
+                {code === regionCode && <span className="relative z-10 text-xs">当前</span>}
               </button>
             ))}
           </div>
@@ -118,7 +118,7 @@ export default function Sidebar() {
 
   const linkCls = ({ isActive }: { isActive: boolean }) =>
     `group relative flex items-center rounded-lg text-sm ${
-      isActive ? "bg-flat font-medium text-accent" : "text-ink-2 hover:bg-flat hover:text-ink"
+      isActive ? "glass-btn glass-btn--primary font-medium text-accent" : "text-ink-2 hover:bg-flat hover:text-ink"
     } ${collapsed ? "h-10 justify-center" : "gap-4 px-3 py-2.5"}`;
 
   const tipHandlers = (text: string) =>

@@ -77,14 +77,14 @@ export default function Home() {
 
   return (
     <div>
-      {/* 分类 tab（官网风格 pill，选中黑底/暗模式白底反色） */}
+      {/* 分类 tab（whf-stock-board 高光玻璃按钮组：选中项玻璃气泡 + accent 描边） */}
       <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto bg-app px-4 py-3">
         <button
           type="button"
           onClick={() => pickCategory(undefined)}
           className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
             category === undefined
-              ? "bg-ink text-surface"
+              ? "glass-btn glass-btn--primary font-medium text-accent"
               : "bg-flat text-ink hover:bg-flat-strong"
           }`}
         >
@@ -96,7 +96,9 @@ export default function Home() {
             type="button"
             onClick={() => pickCategory(id)}
             className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              category === id ? "bg-ink text-surface" : "bg-flat text-ink hover:bg-flat-strong"
+              category === id
+                ? "glass-btn glass-btn--primary font-medium text-accent"
+                : "bg-flat text-ink hover:bg-flat-strong"
             }`}
           >
             {label}

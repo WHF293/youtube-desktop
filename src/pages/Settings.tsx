@@ -27,20 +27,15 @@ function FieldDesc({ children }: { children: React.ReactNode }) {
  */
 export default function Settings() {
   const settings = useSettings();
-  const [langs, setLangs] = useState<string[]>(settings.languages);
+  // 单选 UI；老版本持久化的多语言数据收敛为第一个（InnerTube 侧本就只取 languages[0]）
+  const [langs, setLangs] = useState<string[]>(settings.languages.slice(0, 1));
   const [proxy, setProxy] = useState(settings.proxy);
   const [ffmpegInput, setFfmpegInput] = useState(settings.ffmpegPath);
 
   const toggleLang = (code: string) => {
-    setLangs((prev) => {
-      const next = prev.includes(code)
-        ? prev.length > 1
-          ? prev.filter((c) => c !== code) // 至少保留一个语言
-          : prev
-        : [...prev, code];
-      settings.setLanguages(next);
-      return next;
-    });
+    // 单选：搜索只请求该一种语言（InnerTube context.hl），即选即生效
+    setLangs([code]);
+    settings.setLanguages([code]);
   };
 
   /** 代理输入框失焦 / 回车即保存（API 与图片请求即时生效） */
@@ -69,7 +64,7 @@ export default function Settings() {
         无需 API Key 和任何 Google 登录；订阅频道在下方管理，数据只存本机。
       </p>
 
-      <hr className="my-6 border-accent" />
+      <hr className="my-6 border-accent/80" />
 
       <GroupTitle>订阅</GroupTitle>
       <FieldTitle>订阅频道管理</FieldTitle>
@@ -78,7 +73,7 @@ export default function Settings() {
       </FieldDesc>
       <ChannelManager />
 
-      <hr className="my-6 border-accent" />
+      <hr className="my-6 border-accent/80" />
 
       <GroupTitle>视频下载</GroupTitle>
 
@@ -128,7 +123,7 @@ export default function Settings() {
               aria-pressed={settings.defaultQuality === value}
               className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
                 settings.defaultQuality === value
-                  ? "bg-accent text-white"
+                  ? "glass-btn glass-btn--primary font-medium text-accent"
                   : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
               }`}
             >
@@ -174,13 +169,13 @@ export default function Settings() {
         </div>
       </div>
 
-      <hr className="my-6 border-accent" />
+      <hr className="my-6 border-accent/80" />
 
       <GroupTitle>通用</GroupTitle>
 
       <div className="mt-3">
         <FieldTitle>搜索内容语言</FieldTitle>
-        <FieldDesc>多选，影响搜索结果的偏好语言与元数据本地化（InnerTube context.hl），选择即生效。</FieldDesc>
+        <FieldDesc>影响搜索结果的偏好语言与元数据本地化（InnerTube context.hl），单选即生效。</FieldDesc>
         <div className="mt-3 flex flex-wrap gap-2">
           {CONTENT_LANGS.map(([code, label]) => {
             const on = langs.includes(code);
@@ -191,7 +186,9 @@ export default function Settings() {
                 onClick={() => toggleLang(code)}
                 aria-pressed={on}
                 className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
-                  on ? "bg-accent text-white" : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
+                  on
+                    ? "glass-btn glass-btn--primary font-medium text-accent"
+                    : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
                 }`}
               >
                 {label}
@@ -231,7 +228,7 @@ export default function Settings() {
         </button>
       </div>
 
-      <hr className="my-6 border-accent" />
+      <hr className="my-6 border-accent/80" />
 
       <GroupTitle>关于</GroupTitle>
       <div className="mt-1 flex items-center justify-between gap-3">
