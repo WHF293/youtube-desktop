@@ -129,7 +129,13 @@ export const useVideos = create<VideosState>()((set, get) => {
         const { regionCode } = useSettings.getState();
         const r = await ytApi.mostPopularPage(24, regionCode, nextPageToken, category);
         const current = get();
-        if (current.mode !== "popular") return; // 期间切换了列表
+        if (current.mode !== "popular" || current.category !== category) {
+          // 期间切换了列表/分类：loadingMore 必须复位，否则触底加载永久卡死；
+          // 若不拦截，旧分类的分页响应会覆盖新列表的 nextPageToken，
+          // 之后每次触底都在拉旧数据源且全部被去重过滤（表现为永远加载不出更多）
+          set({ loadingMore: false });
+          return;
+        }
         const seen = new Set(
           current.items.map((v) => (typeof v.id === "string" ? v.id : v.id.videoId)),
         );
@@ -164,7 +170,11 @@ export const useVideos = create<VideosState>()((set, get) => {
           ),
         );
         const current = get();
-        if (current.mode !== "search" || current.query !== query) return; // 期间切换了列表
+        if (current.mode !== "search" || current.query !== query) {
+          // 期间切换了列表：loadingMore 必须复位，否则触底加载永久卡死
+          set({ loadingMore: false });
+          return;
+        }
         for (const r of results) {
           if (r.ok) searchTokens[r.lang] = r.token; // 失败的语言保留旧 token 供重试
         }

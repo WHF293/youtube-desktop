@@ -32,7 +32,9 @@ export default function Home() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (status === "idle") void loadPopular(category);
+    // 从搜索页返回等场景：store 残留的是搜索结果（mode=search），回到首页必须复位为推荐流，
+    // 否则列表错乱且触底加载在 mode 不匹配下失效
+    if (status === "idle" || useVideos.getState().mode !== "popular") void loadPopular(category);
   }, [status, loadPopular, category]);
 
   // 右下角刷新固钉：保留当前分类刷新

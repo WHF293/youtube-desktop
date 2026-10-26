@@ -7,9 +7,9 @@ import { useSettings, REGIONS } from "../stores/settings";
 const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions", end: false },
-  { to: "/history", label: "观看记录", icon: "history", end: false },
+  { to: "/history", label: "历史", icon: "history", end: false },
   { to: "/favorites", label: "收藏", icon: "star", end: false },
-  { to: "/offline", label: "离线视频", icon: "download", end: false },
+  { to: "/offline", label: "离线", icon: "download", end: false },
 ];
 
 /** 侧栏底部固定入口（贴底） */
