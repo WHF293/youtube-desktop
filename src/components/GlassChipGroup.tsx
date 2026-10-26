@@ -1,5 +1,5 @@
 import { useRef, type RefObject } from "react";
-import { useSlidingThumb } from "../lib/useSlidingThumb";
+import { thumbPhaseCls, thumbStyle, useSlidingThumb } from "../lib/useSlidingThumb";
 
 /**
  * 高光玻璃按钮组（参考 whf-stock-board 按钮组）：底部一条玻璃轨道，
@@ -22,7 +22,7 @@ export default function GlassChipGroup<T extends string>({
 }) {
   const ref = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
   const activeIndex = options.findIndex((o) => o.value === value);
-  const rect = useSlidingThumb(ref, activeIndex);
+  const { rect, phase } = useSlidingThumb(ref, activeIndex);
 
   return (
     <div
@@ -34,8 +34,8 @@ export default function GlassChipGroup<T extends string>({
       {rect && (
         <span
           aria-hidden
-          className="glass-btn glass-thumb pointer-events-none left-0 top-0 rounded-full transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
-          style={{ transform: `translate(${rect.x}px, ${rect.y}px)`, width: rect.w, height: rect.h }}
+          className={`glass-btn glass-thumb pointer-events-none left-0 top-0 rounded-full ${thumbPhaseCls(phase)}`}
+          style={thumbStyle(rect, phase)}
         />
       )}
       {options.map((o) => (

@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import Icon from "./Icon";
 import { useUi } from "../stores/ui";
 import { useSettings, REGIONS } from "../stores/settings";
-import { useSlidingThumb } from "../lib/useSlidingThumb";
+import { thumbPhaseCls, thumbStyle, useSlidingThumb } from "../lib/useSlidingThumb";
 
 const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },
@@ -29,7 +29,7 @@ function RegionMenu({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const activeIndex = REGIONS.findIndex(([code]) => code === regionCode);
-  const rect = useSlidingThumb(ref, activeIndex);
+  const { rect, phase } = useSlidingThumb(ref, activeIndex);
   return (
     <div
       ref={ref}
@@ -41,8 +41,8 @@ function RegionMenu({
       {rect && (
         <span
           aria-hidden
-          className="glass-btn glass-thumb pointer-events-none left-1 right-1 rounded-lg transition-[transform,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
-          style={{ transform: `translateY(${rect.y}px)`, height: rect.h }}
+          className={`glass-btn glass-thumb pointer-events-none left-0 top-0 rounded-lg ${thumbPhaseCls(phase)}`}
+          style={thumbStyle(rect, phase)}
         />
       )}
       {REGIONS.map(([code, label]) => (
@@ -151,12 +151,12 @@ export default function Sidebar() {
   // 收起态 hover 气泡
   const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
 
-  // 主导航滑动玻璃气泡：切换页面时气泡弹性滑到当前项（whf-stock-board 侧栏同款）
+  // 主导航滑动玻璃气泡：切换页面时气泡滑向当前项（travel 缩到 80% 变淡，restore 回弹恢复）
   const navRef = useRef<HTMLUListElement>(null);
   const activeIdx = NAV_ITEMS.findIndex((item) =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
   );
-  const navRect = useSlidingThumb(navRef, activeIdx, [collapsed]);
+  const { rect: navRect, phase: navPhase } = useSlidingThumb(navRef, activeIdx, [collapsed]);
 
   // 主导航：选中态视觉由滑动气泡承担，这里只做文字着色
   const navLinkCls = ({ isActive }: { isActive: boolean }) =>
@@ -193,8 +193,8 @@ export default function Sidebar() {
           {navRect && (
             <span
               aria-hidden
-              className="glass-btn glass-thumb pointer-events-none left-0 rounded-lg transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
-              style={{ transform: `translateY(${navRect.y}px)`, width: navRect.w, height: navRect.h }}
+              className={`glass-btn glass-thumb pointer-events-none left-0 rounded-lg ${thumbPhaseCls(navPhase)}`}
+              style={thumbStyle(navRect, navPhase)}
             />
           )}
           {NAV_ITEMS.map((item) => (
