@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSettings, DEFAULT_PROXY, CONTENT_LANGS, DEFAULT_DOWNLOAD_DIR, DOWNLOAD_QUALITIES } from "../stores/settings";
 import { openExternal } from "../lib/open";
+import GlassChipGroup from "../components/GlassChipGroup";
 import ChannelManager from "./ChannelManager";
 import Icon from "../components/Icon";
 
@@ -114,23 +115,12 @@ export default function Settings() {
       <div className="mt-5">
         <FieldTitle>默认清晰度</FieldTitle>
         <FieldDesc>下载弹窗的预选档位；「自动」为可用的最高清晰度（4K 为 vp9 编码，兼容性略差）。</FieldDesc>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {DOWNLOAD_QUALITIES.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => settings.setDefaultQuality(value)}
-              aria-pressed={settings.defaultQuality === value}
-              className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
-                settings.defaultQuality === value
-                  ? "glass-btn glass-btn--primary font-medium text-accent"
-                  : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <GlassChipGroup
+          className="mt-3"
+          options={DOWNLOAD_QUALITIES.map(([value, label]) => ({ value, label }))}
+          value={settings.defaultQuality}
+          onChange={settings.setDefaultQuality}
+        />
       </div>
 
       <div className="mt-5">
@@ -176,26 +166,12 @@ export default function Settings() {
       <div className="mt-3">
         <FieldTitle>搜索内容语言</FieldTitle>
         <FieldDesc>影响搜索结果的偏好语言与元数据本地化（InnerTube context.hl），单选即生效。</FieldDesc>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {CONTENT_LANGS.map(([code, label]) => {
-            const on = langs.includes(code);
-            return (
-              <button
-                key={code}
-                type="button"
-                onClick={() => toggleLang(code)}
-                aria-pressed={on}
-                className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
-                  on
-                    ? "glass-btn glass-btn--primary font-medium text-accent"
-                    : "bg-flat text-ink-2 hover:bg-flat-strong hover:text-ink"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+        <GlassChipGroup
+          className="mt-3"
+          options={CONTENT_LANGS.map(([value, label]) => ({ value, label }))}
+          value={langs[0] ?? ""}
+          onChange={toggleLang}
+        />
       </div>
 
       <div className="mt-5">

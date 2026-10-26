@@ -1,8 +1,9 @@
-import { NavLink } from "react-router-dom";
-import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useRef, useState } from "react";
 import Icon from "./Icon";
 import { useUi } from "../stores/ui";
 import { useSettings, REGIONS } from "../stores/settings";
+import { useSlidingThumb } from "../lib/useSlidingThumb";
 
 const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },
@@ -17,6 +18,54 @@ const BOTTOM_ITEMS = [{ to: "/settings", label: "设置", icon: "settings" }];
 
 /** 侧栏地区入口的 hover 说明 */
 const REGION_TIP = "切换首页「全部/新闻」的内容地区与搜索结果的地区倾向（InnerTube context.gl），选择即生效。";
+
+/** 地区选择浮层（滑动玻璃气泡选中态；独立组件 = 每次打开重新量取气泡几何） */
+function RegionMenu({
+  regionCode,
+  onPick,
+}: {
+  regionCode: string;
+  onPick: (code: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const activeIndex = REGIONS.findIndex(([code]) => code === regionCode);
+  const rect = useSlidingThumb(ref, activeIndex);
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      aria-label="选择地区"
+      className="relative overflow-y-auto rounded-xl py-1"
+      style={{ maxHeight: "min(480px, calc(100vh - 24px))" }}
+    >
+      {rect && (
+        <span
+          aria-hidden
+          className="glass-btn pointer-events-none absolute left-1 right-1 rounded-lg transition-[transform,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
+          style={{ transform: `translateY(${rect.y}px)`, height: rect.h }}
+        />
+      )}
+      {REGIONS.map(([code, label]) => (
+        <button
+          key={code}
+          type="button"
+          role="menuitemradio"
+          data-thumb-item
+          aria-checked={code === regionCode}
+          onClick={() => onPick(code)}
+          className={`relative flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-flat ${
+            code === regionCode ? "font-medium text-accent" : "text-ink"
+          }`}
+        >
+          <span>
+            {label}（{code}）
+          </span>
+          {code === regionCode && <span className="text-xs">当前</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** 收起态 hover 气泡（fixed 定位，不受侧栏 overflow 裁剪） */
 function RailTip({ text, x, y }: { text: string; x: number; y: number }) {
@@ -75,31 +124,16 @@ function RegionEntry({ collapsed }: { collapsed: boolean }) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} aria-hidden="true" />
           <div
-            role="menu"
-            aria-label="选择地区"
-            className="fixed z-50 w-44 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-island"
-            style={{ left: menu.x, top: menu.y, maxHeight: "min(480px, calc(100vh - 24px))" }}
+            className="fixed z-50 w-44 rounded-xl border border-line bg-surface shadow-island"
+            style={{ left: menu.x, top: menu.y }}
           >
-            {REGIONS.map(([code, label]) => (
-              <button
-                key={code}
-                type="button"
-                role="menuitemradio"
-                aria-checked={code === regionCode}
-                onClick={() => {
-                  setRegionCode(code);
-                  setMenu(null);
-                }}
-                className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-flat ${
-                  code === regionCode ? "glass-btn glass-btn--primary font-medium text-accent" : "text-ink"
-                }`}
-              >
-                <span>
-                  {label}（{code}）
-                </span>
-                {code === regionCode && <span className="relative z-10 text-xs">当前</span>}
-              </button>
-            ))}
+            <RegionMenu
+              regionCode={regionCode}
+              onPick={(code) => {
+                setRegionCode(code);
+                setMenu(null);
+              }}
+            />
           </div>
         </>
       )}
@@ -112,13 +146,28 @@ function RegionEntry({ collapsed }: { collapsed: boolean }) {
 export default function Sidebar() {
   const open = useUi((s) => s.sidebarOpen);
   const collapsed = !open;
+  const location = useLocation();
 
   // 收起态 hover 气泡
   const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
 
-  const linkCls = ({ isActive }: { isActive: boolean }) =>
+  // 主导航滑动玻璃气泡：切换页面时气泡弹性滑到当前项（whf-stock-board 侧栏同款）
+  const navRef = useRef<HTMLUListElement>(null);
+  const activeIdx = NAV_ITEMS.findIndex((item) =>
+    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
+  );
+  const navRect = useSlidingThumb(navRef, activeIdx, [collapsed]);
+
+  // 主导航：选中态视觉由滑动气泡承担，这里只做文字着色
+  const navLinkCls = ({ isActive }: { isActive: boolean }) =>
     `group relative flex items-center rounded-lg text-sm ${
-      isActive ? "glass-btn glass-btn--primary font-medium text-accent" : "text-ink-2 hover:bg-flat hover:text-ink"
+      isActive ? "font-medium text-accent" : "text-ink-2 hover:bg-flat hover:text-ink"
+    } ${collapsed ? "h-10 justify-center" : "gap-4 px-3 py-2.5"}`;
+
+  // 底部固定入口（设置）：静态玻璃选中态
+  const bottomLinkCls = ({ isActive }: { isActive: boolean }) =>
+    `group relative flex items-center rounded-lg text-sm ${
+      isActive ? "glass-btn font-medium text-accent" : "text-ink-2 hover:bg-flat hover:text-ink"
     } ${collapsed ? "h-10 justify-center" : "gap-4 px-3 py-2.5"}`;
 
   const tipHandlers = (text: string) =>
@@ -138,12 +187,19 @@ export default function Sidebar() {
         collapsed ? "w-16" : "w-56"
       }`}
     >
-      {/* 主导航 */}
+      {/* 主导航（滑动玻璃气泡选中态） */}
       <nav className="flex-1 overflow-x-clip overflow-y-auto px-2 py-2">
-        <ul className="space-y-1">
+        <ul ref={navRef} className="relative space-y-1">
+          {navRect && (
+            <span
+              aria-hidden
+              className="glass-btn pointer-events-none absolute left-0 rounded-lg transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
+              style={{ transform: `translateY(${navRect.y}px)`, width: navRect.w, height: navRect.h }}
+            />
+          )}
           {NAV_ITEMS.map((item) => (
             <li key={item.to}>
-              <NavLink to={item.to} end={item.end} className={linkCls} {...tipHandlers(item.label)}>
+              <NavLink to={item.to} end={item.end} className={navLinkCls} {...tipHandlers(item.label)}>
                 <Icon name={item.icon} size={20} className="shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </NavLink>
@@ -161,7 +217,7 @@ export default function Sidebar() {
         <ul className="space-y-1">
           {BOTTOM_ITEMS.map((item) => (
             <li key={item.to}>
-              <NavLink to={item.to} className={linkCls} {...tipHandlers(item.label)}>
+              <NavLink to={item.to} className={bottomLinkCls} {...tipHandlers(item.label)}>
                 <Icon name={item.icon} size={20} className="shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </NavLink>

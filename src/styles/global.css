@@ -130,10 +130,6 @@ body {
   );
   pointer-events: none;
 }
-/* 选中态着色：描边带 accent 色，文字色由调用方给 */
-.glass-btn--primary {
-  border-color: rgb(255 0 0 / 0.35);
-}
 .dark .glass-btn {
   background: rgb(34 42 54 / var(--glass-alpha-dark));
   border-color: rgb(255 255 255 / 0.13);
@@ -149,7 +145,4 @@ body {
     rgb(255 255 255 / 0.04) 26%,
     transparent 46%
   );
-}
-.dark .glass-btn--primary {
-  border-color: rgb(255 0 0 / 0.45);
 }

@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useVideos } from "../stores/videos";
 import { registerPageRefresh } from "../lib/refresh";
+import GlassChipGroup from "../components/GlassChipGroup";
 import { VideoGrid } from "../components/VideoCard";
 import Spinner, { ErrorBox } from "../components/Spinner";
 
-/** 首页分类 tab（YouTube 官方 videoCategoryId，1 配额单位/次）；
- *  播客与 Shorts 无 API 等价物，不做（王总确认 2026-10-26） */
+/** 首页分类 tab（YouTube 官方 videoCategoryId）；「新闻」分类内容跟随地区（InnerTube 搜索地区化） */
 const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
   ["10", "音乐"],
   ["20", "游戏"],
@@ -16,6 +16,11 @@ const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
   ["27", "教育"],
   ["19", "旅行与活动"],
 ];
+
+const TAB_OPTIONS = [
+  { value: "", label: "全部" },
+  ...CATEGORIES.map(([id, label]) => ({ value: id, label })),
+] as const;
 
 /** 首页：分类 tab + mostPopular 推荐网格，滚动到底自动加载下一页 */
 export default function Home() {
@@ -77,33 +82,15 @@ export default function Home() {
 
   return (
     <div>
-      {/* 分类 tab（whf-stock-board 高光玻璃按钮组：选中项玻璃气泡 + accent 描边） */}
-      <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto bg-app px-4 py-3">
-        <button
-          type="button"
-          onClick={() => pickCategory(undefined)}
-          className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
-            category === undefined
-              ? "glass-btn glass-btn--primary font-medium text-accent"
-              : "bg-flat text-ink hover:bg-flat-strong"
-          }`}
-        >
-          全部
-        </button>
-        {CATEGORIES.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => pickCategory(id)}
-            className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              category === id
-                ? "glass-btn glass-btn--primary font-medium text-accent"
-                : "bg-flat text-ink hover:bg-flat-strong"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      {/* 分类 tab（whf-stock-board 高光玻璃按钮组：滑动玻璃气泡选中态） */}
+      <div className="sticky top-0 z-10 bg-app px-4 py-3">
+        <GlassChipGroup
+          options={TAB_OPTIONS}
+          value={category ?? ""}
+          onChange={(v) => pickCategory(v || undefined)}
+          wrap={false}
+          className="max-w-full overflow-x-auto"
+        />
       </div>
 
       {items.length === 0 ? (
