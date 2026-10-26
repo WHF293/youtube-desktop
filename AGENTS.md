@@ -80,6 +80,7 @@ pnpm build           # 仅前端：tsc --noEmit + vite build
 | `download_update` / `finish_update` | 应用自更新（流式下载 + 静默安装） |
 | `start_video_download` / `cancel_video_download` | 视频下载（单任务、进度事件 `video-download-progress`） |
 | `read_download_manifest` / `list_download_dir` / `delete_offline_video` | 离线清单读取 / 目录扫描 / 删除（含缩略图与清单条目） |
+| `read_text_file` / `write_text_file` | 文本文件读写（博主管理 JSON 导入/导出；路径经 dialog 选择器产生） |
 
 ## 关键架构约定（改代码前必读）
 
