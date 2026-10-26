@@ -116,7 +116,26 @@ async fn yt_fetch(
     Ok(FetchResult { status, body })
 }
 
-/// 缩略图/头像经代理加载，返回 data URL（内存缓存，避免重复拉取）。
+/// 图片磁盘缓存路径：%LOCALAPPDATA%/youtube-desktop/img-cache/<fnv1a(url)>.img
+/// 头像等不常变化的图片跨会话缓存，避免每次启动重新请求（30 天过期）
+fn image_cache_path(url: &str) -> Option<std::path::PathBuf> {
+    let base = std::env::var("LOCALAPPDATA").ok()?;
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325; // FNV-1a 64
+    for b in url.as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    Some(std::path::Path::new(&base).join("youtube-desktop").join("img-cache").join(format!("{h:016x}.img")))
+}
+
+/// bytes → data URL（按文件头识别 MIME）
+fn to_data_url(bytes: &[u8]) -> String {
+    let mime = sniff_mime(bytes);
+    use base64::Engine as _;
+    format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
+/// 缩略图/头像经代理加载，返回 data URL（三级缓存：内存 → 磁盘 30 天 → 代理拉取）。
 /// 只放行 IMG_HOSTS 白名单域名，防止被当通用代理用。
 #[tauri::command]
 async fn yt_image(
@@ -129,6 +148,7 @@ async fn yt_image(
         return Ok(hit.clone());
     }
 
+    // 白名单校验
     let rest = url.split("://").nth(1).ok_or("无效的图片地址")?;
     let host = rest.split('/').next().unwrap_or("");
     let allowed = IMG_HOSTS
@@ -136,6 +156,31 @@ async fn yt_image(
         .any(|h| host == *h || host.ends_with(&format!(".{h}")));
     if !allowed {
         return Err(format!("图片域名不在白名单：{host}"));
+    }
+
+    // 磁盘缓存命中（30 天内）直接回填
+    let disk = image_cache_path(&url);
+    if let Some(p) = &disk {
+        if let Ok(meta) = std::fs::metadata(p) {
+            let fresh = meta
+                .modified()
+                .ok()
+                .and_then(|m| m.elapsed().ok())
+                .map(|d| d.as_secs() < 30 * 86_400)
+                .unwrap_or(false);
+            if fresh {
+                if let Ok(bytes) = std::fs::read(p) {
+                    let data_url = to_data_url(&bytes);
+                    if let Ok(mut map) = cache.0.lock() {
+                        if map.len() > 400 {
+                            map.clear();
+                        }
+                        map.insert(url.clone(), data_url.clone());
+                    }
+                    return Ok(data_url);
+                }
+            }
+        }
     }
 
     let client = client_for(&proxy, &http)?;
@@ -150,13 +195,15 @@ async fn yt_image(
         .await
         .map_err(|e| e.to_string())?;
 
-    let mime = sniff_mime(&bytes);
-    use base64::Engine as _;
-    let data_url = format!(
-        "data:{mime};base64,{}",
-        base64::engine::general_purpose::STANDARD.encode(&bytes)
-    );
+    // 落盘缓存（尽力而为，失败不影响返回）
+    if let Some(p) = &disk {
+        if let Some(dir) = p.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(p, &bytes);
+    }
 
+    let data_url = to_data_url(&bytes);
     let mut map = cache.0.lock().map_err(|e| e.to_string())?;
     if map.len() > 400 {
         map.clear();

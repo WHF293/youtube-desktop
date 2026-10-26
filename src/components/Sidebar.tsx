@@ -41,7 +41,7 @@ function RegionMenu({
       {rect && (
         <span
           aria-hidden
-          className="glass-btn pointer-events-none absolute left-1 right-1 rounded-lg transition-[transform,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
+          className="glass-btn glass-thumb pointer-events-none left-1 right-1 rounded-lg transition-[transform,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
           style={{ transform: `translateY(${rect.y}px)`, height: rect.h }}
         />
       )}
@@ -193,7 +193,7 @@ export default function Sidebar() {
           {navRect && (
             <span
               aria-hidden
-              className="glass-btn pointer-events-none absolute left-0 rounded-lg transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
+              className="glass-btn glass-thumb pointer-events-none left-0 rounded-lg transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
               style={{ transform: `translateY(${navRect.y}px)`, width: navRect.w, height: navRect.h }}
             />
           )}

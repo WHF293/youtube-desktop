@@ -34,7 +34,7 @@ export default function GlassChipGroup<T extends string>({
       {rect && (
         <span
           aria-hidden
-          className="glass-btn pointer-events-none absolute left-0 top-0 rounded-full transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
+          className="glass-btn glass-thumb pointer-events-none left-0 top-0 rounded-full transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.3,1.2,0.5,1)]"
           style={{ transform: `translate(${rect.x}px, ${rect.y}px)`, width: rect.w, height: rect.h }}
         />
       )}

@@ -17,16 +17,17 @@
   --shadow-island: 0 2px 6px rgb(31 39 51 / 0.06), 0 8px 24px rgb(31 39 51 / 0.08);
 }
 
-/* 主题 token：暗色（YouTube 风格） */
+/* 主题 token：暗色（对齐 whf-stock-board 黑金近黑：底色越深行情/内容越聚焦，
+   卡片面比底色抬一档保持分层） */
 .dark {
-  --app-bg: #0f0f0f;
-  --app-surface: #212121;
-  --app-flat: #272727;
-  --app-flat-strong: #3f3f3f;
-  --app-line: #303030;
-  --app-ink: #f1f1f1;
-  --app-ink-2: #aaaaaa;
-  --app-ink-3: #717171;
+  --app-bg: #09090b;
+  --app-surface: #15161a;
+  --app-flat: #1c1d22;
+  --app-flat-strong: #2a2c33;
+  --app-line: #23242a;
+  --app-ink: #e6eaf0;
+  --app-ink-2: #9aa6b6;
+  --app-ink-3: #6b7686;
   --shadow-island: 0 2px 6px rgb(0 0 0 / 0.35), 0 8px 24px rgb(0 0 0 / 0.35);
 }
 
@@ -153,4 +154,9 @@ summary {
     rgb(255 255 255 / 0.04) 26%,
     transparent 46%
   );
+}
+/* 滑动玻璃气泡定位类：.glass-btn 自带 position:relative（::after 高光带的定位基准），
+   气泡元素需追加本类覆盖为 absolute（源序在后，同特异性下胜出） */
+.glass-thumb {
+  position: absolute;
 }
