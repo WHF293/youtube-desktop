@@ -28,6 +28,7 @@ interface ChannelsState {
   add: (id: string, title: string) => void;
   remove: (id: string) => void;
   setThumb: (id: string, thumb: string) => void;
+  setTitle: (id: string, title: string) => void;
   addGroup: (name: string) => string;
   removeGroup: (id: string) => void;
   renameGroup: (id: string, name: string) => void;
@@ -45,6 +46,13 @@ interface ChannelsState {
 
 const newGroupId = () => `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
+/** title 是否疑似损坏：含替换符/控制字符，或混入了频道 ID（导入解析错位的产物） */
+export function titleLooksBroken(title: string, channelId: string): boolean {
+  if (!title) return true;
+  if (title.includes("\uFFFD") || /[\u0000-\u001F]/.test(title)) return true;
+  return title.includes(channelId);
+}
+
 export const useChannels = create<ChannelsState>()(
   persist(
     (set, get) => ({
@@ -59,6 +67,10 @@ export const useChannels = create<ChannelsState>()(
       setThumb: (id, thumb) =>
         set({
           channels: get().channels.map((c) => (c.id === id && c.thumb !== thumb ? { ...c, thumb } : c)),
+        }),
+      setTitle: (id, title) =>
+        set({
+          channels: get().channels.map((c) => (c.id === id && c.title !== title ? { ...c, title } : c)),
         }),
       addGroup: (name) => {
         const g: ChannelGroup = { id: newGroupId(), name: name.trim() };
@@ -104,16 +116,44 @@ export const useChannels = create<ChannelsState>()(
         set({ groups: gs });
       },
       importTakeout: (csv) => {
-        // Takeout CSV 格式：Channel Id,Channel Url,Channel Title（首行为表头）
-        const lines = csv.split(/\r?\n/).slice(1).filter(Boolean);
+        // Takeout CSV 格式：Channel Id,Channel Url,Channel Title（首行为表头）。
+        // 加固：去 BOM；引号感知解析（Title 含逗号时被引号包裹）；
+        // title 清洗（控制字符/替换符/混入的频道 ID）。
+        const text = csv.replace(/^\uFEFF/, "");
+        const lines = text.split(/\r?\n/).slice(1).filter((l) => l.trim());
         const { channels } = get();
         const existing = new Set(channels.map((c) => c.id));
         const fresh: SubChannel[] = [];
         for (const line of lines) {
-          const cols = line.split(",");
-          const id = cols[0]?.trim();
-          const title = cols[2]?.trim() || cols[1]?.trim() || id;
+          // 引号感知的 CSV 字段切分
+          const cols: string[] = [];
+          let cur = "";
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (inQuotes) {
+              if (ch === '"') {
+                if (line[i + 1] === '"') {
+                  cur += '"';
+                  i++;
+                } else inQuotes = false;
+              } else cur += ch;
+            } else if (ch === '"') {
+              inQuotes = true;
+            } else if (ch === ",") {
+              cols.push(cur);
+              cur = "";
+            } else cur += ch;
+          }
+          cols.push(cur);
+
+          const clean = (t: string) =>
+            t.replace(/[\u0000-\u001F\uFFFD]/g, "").replace(/\s+/g, " ").trim();
+          const id = clean(cols[0] ?? "");
           if (!/^UC[\w-]{22}$/.test(id) || existing.has(id)) continue;
+          // Title 优先；错位/脏数据清洗（去掉混入的频道 ID 片段）
+          let title = clean(cols[2] ?? "") || clean(cols[1] ?? "") || id;
+          title = title.replace(id, "").trim() || id;
           existing.add(id);
           fresh.push({ id, title, addedAt: new Date().toISOString() });
         }

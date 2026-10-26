@@ -96,15 +96,24 @@ function FreeTubeFeed() {
               {items.map((v) => (
                 <VideoRow key={v.etag} video={v} />
               ))}
-              {items.length === 0 && (
-                <div className="mx-2 my-6 rounded-lg border border-line bg-app p-5 text-sm text-ink">
-                  <p className="font-medium">还没有订阅频道</p>
-                  <p className="mt-2 leading-6 text-ink-2">
-                    在右侧「我的博主」下方添加频道（粘贴频道链接或 ID），或导入 Google Takeout 的
-                    subscriptions.csv。订阅数据只存在本机，不需要登录 Google。
-                  </p>
-                </div>
-              )}
+              {items.length === 0 &&
+                (failed.length > 0 ? (
+                  <div className="mx-2 my-6 rounded-lg border border-line bg-app p-5 text-sm text-ink">
+                    <p className="font-medium text-accent">所有频道的更新都拉取失败了</p>
+                    <p className="mt-2 leading-6 text-ink-2">
+                      可能是网络波动或频道 ID 无效：{failed.join("、")}。请检查代理后点上方重试；
+                      若反复失败，到设置页删除并重新添加对应频道。
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mx-2 my-6 rounded-lg border border-line bg-app p-5 text-sm text-ink">
+                    <p className="font-medium">还没有订阅频道</p>
+                    <p className="mt-2 leading-6 text-ink-2">
+                      在右侧「我的博主」下方添加频道（粘贴频道链接或 ID），或导入 Google Takeout 的
+                      subscriptions.csv。订阅数据只存在本机，不需要登录 Google。
+                    </p>
+                  </div>
+                ))}
             </>
           )}
         </div>
