@@ -182,7 +182,9 @@ function videoFromLockup(vm: AnyRec): VideoItem | undefined {
   const viewText = parts.map((p) => p.text?.content as string | undefined).find((t) => t && /观看|views/i.test(t));
   const dateText = parts.map((p) => p.text?.content as string | undefined).find((t) => t && /前|ago/i.test(t));
   const durationBadge = collect<AnyRec>(vm.contentImage, "thumbnailBadgeViewModel")[0]?.text as string | undefined;
-  const thumb = normalizeThumb(collect<AnyRec>(vm.contentImage, "sources").at(-1)?.url as string | undefined);
+  // collect 命中 "sources" 时 push 的是整个数组，取最大尺寸项需再进一层
+  const srcList = collect<AnyRec>(vm.contentImage, "sources").at(-1) as { url?: string }[] | undefined;
+  const thumb = normalizeThumb(srcList?.at(-1)?.url);
   return {
     kind: "youtube#searchResult",
     etag: id,
@@ -325,6 +327,21 @@ function channelHeader(data: AnyRec): { title: string; thumb: string; subscriber
   };
 }
 
+/**
+ * 频道横幅：browse 响应的
+ * header.pageHeaderRenderer.content.pageHeaderViewModel.banner.imageBannerViewModel.image.sources
+ * 取最大尺寸（最后一项）并截掉 `=w…` 尺寸后缀——Channel 页会拼接 w1707 的后缀。
+ * 频道未设置横幅时返回 undefined。
+ */
+function channelBanner(data: AnyRec): string | undefined {
+  const vm = collect<AnyRec>(data, "imageBannerViewModel")[0];
+  const sources = vm?.image?.sources as { url?: string }[] | undefined;
+  const url = sources?.at(-1)?.url;
+  if (!url) return undefined;
+  const base = url.split("=w")[0];
+  return base.startsWith("https://") ? base : undefined;
+}
+
 /** 频道详情缓存（头像/标题拉取一次即可，订阅页右栏会用到） */
 const channelCache = new Map<string, ChannelItem>();
 
@@ -333,6 +350,7 @@ export async function ftChannel(channelId: string): Promise<ChannelItem | undefi
   if (hit) return hit;
   const data = await innertubePost<AnyRec>("browse", { browseId: channelId });
   const h = channelHeader(data);
+  const banner = channelBanner(data);
   const item: ChannelItem = {
     id: channelId,
     snippet: {
@@ -342,6 +360,9 @@ export async function ftChannel(channelId: string): Promise<ChannelItem | undefi
       thumbnails: h.thumb ? { medium: { url: h.thumb }, high: { url: h.thumb } } : {},
     },
     statistics: { subscriberCount: h.subscribers },
+    // banner：Channel 页用 brandingSettings.image.bannerExternalUrl 展示频道横幅；
+    // 取 imageBannerViewModel.sources 最大尺寸，截掉 =w… 后缀由 Channel 页拼接 w1707
+    brandingSettings: banner ? { image: { bannerExternalUrl: banner } } : undefined,
   };
   channelCache.set(channelId, item);
   return item;

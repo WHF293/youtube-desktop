@@ -6,12 +6,101 @@ import Icon, { YouTubeLogo } from "./Icon";
 import SearchModal from "./SearchModal";
 import { useUi } from "../stores/ui";
 import { useTheme } from "../stores/theme";
+import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateInfo } from "../lib/updater";
+
+/**
+ * 版本号标签（TitleBar 左侧品牌旁）：显示当前版本 vX.Y.Z；
+ * 点击检查更新——已是最新短暂提示，有新版本则再次点击触发
+ * 「下载（进度实时显示）→ 静默安装 → 自动重启」。仅桌面端显示。
+ */
+function VersionTag() {
+  const [ver, setVer] = useState("");
+  const [state, setState] = useState<"idle" | "checking" | "latest" | "available" | "downloading" | "error">("idle");
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    currentVersion().then((v) => setVer(v)).catch(() => setVer(""));
+  }, []);
+
+  // 已是最新/出错的提示 2.5s 后复位
+  useEffect(() => {
+    if (state !== "latest" && state !== "error") return;
+    const t = setTimeout(() => {
+      setState("idle");
+      setErrorMsg("");
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  const onClick = async () => {
+    if (!isTauri() || state === "checking" || state === "downloading") return;
+    if (state === "available" && info) {
+      // 第二次点击：下载并安装，完成后应用自动退出重启
+      setState("downloading");
+      setProgress(0);
+      try {
+        await downloadAndInstall(info, (downloaded, total) => {
+          setProgress(total > 0 ? Math.floor((downloaded / total) * 100) : 0);
+        });
+      } catch (e) {
+        setErrorMsg(e instanceof Error ? e.message : String(e));
+        setState("error");
+      }
+      return;
+    }
+    // 检查更新
+    setState("checking");
+    try {
+      const update = await checkForUpdate();
+      if (update) {
+        setInfo(update);
+        setState("available");
+      } else {
+        setState("latest");
+      }
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+      setState("error");
+    }
+  };
+
+  if (!isTauri() || !ver) return null;
+
+  const label =
+    state === "checking" ? "检查中…"
+    : state === "latest" ? "已是最新"
+    : state === "available" ? `发现 v${info?.latest} · 点击更新`
+    : state === "downloading" ? `下载中 ${progress}%…`
+    : state === "error" ? (errorMsg || "检查失败")
+    : `v${ver}`;
+
+  const highlight =
+    state === "available" || state === "downloading" ? "text-accent"
+    : state === "error" ? "text-accent"
+    : state === "latest" ? "text-green-600 dark:text-green-500"
+    : "text-ink-3";
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onClick()}
+      title={`当前版本 v${ver}，点击检查更新`}
+      className={`ml-1 shrink-0 rounded px-2 py-0.5 text-xs transition-colors hover:bg-flat ${highlight}`}
+    >
+      {label}
+    </button>
+  );
+}
 
 /**
  * 自绘标题栏（参照 whf-stock-board 的 TitleBar 模式）：
  * - 拖拽 / 双击最大化由 onMouseDown / onDoubleClick 手动接管
  *   （startDragging / toggleMaximize IPC），按钮以外的空白都能拖；
- * - 右侧工具条：搜索（弹窗）/ 明暗主题 / 设置 + 窗口控制按钮；
+ * - 左侧：品牌 + 版本号（点击检查更新/下载安装）+ 侧栏开关；
+ * - 右侧工具条：搜索（弹窗）/ 明暗主题 / 使用说明 + 窗口控制按钮；
  * - 搜索走 DocSearch 风格弹窗（SearchModal），Ctrl+K 呼出。
  */
 
@@ -90,6 +179,7 @@ export default function TitleBar() {
           <YouTubeLogo size={20} />
           <span className="truncate text-sm font-semibold text-ink">YouTube Desktop</span>
         </button>
+        <VersionTag />
         <button
           type="button"
           onClick={toggleSidebar}

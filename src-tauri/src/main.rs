@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{Emitter, State};
 
 /// 缓存 (proxy 配置, reqwest Client)：proxy 没变就复用连接池
 struct HttpClient(Mutex<Option<(String, reqwest::Client)>>);
@@ -192,6 +192,68 @@ async fn yt_refresh_token(
         .ok_or_else(|| "token 响应缺少 access_token".to_string())
 }
 
+/// 下载更新包到临时目录（流式写盘，进度经 update-download-progress 事件推送）。
+/// 更新通道与数据请求共用代理（官方 updater 插件走不了应用内代理，本地网络直连 GitHub 不可靠）。
+#[tauri::command]
+async fn download_update(
+    url: String,
+    proxy: String,
+    filename: String,
+    app: tauri::AppHandle,
+    state: State<'_, HttpClient>,
+) -> Result<String, String> {
+    let client = client_for(&proxy, &state)?;
+    let mut resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("下载失败（HTTP {}）", resp.status().as_u16()));
+    }
+    let total = resp.content_length().unwrap_or(0);
+    let dest = std::env::temp_dir().join(&filename);
+    let mut file = std::fs::File::create(&dest).map_err(|e| e.to_string())?;
+    let mut downloaded: u64 = 0;
+    use std::io::Write;
+    loop {
+        match resp.chunk().await.map_err(|e| e.to_string())? {
+            Some(chunk) => {
+                file.write_all(&chunk).map_err(|e| e.to_string())?;
+                downloaded += chunk.len() as u64;
+                let _ = app.emit(
+                    "update-download-progress",
+                    serde_json::json!({ "downloaded": downloaded, "total": total }),
+                );
+            }
+            None => break,
+        }
+    }
+    file.flush().map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+/// 静默安装更新：起独立 cmd 链「等当前进程退出 → 静默安装 → 启动新版本」，
+/// 随后退出当前应用。安装器替换文件前应用必须先退出，否则 exe 被占用会失败。
+#[tauri::command]
+fn finish_update(installer: String, app: tauri::AppHandle) -> Result<(), String> {
+    let exe = std::env::current_exe()
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
+    // ping -n 4 ≈ 等 3 秒让当前应用退出；/S 静默安装；完成后重新打开新版本
+    let script = format!(
+        "ping 127.0.0.1 -n 4 >nul & \"{}\" /S & start \"\" \"{}\"",
+        installer, exe
+    );
+    std::process::Command::new("cmd")
+        .args(["/C", &script])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    // 留出时间给 cmd 链启动后再退出
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        app.exit(0);
+    });
+    Ok(())
+}
+
 fn main() {
     // WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到。
     // 双保险：① setup 里创建窗口时用官方 proxy_url 挂代理（Windows 原生支持）；
@@ -207,7 +269,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(HttpClient(Mutex::new(None)))
         .manage(ImageCache(Mutex::new(HashMap::new())))
-        .invoke_handler(tauri::generate_handler![yt_fetch, yt_image, save_webview_proxy, yt_refresh_token])
+        .invoke_handler(tauri::generate_handler![yt_fetch, yt_image, save_webview_proxy, yt_refresh_token, download_update, finish_update])
         .setup(|app| {
             // 主窗口代码创建（tauri.conf.json 不再声明窗口），以便按代理配置创建 WebView
             let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))

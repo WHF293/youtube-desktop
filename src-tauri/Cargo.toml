@@ -1,6 +1,6 @@
 [package]
 name = "youtube-desktop"
-version = "0.2.1"
+version = "0.2.2"
 description = "YouTube Desktop built with Tauri 2"
 edition = "2021"
 
@@ -12,7 +12,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 base64 = "0.22"
 
 [profile.release]
