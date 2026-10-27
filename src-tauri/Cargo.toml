@@ -1,6 +1,10 @@
 [package]
 name = "youtube-desktop"
 version = "0.7.0"
+description = "YouTube Desktop"
+[lib]
+name = "youtube_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
 description = "YouTube Desktop built with Tauri 2"
 edition = "2021"
 
