@@ -4,7 +4,10 @@ import { Link, useParams } from "react-router-dom";
 import { usePlayer } from "../stores/player";
 import { useFavorites } from "../stores/favorites";
 import { useHistory } from "../stores/history";
+import { useChannels } from "../stores/channels";
+import { useWatchLater } from "../stores/watchLater";
 import DownloadModal from "../components/DownloadModal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { VideoRow } from "../components/VideoCard";
 import Spinner, { ErrorBox } from "../components/Spinner";
 import Icon from "../components/Icon";
@@ -20,7 +23,10 @@ export default function Watch() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [favModalOpen, setFavModalOpen] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
+  const [subMenuOpen, setSubMenuOpen] = useState(false);
   const isFav = useFavorites((s) => s.videos.some((v) => v.videoId === videoId));
+  const inWatchLater = useWatchLater((s) => s.entries.some((e) => e.videoId === videoId));
+  const [removeLaterConfirm, setRemoveLaterConfirm] = useState(false);
 
   // videoSlot 是播放器的文档流占位（保持原布局尺寸），小窗态时播放器本体脱离文档流
   const videoSlotRef = useRef<HTMLDivElement | null>(null);
@@ -31,6 +37,8 @@ export default function Watch() {
     setDescExpanded(false);
     setFavModalOpen(false);
     setDownloadOpen(false);
+    setSubMenuOpen(false);
+    setRemoveLaterConfirm(false);
     setMini(false);
     setMiniClosed(false);
     void player.load(videoId);
@@ -169,9 +177,44 @@ export default function Watch() {
                 <span className="text-xs text-ink-2">{formatCount(channel.statistics.subscriberCount)}位订阅者</span>
               )}
             </div>
+            {/* 订阅按钮：未订阅显示「添加订阅」，已订阅点击弹二级确认（可退订） */}
+            <SubscribeButton
+              key={channel?.id || video.snippet.channelId}
+              channelId={channel?.id || video.snippet.channelId}
+              channelTitle={channel?.snippet.title || video.snippet.channelTitle}
+              menuOpen={subMenuOpen}
+              onMenuOpenChange={setSubMenuOpen}
+            />
           </div>
 
           <div className="flex items-center gap-4 text-sm text-ink-2">
+            {/* 稍后再看：未加入点击即入「待看」页；已加入点击二次确认移除 */}
+            <button
+              type="button"
+              onClick={() => {
+                if (inWatchLater) {
+                  setRemoveLaterConfirm(true);
+                  return;
+                }
+                useWatchLater.getState().add({
+                  videoId,
+                  title: video.snippet.title,
+                  channelId: video.snippet.channelId,
+                  channelTitle: video.snippet.channelTitle,
+                  thumb: bestThumb(video.snippet),
+                  duration: parseDuration(video.contentDetails?.duration),
+                });
+              }}
+              aria-label={inWatchLater ? "移出待看" : "稍后再看"}
+              title={inWatchLater ? "已在待看，点击移除" : "稍后再看，添加到待看页面"}
+              className="inline-flex items-center"
+            >
+              <Icon
+                name="watchLater"
+                size={18}
+                className={inWatchLater ? "text-accent" : "text-ink-2 hover:text-ink"}
+              />
+            </button>
             {/* 下载：弹窗选清晰度后加入队列（离线视频页查看进度） */}
             <button
               type="button"
@@ -274,6 +317,20 @@ export default function Watch() {
         )}
       </aside>
 
+      {/* 移出待看二次确认 */}
+      {removeLaterConfirm && (
+        <ConfirmDialog
+          title="移出待看？"
+          message={video.snippet.title}
+          confirmText="移出"
+          onConfirm={() => {
+            useWatchLater.getState().remove(videoId);
+            setRemoveLaterConfirm(false);
+          }}
+          onCancel={() => setRemoveLaterConfirm(false)}
+        />
+      )}
+
       {/* 收藏弹窗：选择分组收藏 / 换分组 / 取消收藏 */}
       {favModalOpen && (
         <FavModal
@@ -294,6 +351,103 @@ export default function Watch() {
           }}
           onClose={() => setDownloadOpen(false)}
         />
+      )}
+    </div>
+  );
+}
+
+/** 订阅按钮：数据写本地订阅 store（useChannels，与设置页/博主管理共用）。
+ *  未订阅 → 「添加订阅」点击即订；已订阅 → 「已订阅」点击弹二级弹窗，确认态 3 秒自动复位（删除类二次确认约定） */
+function SubscribeButton({
+  channelId,
+  channelTitle,
+  menuOpen,
+  onMenuOpenChange,
+}: {
+  channelId: string;
+  channelTitle: string;
+  menuOpen: boolean;
+  onMenuOpenChange: (open: boolean) => void;
+}) {
+  const isSub = useChannels((s) => s.channels.some((c) => c.id === channelId));
+  const add = useChannels((s) => s.add);
+  const remove = useChannels((s) => s.remove);
+  const [confirming, setConfirming] = useState(false);
+
+  // 退订确认态 3 秒无操作自动复位
+  useEffect(() => {
+    if (!confirming) return;
+    const t = window.setTimeout(() => setConfirming(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [confirming]);
+
+  if (!isSub) {
+    return (
+      <button
+        type="button"
+        onClick={() => add(channelId, channelTitle)}
+        title={`订阅 ${channelTitle}`}
+        className="shrink-0 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white transition-[filter] hover:brightness-110"
+      >
+        添加订阅
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => {
+          if (menuOpen) onMenuOpenChange(false);
+          else {
+            setConfirming(false);
+            onMenuOpenChange(true);
+          }
+        }}
+        className="rounded-full bg-flat px-4 py-1.5 text-sm text-ink-2 transition-colors hover:text-ink"
+      >
+        已订阅
+      </button>
+      {menuOpen && (
+        <>
+          {/* 点击弹窗外任意区域关闭 */}
+          <div className="fixed inset-0 z-40" onClick={() => onMenuOpenChange(false)} aria-hidden="true" />
+          <div className="absolute left-0 top-full z-50 mt-2 w-60 rounded-xl border border-line bg-surface p-3 shadow-island">
+            <p className="text-sm text-ink">
+              {confirming ? "确认取消订阅？" : `取消订阅「${channelTitle}」？`}
+            </p>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              {confirming ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    remove(channelId);
+                    onMenuOpenChange(false);
+                  }}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:brightness-110"
+                >
+                  确认退订
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  className="rounded-lg px-3 py-1.5 text-xs text-accent transition-colors hover:bg-flat"
+                >
+                  取消订阅
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onMenuOpenChange(false)}
+                className="rounded-lg glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
+              >
+                保留
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

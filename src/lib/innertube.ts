@@ -454,35 +454,60 @@ function decodeXmlEntities(s: string): string {
 }
 
 /** 单频道 RSS：youtube.com/feeds/videos.xml（无需登录，最近约 15 条）。
- *  正则解析而非 DOMParser：结构固定（YouTube 生成），少一个 DOM 依赖 */
+ *  正则解析而非 DOMParser：结构固定（YouTube 生成），少一个 DOM 依赖。
+ *  RSS 端点 2025 底起间歇性 404/500（YouTube 服务端已知故障，可连续数小时，
+ *  见 glanceapp/glance#910；2026-10-27 实测全量 404），失败时降级 InnerTube
+ *  browse 频道 videos tab（同数据、多一次 POST）。 */
 export async function ftChannelRSS(channelId: string): Promise<RssResult> {
-  const xml = await proxiedGet(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
-  const channelTitle = decodeXmlEntities(xml.match(/<title>([^<]*)<\/title>/)?.[1] ?? "");
-  if (!channelTitle && !xml.includes("<entry>")) throw new InnertubeError("RSS 解析失败");
-  const out: VideoItem[] = [];
-  const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
-  for (const m of xml.matchAll(entryRe)) {
-    const block = m[1];
-    const pick = (re: RegExp) => block.match(re)?.[1];
-    const videoId = pick(/<yt:videoId>([^<]+)<\/yt:videoId>/);
-    if (!videoId) continue;
-    const thumb = normalizeThumb(decodeXmlEntities(pick(/<media:thumbnail[^>]*url="([^"]+)"/) ?? ""));
-    out.push({
-      kind: "youtube#searchResult",
-      etag: videoId,
-      id: videoId,
-      snippet: {
-        publishedAt: pick(/<published>([^<]+)<\/published>/) ?? new Date().toISOString(),
-        channelId,
-        channelTitle,
-        title: decodeXmlEntities(pick(/<title>([^<]*)<\/title>/) ?? ""),
-        description: decodeXmlEntities(pick(/<media:description>([^<]*)<\/media:description>/) ?? ""),
-        thumbnails: thumb ? { medium: { url: thumb }, high: { url: thumb } } : {},
-      },
-      statistics: { viewCount: pick(/<media:statistics[^>]*views="(\d+)"/) },
-    });
+  try {
+    const xml = await proxiedGet(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
+    const channelTitle = decodeXmlEntities(xml.match(/<title>([^<]*)<\/title>/)?.[1] ?? "");
+    if (!channelTitle && !xml.includes("<entry>")) throw new InnertubeError("RSS 解析失败");
+    const out: VideoItem[] = [];
+    const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
+    for (const m of xml.matchAll(entryRe)) {
+      const block = m[1];
+      const pick = (re: RegExp) => block.match(re)?.[1];
+      const videoId = pick(/<yt:videoId>([^<]+)<\/yt:videoId>/);
+      if (!videoId) continue;
+      const thumb = normalizeThumb(decodeXmlEntities(pick(/<media:thumbnail[^>]*url="([^"]+)"/) ?? ""));
+      out.push({
+        kind: "youtube#searchResult",
+        etag: videoId,
+        id: videoId,
+        snippet: {
+          publishedAt: pick(/<published>([^<]+)<\/published>/) ?? new Date().toISOString(),
+          channelId,
+          channelTitle,
+          title: decodeXmlEntities(pick(/<title>([^<]*)<\/title>/) ?? ""),
+          description: decodeXmlEntities(pick(/<media:description>([^<]*)<\/media:description>/) ?? ""),
+          thumbnails: thumb ? { medium: { url: thumb }, high: { url: thumb } } : {},
+        },
+        statistics: { viewCount: pick(/<media:statistics[^>]*views="(\d+)"/) },
+      });
+    }
+    return { channelId, channelTitle, videos: out };
+  } catch {
+    // RSS 拉取/解析失败 → InnerTube browse 频道 videos tab 兜底
+    return ftChannelFeedFallback(channelId);
   }
-  return { channelId, channelTitle, videos: out };
+}
+
+/** RSS 降级：InnerTube browse 频道 videos tab（lockupViewModel 新结构）。
+ *  频道标题取自响应 metadata；lockup 卡片不带频道信息，统一补上入参的频道 ID/标题 */
+async function ftChannelFeedFallback(channelId: string): Promise<RssResult> {
+  const data = await innertubePost<AnyRec>("browse", { browseId: channelId, params: VIDEOS_TAB_PARAMS });
+  const channelTitle: string = data.metadata?.channelMetadataRenderer?.title ?? "";
+  const videos: VideoItem[] = [];
+  for (const vm of collect<AnyRec>(data, "lockupViewModel")) {
+    const v = videoFromLockup(vm);
+    if (!v) continue;
+    videos.push({ ...v, snippet: { ...v.snippet, channelId, channelTitle: channelTitle || v.snippet.channelTitle } });
+  }
+  if (!channelTitle && videos.length === 0) {
+    throw new InnertubeError(`频道数据拉取失败（RSS 与 InnerTube 均不可用）：${channelId}`);
+  }
+  return { channelId, channelTitle: channelTitle || channelId, videos };
 }
 
 /* ---------- 内置热门频道组（首页/热门页数据源：官方 mostPopular 匿名不可用，
@@ -542,6 +567,7 @@ async function fetchChannelsRSS(channelIds: string[]): Promise<VideoItem[]> {
     else pending.push(id);
   }
   // 并发 6 拉取，单频道失败静默跳过（错 ID / 网络抖动不影响整体）
+  let ok = 0;
   const queue = [...pending];
   const workers = Array.from({ length: Math.min(6, queue.length) }, async () => {
     for (;;) {
@@ -551,12 +577,18 @@ async function fetchChannelsRSS(channelIds: string[]): Promise<VideoItem[]> {
         const r = await ftChannelRSS(id);
         rssCache.set(id, { at: now, videos: r.videos });
         videos.push(...r.videos);
+        ok++;
       } catch {
         /* 跳过失败频道 */
       }
     }
   });
   await Promise.all(workers);
+  // 全部频道失败且缓存无兜底数据：抛错让页面进错误态（重试可恢复），
+  // 避免把数据源故障伪装成「没有视频」（2026-10-27 RSS 全量 404 事故教训）
+  if (pending.length > 0 && ok === 0 && videos.length === 0) {
+    throw new InnertubeError("数据源暂时不可用（YouTube 数据接口故障或网络异常），请稍后重试");
+  }
   videos.sort((a, b) => Date.parse(b.snippet.publishedAt) - Date.parse(a.snippet.publishedAt));
   // 跨频道去重
   const seen = new Set<string>();

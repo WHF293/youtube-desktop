@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions", end: false },
   { to: "/history", label: "历史", icon: "history", end: false },
+  { to: "/watchlater", label: "待看", icon: "watchLater", end: false },
   { to: "/favorites", label: "收藏", icon: "star", end: false },
   { to: "/offline", label: "离线", icon: "download", end: false },
 ];

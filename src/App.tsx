@@ -13,6 +13,7 @@ import Subscriptions from "./pages/Subscriptions";
 import Groups from "./pages/Groups";
 import Favorites from "./pages/Favorites";
 import History from "./pages/History";
+import WatchLater from "./pages/WatchLater";
 import Offline from "./pages/Offline";
 import OfflineWatch from "./pages/OfflineWatch";
 import Help from "./pages/Help";
@@ -97,7 +98,7 @@ export default function App() {
 
   // 是否有可返回的上一页（React Router 在 history.state.idx 记录栈深）；
   // 仅二级页显示返回按钮——侧栏有入口的页面不显示
-  const TOP_LEVEL_PATHS = new Set(["/", "/subscriptions", "/history", "/favorites", "/offline"]);
+  const TOP_LEVEL_PATHS = new Set(["/", "/subscriptions", "/history", "/watchlater", "/favorites", "/offline"]);
   const canGoBack =
     (window.history.state?.idx ?? 0) > 0 && !TOP_LEVEL_PATHS.has(location.pathname);
 
@@ -142,6 +143,7 @@ export default function App() {
             <Route path="/groups" element={<Groups />} />
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/history" element={<History />} />
+            <Route path="/watchlater" element={<WatchLater />} />
             <Route path="/offline" element={<Offline />} />
             <Route path="/offline/watch/:videoId" element={<OfflineWatch />} />
             <Route path="/help" element={<Help />} />
