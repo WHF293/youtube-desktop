@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useVideos } from "../../common/stores/videos";
-import GlassChipGroup from "../../common/components/GlassChipGroup";
 import Spinner, { ErrorBox } from "../../common/components/Spinner";
 import { FeedCard } from "../components/VideoCards";
 import { videoIdOf } from "../../common/lib/format";
@@ -60,17 +59,21 @@ export default function HomeView() {
     return () => scroller.removeEventListener("scroll", check);
   }, [status, nextPageToken, loadingMore, loadMorePopular]);
 
-  // 分类 chips 常驻不随加载态卸载（桌面 v0.4.1 行为对齐）
+  // 分类 chips 常驻不随加载态卸载（桌面 v0.4.1 行为对齐）；
+  // 移动端用分体胶囊按钮（每颗独立，选中态高光玻璃），不用桌面连体 GlassChipGroup
   return (
     <div>
-      <div className="sticky top-0 z-10 border-b border-line bg-app py-2.5">
-        <GlassChipGroup
-          options={TAB_OPTIONS}
-          value={category ?? ""}
-          onChange={(v) => pickCategory(v || undefined)}
-          wrap={false}
-          className="max-w-full overflow-x-auto"
-        />
+      <div className="m-chips sticky top-0 z-10">
+        {TAB_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={`m-chip${(category ?? "") === o.value ? " active" : ""}`}
+            onClick={() => pickCategory(o.value || undefined)}
+          >
+            {o.label}
+          </button>
+        ))}
       </div>
 
       {status === "loading" || status === "idle" ? (
