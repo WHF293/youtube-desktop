@@ -8,6 +8,12 @@ import Spinner, { ErrorBox } from "../../common/components/Spinner";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
 import Icon from "../../common/components/Icon";
+import BottomSheet from "../components/BottomSheet";
+import { FavGroupSheet } from "./History";
+import { getVideoFormats, type QualityOption } from "../../common/lib/extract";
+import { useFavorites } from "../../common/stores/favorites";
+import { useDownloads } from "../../common/stores/downloads";
+import { isTauri } from "@tauri-apps/api/core";
 
 /** 移动端观看页：沉浸式无 TabBar。iframe 播放 + 标题 + 频道行（订阅两步确认）+
  *  待看开关 + 相关视频。收藏/下载/评论 M3 接入（BottomSheet 已就位）。 */
@@ -32,6 +38,16 @@ export default function WatchView() {
   // 订阅两步确认（删除类二次确认约定，确认态 3 秒自动复位）
   const [confirming, setConfirming] = useState(false);
   const confirmTimer = useRef<number | undefined>(undefined);
+  // 收藏 / 下载弹层
+  const [favOpen, setFavOpen] = useState(false);
+  const favVideos = useFavorites((s) => s.videos);
+  const faved = favVideos.some((v) => v.videoId === videoId);
+  const [dlOpen, setDlOpen] = useState(false);
+  const [dlLoading, setDlLoading] = useState(false);
+  const [dlOptions, setDlOptions] = useState<QualityOption[]>([]);
+  const [dlError, setDlError] = useState("");
+  const [dlPicked, setDlPicked] = useState<QualityOption | null>(null);
+  const enqueue = useDownloads((s) => s.enqueue);
 
   useEffect(() => {
     void load(videoId);
@@ -95,6 +111,19 @@ export default function WatchView() {
         ? parseDuration(video.contentDetails.duration)
         : "",
     });
+  };
+
+  /** 打开下载 sheet：先提取清晰度（流地址 6h 有效不入盘，重试需重新提取） */
+  const openDownloadSheet = () => {
+    setDlOpen(true);
+    setDlError("");
+    setDlPicked(null);
+    if (dlOptions.length > 0) return; // 已提取过直接复用（同一次进入页面内有效）
+    setDlLoading(true);
+    getVideoFormats(videoId)
+      .then((r) => setDlOptions(r.options))
+      .catch((e) => setDlError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setDlLoading(false));
   };
 
   return (
@@ -164,7 +193,7 @@ export default function WatchView() {
         </button>
       </div>
 
-      {/* 操作气泡组：待看（收藏/下载 M3 经 BottomSheet 接入） */}
+      {/* 操作气泡组：待看 / 收藏（分组 sheet）/ 下载（清晰度 sheet） */}
       <div className="flex gap-2 overflow-x-auto border-b border-line bg-surface px-3.5 py-2.5">
         <button
           type="button"
@@ -173,9 +202,105 @@ export default function WatchView() {
         >
           {inWl ? (confirming ? "确认移出？" : "✓ 已在待看") : "◷ 待看"}
         </button>
-        <span className="m-glass-btn text-ink-3">★ 收藏（M3）</span>
-        <span className="m-glass-btn text-ink-3">⭳ 下载（M3）</span>
+        <button
+          type="button"
+          onClick={() => setFavOpen(true)}
+          className={`m-glass-btn ${faved ? "!text-accent" : ""}`}
+        >
+          {faved ? "★ 已收藏" : "★ 收藏"}
+        </button>
+        <button
+          type="button"
+          disabled={!isTauri()}
+          onClick={openDownloadSheet}
+          className={`m-glass-btn ${!isTauri() ? "opacity-40" : ""}`}
+        >
+          {dlLoading ? "⭳ 提取中…" : "⭳ 下载"}
+        </button>
       </div>
+
+      {/* 收藏分组 sheet */}
+      <FavGroupSheet
+        open={favOpen}
+        onClose={() => setFavOpen(false)}
+        video={{ videoId, title: video.snippet.title }}
+        faved={faved}
+        onPick={(groupId) => {
+          useFavorites.getState().add(
+            {
+              videoId,
+              title: video.snippet.title,
+              channelId,
+              channelTitle: video.snippet.channelTitle,
+              thumb: bestThumb(video.snippet),
+            },
+            groupId,
+          );
+          setFavOpen(false);
+        }}
+      />
+
+      {/* 下载清晰度 sheet（ANDROID_VR 提取流；保存目录 M4 指到 appDataDir/offline） */}
+      <BottomSheet open={dlOpen} onClose={() => setDlOpen(false)} title="选择下载清晰度">
+        {dlLoading ? (
+          <Spinner label="正在提取可用清晰度…" />
+        ) : dlError ? (
+          <p className="py-3 text-[12.5px] text-accent">{dlError}</p>
+        ) : (
+          <>
+            <p className="mb-2 text-[11.5px] text-ink-3">
+              {video.snippet.channelTitle} · {parseDuration(video.contentDetails?.duration)}
+            </p>
+            {dlOptions.map((o) => (
+              <button
+                key={o.videoItag}
+                type="button"
+                onClick={() => setDlPicked(o)}
+                className={`mb-2 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-[13.5px] font-bold ${
+                  dlPicked?.videoItag === o.videoItag
+                    ? "border-accent bg-accent/5"
+                    : "border-line"
+                }`}
+              >
+                {o.label}
+                {o.needsMerge && (
+                  <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">
+                    合流
+                  </span>
+                )}
+                <span className="ml-auto text-[11.5px] font-semibold text-ink-3">
+                  ≈ {(o.sizeBytes / 1024 / 1024).toFixed(0)} MB
+                </span>
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={!dlPicked}
+              onClick={() => {
+                if (!dlPicked) return;
+                enqueue(
+                  {
+                    videoId,
+                    title: video.snippet.title,
+                    channelTitle: video.snippet.channelTitle,
+                    thumb: bestThumb(video.snippet),
+                    duration: video.contentDetails?.duration
+                      ? parseDuration(video.contentDetails.duration)
+                      : "",
+                  },
+                  dlPicked,
+                );
+                setDlOpen(false);
+              }}
+              className={`mt-1 w-full rounded-full py-2.5 text-[14px] font-extrabold text-white ${
+                dlPicked ? "bg-accent" : "bg-flat-strong text-ink-3"
+              }`}
+            >
+              ⭳ 开始下载
+            </button>
+          </>
+        )}
+      </BottomSheet>
 
       {/* 相关视频 */}
       <div className="mt-2">
