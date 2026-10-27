@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useVideos } from "../../common/stores/videos";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import Spinner from "../../common/components/Spinner";
 import { FeedCard } from "../components/VideoCards";
 import { videoIdOf } from "../../common/lib/format";
 
@@ -79,7 +79,7 @@ export default function HomeView() {
       {status === "loading" || status === "idle" ? (
         <Spinner label="加载推荐视频…" />
       ) : status === "error" ? (
-        <ErrorBox message={error} onRetry={() => void loadPopular(category)} />
+        <ErrorState desc={error} onRetry={() => void loadPopular(category)} />
       ) : (
         <>
           <div className="flex flex-col">
@@ -88,7 +88,7 @@ export default function HomeView() {
             ))}
           </div>
           {items.length === 0 && (
-            <p className="p-6 text-sm text-ink-2">该分类下没有获取到视频。</p>
+            <EmptyState illust="⌕" title="该分类下没有视频" desc="换个分类逛逛吧" />
           )}
           {loadingMore && <Spinner label="加载更多…" />}
           {!nextPageToken && items.length > 0 && (

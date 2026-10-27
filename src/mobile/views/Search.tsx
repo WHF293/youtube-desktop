@@ -141,16 +141,7 @@ export default function SearchView() {
       ) : status === "loading" ? (
         <Spinner label={`搜索「${q}」…`} />
       ) : status === "error" ? (
-        <div className="p-6 text-center">
-          <p className="text-sm text-ink-2">搜索失败：{error}</p>
-          <button
-            type="button"
-            onClick={() => void runSearch(q)}
-            className="mt-3 rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-white"
-          >
-            重试
-          </button>
-        </div>
+        <ErrorState title="搜索失败" desc={error} onRetry={() => void runSearch(q)} />
       ) : (
         <>
           <div className="flex flex-col">
@@ -159,7 +150,7 @@ export default function SearchView() {
             ))}
           </div>
           {items.length === 0 && status === "ready" && (
-            <p className="p-6 text-sm text-ink-2">没有找到相关内容。</p>
+            <EmptyState illust="⌕" title="没有找到相关内容" desc="换个关键词试试" />
           )}
           {status === "loadingMore" && <Spinner label="加载更多…" />}
           {!nextPageToken && items.length > 0 && status === "ready" && (

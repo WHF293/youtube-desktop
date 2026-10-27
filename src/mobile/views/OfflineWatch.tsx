@@ -29,10 +29,7 @@ export default function OfflineWatchView() {
       {status === "loading" ? (
         <Spinner label="加载离线视频…" />
       ) : status === "error" || !entry ? (
-        <div className="m-placeholder !py-24">
-          <b>视频不存在</b>
-          <span>可能已被删除，去「我的 → 离线下载」看看</span>
-        </div>
+        <EmptyState illust="⭳" title="视频不存在" desc="可能已被删除，去「我的 → 离线下载」看看" />
       ) : (
         <>
           <div className="relative bg-black">

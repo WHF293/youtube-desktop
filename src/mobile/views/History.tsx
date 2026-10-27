@@ -6,6 +6,7 @@ import { useFavorites } from "../../common/stores/favorites";
 import { useChannels } from "../../common/stores/channels";
 import Spinner from "../../common/components/Spinner";
 import BottomSheet from "../components/BottomSheet";
+import { EmptyState, ErrorState } from "../components/StateViews";
 
 /** 观看记录行包装：行内快捷收藏 ★（弹分组 sheet）/ 待看 ◷（点击即入，已入高亮） */
 function HistoryRow({ entry }: { entry: HistoryEntry }) {
@@ -177,12 +178,9 @@ export default function HistoryView() {
       {status === "loading" ? (
         <Spinner label="加载观看记录…" />
       ) : status === "error" ? (
-        <p className="p-6 text-sm text-ink-2">观看记录加载失败：{error}</p>
+        <ErrorState title="观看记录加载失败" desc={error} />
       ) : entries.length === 0 ? (
-        <div className="m-placeholder !py-24">
-          <b>还没有观看记录</b>
-          <span>看过的视频会按天留在这里，仅保留最近 7 天</span>
-        </div>
+        <EmptyState illust="↺" title="还没有观看记录" desc="看过的视频会按天留在这里，仅保留最近 7 天" />
       ) : (
         groupsByDay.map((g) => (
           <section key={g.label}>

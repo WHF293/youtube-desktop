@@ -296,3 +296,65 @@
     inset 0 1px 0 rgb(255 255 255 / 0.2),
     0 3px 12px rgb(0 0 0 / 0.3);
 }
+
+/* === 空态 / 错误态展位（对照 UI 稿 B2 三态，全页共用） === */
+.m-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  text-align: center;
+}
+.m-state__illust {
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgb(255 0 0 / 0.08), rgb(59 125 255 / 0.08));
+  box-shadow: var(--shadow-island);
+}
+.m-state__err-illust {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  font-weight: 900;
+  margin-bottom: 16px;
+  color: var(--color-accent);
+  background: rgb(255 0 0 / 0.08);
+}
+.m-state__t { font-size: 15px; font-weight: 800; margin-bottom: 6px; color: var(--app-ink); }
+.m-state__d { font-size: 12px; color: var(--app-ink-2); line-height: 1.6; max-width: 260px; margin-bottom: 18px; }
+.m-state__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 38px;
+  padding: 0 22px;
+  border-radius: 19px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(115deg, #ff5252 0%, #ff0000 52%, #e00000 100%);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset 0 -1px 0 rgb(0 0 0 / 0.15),
+    0 6px 18px rgb(255 0 0 / 0.32);
+}
+.m-state__btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.16) 30%, transparent 55%);
+  pointer-events: none;
+}

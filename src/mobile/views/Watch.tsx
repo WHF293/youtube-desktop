@@ -4,11 +4,12 @@ import { usePlayer } from "../../common/stores/player";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration, videoIdOf } from "../../common/lib/format";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import Spinner from "../../common/components/Spinner";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
 import Icon from "../../common/components/Icon";
 import BottomSheet from "../components/BottomSheet";
+import { ErrorState } from "../components/StateViews";
 import { FavGroupSheet } from "./History";
 import { getVideoFormats, type QualityOption } from "../../common/lib/extract";
 import { useFavorites } from "../../common/stores/favorites";
@@ -61,10 +62,7 @@ export default function WatchView() {
   }
   if (status === "error" || !video) {
     return (
-      <ErrorBox
-        message={error || "视频不存在或已被删除"}
-        onRetry={() => void load(videoId)}
-      />
+      <ErrorState desc={error || "视频不存在或已被删除"} onRetry={() => void load(videoId)} />
     );
   }
 

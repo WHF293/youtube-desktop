@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { EmptyState, ErrorState } from "../components/StateViews";
 import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels } from "../../common/stores/channels";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import Spinner from "../../common/components/Spinner";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
 import { videoIdOf } from "../../common/lib/format";
 
 /** 移动端订阅页：博主横滑岛 + 分组 chips + 订阅更新流（分组筛选复用桌面 selectedGroups 逻辑） */
 export default function SubscriptionsView() {
+  const navigate = useNavigate();
   const { items, failed, status, error, selectedGroups, setSelectedGroups, load } = useSubsFeed();
   const channels = useChannels((s) => s.channels);
   const groups = useChannels((s) => s.groups);
@@ -88,13 +91,14 @@ export default function SubscriptionsView() {
       {status === "loading" || status === "idle" ? (
         <Spinner label="拉取订阅更新…" />
       ) : status === "error" ? (
-        <ErrorBox message={error} onRetry={() => void load()} />
+        <ErrorState desc={error} onRetry={() => void load()} />
       ) : items.length === 0 ? (
-        <p className="p-6 text-sm text-ink-2">
-          {chip === "all"
-            ? "还没有订阅博主，去设置页或搜索页添加。"
-            : `「${groupNameOf(chip)}」分组内暂无更新。`}
-        </p>
+        <EmptyState
+          illust="▤"
+          title={chip === "all" ? "还没有订阅博主" : "分组内暂无更新"}
+          desc={chip === "all" ? "在观看页点「添加订阅」，或从桌面端导入订阅" : "这个分组下的博主还没有新视频"}
+          action={chip === "all" ? { label: "⌕ 去搜索", onClick: () => navigate("/search") } : undefined}
+        />
       ) : (
         <div className="flex flex-col">
           {items.map((v, i) => (

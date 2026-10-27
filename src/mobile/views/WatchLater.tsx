@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useWatchLater } from "../../common/stores/watchLater";
 import BottomSheet from "../components/BottomSheet";
+import { EmptyState } from "../components/StateViews";
 import { HistoryCard } from "./History";
 
 /** 移动端待看页：行卡流 + ✕ 移除（两步确认，3 秒复位） */
@@ -18,10 +19,7 @@ export default function WatchLaterView() {
   return (
     <div>
       {entries.length === 0 ? (
-        <div className="m-placeholder !py-24">
-          <b>待看清单还是空的</b>
-          <span>刷到感兴趣的视频，点「◷ 待看」就能存进这里</span>
-        </div>
+        <EmptyState illust="◷" title="待看清单还是空的" desc="刷到感兴趣的视频，点「◷ 待看」就能存进这里" />
       ) : (
         <>
           {entries.map((e) => (
