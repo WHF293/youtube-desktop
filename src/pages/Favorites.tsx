@@ -37,11 +37,12 @@ export default function Favorites() {
     return (
       <div key={v.videoId} className="flex items-center gap-3 rounded-xl border border-line bg-app p-2">
         <Link to={`/watch/${v.videoId}`} className="flex min-w-0 flex-1 items-center gap-3">
-          {v.thumb ? (
-            <Img src={v.thumb} alt="" className="h-12 w-20 shrink-0 rounded-lg bg-flat object-cover" />
-          ) : (
-            <span className="h-12 w-20 shrink-0 rounded-lg bg-flat" />
-          )}
+          {/* 早期落库的记录可能无缩略图，按 videoId 拼稳定 URL 兜底 */}
+          <Img
+            src={v.thumb || `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
+            alt=""
+            className="h-12 w-20 shrink-0 rounded-lg bg-flat object-cover"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink">{v.title}</p>
             <p className="truncate text-xs text-ink-3">

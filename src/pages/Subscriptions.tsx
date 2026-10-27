@@ -128,20 +128,12 @@ function FilterModal({ onClose }: { onClose: () => void }) {
 /** 左侧订阅流岛 + 右栏博主分组岛 */
 function FreeTubeFeed() {
   const { items, failed, status, error, load, selectedGroups } = useSubsFeed();
-  const { channels, groups, removeGroup } = useChannels();
+  const { channels, groups } = useChannels();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   // 分组区块展开状态（默认全开）
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
-  // 删除分组的二次确认：点过 X 的分组 key，3 秒不确认自动复位
-  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!confirmDeleteKey) return;
-    const t = setTimeout(() => setConfirmDeleteKey(null), 3000);
-    return () => clearTimeout(t);
-  }, [confirmDeleteKey]);
 
   useEffect(() => {
     // idle 正常首载；「ready 但 items 空」且本地有频道 = 上次加载异常中断的残留态，重载一次自愈
@@ -322,31 +314,6 @@ function FreeTubeFeed() {
                       <span className="truncate text-xs font-medium text-ink-2">{s.name}</span>
                       <span className="shrink-0 text-xs text-ink-3">（{s.list.length}）</span>
                     </button>
-                    {s.groupId &&
-                      (confirmDeleteKey === s.key ? (
-                        /* 二次确认态：3 秒内再点一次才真删 */
-                        <button
-                          type="button"
-                          onClick={() => {
-                            removeGroup(s.groupId!);
-                            setConfirmDeleteKey(null);
-                          }}
-                          title="再次点击确认删除（博主将移回默认分组，不会删除博主）"
-                          className="shrink-0 rounded px-1 text-xs font-medium text-accent"
-                        >
-                          确认删除
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteKey(s.key)}
-                          title={`删除分组「${s.name}」（组内博主移回默认分组，不会删除博主）`}
-                          aria-label={`删除分组 ${s.name}`}
-                          className="shrink-0 rounded p-0.5 text-ink-3 opacity-40 transition-opacity hover:text-accent hover:opacity-100"
-                        >
-                          <Icon name="close" size={12} />
-                        </button>
-                      ))}
                   </div>
                   {/* 区块内博主：grid-rows 高度过渡 */}
                   <div

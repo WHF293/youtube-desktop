@@ -30,7 +30,7 @@ import Icon from "../components/Icon";
  */
 
 /** 博主卡片（可拖拽；点击进频道页——传感器 distance 约束区分点击与拖拽；
- *  右键弹出管理菜单，目前仅删除） */
+ *  右键弹出管理菜单：选择分组 / 删除） */
 function BloggerCard({
   c,
   onOpen,
@@ -82,6 +82,7 @@ function GroupColumn({
   onRequestDelete,
   confirmDelete,
   onMoveGroup,
+  onRename,
   canMoveLeft,
   canMoveRight,
   children,
@@ -96,6 +97,8 @@ function GroupColumn({
   onRequestDelete: () => void;
   confirmDelete: boolean;
   onMoveGroup: (dir: -1 | 1) => void;
+  /** 分组重命名（仅自定义分组；默认分组不可改） */
+  onRename: (newName: string) => void;
   canMoveLeft: boolean;
   canMoveRight: boolean;
   children: React.ReactNode;
@@ -109,6 +112,19 @@ function GroupColumn({
     disabled: !isCustom,
   });
 
+  // 分组重命名：点击列头名称进入编辑态，回车确认保存，Escape 取消，失焦按有值保存
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const commitRename = () => {
+    const next = renameDraft.trim();
+    if (next && next !== name) onRename(next);
+    setRenaming(false);
+  };
+  const startRename = () => {
+    setRenameDraft(name);
+    setRenaming(true);
+  };
+
   return (
     <section
       ref={setNodeRef}
@@ -116,20 +132,51 @@ function GroupColumn({
         isOver ? "ring-2 ring-accent" : ""
       }`}
     >
-      {/* 列头：拖拽排序把手 + 删除（二次确认在父级处理） */}
+      {/* 列头：拖拽排序把手 + 重命名（点击名称）+ 删除（二次确认在父级处理） */}
       <div
         ref={groupSort.setNodeRef}
         style={{ transform: CSS.Transform.toString(groupSort.transform), transition: groupSort.transition }}
-        {...groupSort.attributes}
-        {...groupSort.listeners}
-        className={`flex shrink-0 items-center gap-1 px-3 pb-1 pt-3 ${isCustom ? "cursor-grab touch-none" : ""} ${
+        {...(isCustom && !renaming ? groupSort.attributes : {})}
+        {...(isCustom && !renaming ? groupSort.listeners : {})}
+        className={`flex shrink-0 items-center gap-1 px-3 pb-1 pt-3 ${isCustom && !renaming ? "cursor-grab touch-none" : ""} ${
           groupSort.isDragging ? "opacity-30" : ""
         }`}
       >
         {isCustom && (
           <Icon name="grip" size={12} className="shrink-0 text-ink-3" />
         )}
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{name}</h2>
+        {renaming ? (
+          <input
+            autoFocus
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") setRenaming(false);
+            }}
+            onBlur={commitRename}
+            onPointerDown={(e) => e.stopPropagation()}
+            spellCheck={false}
+            aria-label="重命名分组"
+            className="min-w-0 flex-1 rounded border border-line bg-app px-1.5 py-0.5 text-sm font-semibold text-ink outline-none focus:border-ink-3"
+          />
+        ) : (
+          <h2
+            onClick={
+              isCustom
+                ? (e) => {
+                    e.stopPropagation();
+                    startRename();
+                  }
+                : undefined
+            }
+            onPointerDown={isCustom ? (e) => e.stopPropagation() : undefined}
+            title={isCustom ? "点击重命名分组" : undefined}
+            className={`min-w-0 flex-1 truncate text-sm font-semibold text-ink ${isCustom ? "cursor-text" : ""}`}
+          >
+            {name}
+          </h2>
+        )}
         <span className="shrink-0 text-xs tabular-nums text-ink-3">{count}</span>
         {isCustom && (
           <>
@@ -201,7 +248,7 @@ function GroupColumn({
 }
 
 export default function Groups() {
-  const { channels, groups, moveChannel, addGroup, remove, removeGroup, moveGroup, reorderChannel, reorderGroups } =
+  const { channels, groups, moveChannel, addGroup, remove, removeGroup, renameGroup, moveGroup, reorderChannel, reorderGroups } =
     useChannels();
   const navigate = useNavigate();
   // 删除分组二次确认（3 秒自动复位）
@@ -229,9 +276,12 @@ export default function Groups() {
   const [copied, setCopied] = useState(false);
   const { importJson } = useChannels();
 
-  // 博主卡片右键菜单 + 删除二次确认
+  // 博主卡片右键菜单 + 删除二次确认 + 移动分组弹窗
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; channel: SubChannel } | null>(null);
   const [confirmChannel, setConfirmChannel] = useState<SubChannel | null>(null);
+  const [moveModal, setMoveModal] = useState<SubChannel | null>(null);
+  // 移动分组弹窗的单选值："" = 默认分组
+  const [movePicked, setMovePicked] = useState("");
 
   const buildExport = () => buildChannelsExport(channels, groups);
 
@@ -439,6 +489,7 @@ export default function Groups() {
               }}
               onRequestDelete={() => setConfirmDeleteKey(col.key)}
               onMoveGroup={(dir) => col.groupId && moveGroup(col.groupId, dir)}
+              onRename={(newName) => col.groupId && renameGroup(col.groupId, newName)}
               canMoveLeft={groups[0]?.id !== col.groupId}
               canMoveRight={groups[groups.length - 1]?.id !== col.groupId}
             >
@@ -546,7 +597,7 @@ export default function Groups() {
         </div>
       )}
 
-      {/* 博主卡片右键菜单（仅删除） */}
+      {/* 博主卡片右键菜单（选择分组 / 删除） */}
       {ctxMenu && (
         <>
           <div
@@ -570,6 +621,18 @@ export default function Groups() {
               type="button"
               role="menuitem"
               onClick={() => {
+                setMovePicked(ctxMenu.channel.groupId ?? "");
+                setMoveModal(ctxMenu.channel);
+                setCtxMenu(null);
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-ink transition-colors hover:bg-flat hover:text-accent"
+            >
+              选择分组
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
                 setConfirmChannel(ctxMenu.channel);
                 setCtxMenu(null);
               }}
@@ -579,6 +642,55 @@ export default function Groups() {
             </button>
           </div>
         </>
+      )}
+
+      {/* 移动分组弹窗：单选所有分组，确认后博主更换到指定分组 */}
+      {moveModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMoveModal(null)} aria-hidden="true" />
+          <div className="relative w-full max-w-xs rounded-xl border border-line bg-surface p-4 shadow-island">
+            <h3 className="text-sm font-semibold text-ink">移动到分组</h3>
+            <p className="mt-1 truncate text-xs text-ink-3">{moveModal.title}</p>
+            <div className="mt-3 flex max-h-64 flex-col gap-1 overflow-y-auto">
+              {[{ id: "", name: "默认分组" }, ...groups].map((g) => (
+                <label
+                  key={g.id || "default"}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-flat ${
+                    movePicked === g.id ? "text-ink" : "text-ink-2"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="move-channel-group"
+                    checked={movePicked === g.id}
+                    onChange={() => setMovePicked(g.id)}
+                    className="accent-[var(--color-accent)]"
+                  />
+                  {g.name}
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMoveModal(null)}
+                className="rounded-lg glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  moveChannel(moveModal.id, movePicked || undefined);
+                  setMoveModal(null);
+                }}
+                className="rounded-lg bg-accent px-4 py-1.5 text-xs font-medium text-white hover:brightness-110"
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 删除博主二次确认 */}

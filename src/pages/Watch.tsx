@@ -86,7 +86,10 @@ export default function Watch() {
       title: playerVideo.snippet.title,
       channelId: playerVideo.snippet.channelId,
       channelTitle: playerVideo.snippet.channelTitle,
-      thumb: bestThumb(playerVideo.snippet),
+      // 详情接口（/next）不返回缩略图，bestThumb 可能为空；按 videoId 拼稳定 URL 兜底
+      thumb:
+        bestThumb(playerVideo.snippet) ||
+        `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
       duration: parseDuration(playerVideo.contentDetails?.duration),
     });
   }, [playerVideo, videoId]);
@@ -334,7 +337,14 @@ export default function Watch() {
       {/* 收藏弹窗：选择分组收藏 / 换分组 / 取消收藏 */}
       {favModalOpen && (
         <FavModal
-          video={{ videoId, title: video.snippet.title, channelId: video.snippet.channelId, channelTitle: video.snippet.channelTitle, thumb: bestThumb(video.snippet) }}
+          video={{
+            videoId,
+            title: video.snippet.title,
+            channelId: video.snippet.channelId,
+            channelTitle: video.snippet.channelTitle,
+            // 详情接口不返回缩略图，落库前按 videoId 拼稳定 URL 兜底
+            thumb: bestThumb(video.snippet) || `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+          }}
           onClose={() => setFavModalOpen(false)}
         />
       )}

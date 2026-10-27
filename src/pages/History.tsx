@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useHistory, type HistoryEntry } from "../stores/history";
+import { useFavorites } from "../stores/favorites";
+import { useWatchLater } from "../stores/watchLater";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Spinner, { ErrorBox } from "../components/Spinner";
 
 /** 观看记录页：按日期分组，今天自动展开，更早的日期默认收起（点击展开），时间倒序；
- *  仅保留近 7 天，应用打开时自动清理更早的记录（SQLite 本地库） */
+ *  仅保留近 7 天，应用打开时自动清理更早的记录（SQLite 本地库）。
+ *  每条记录带收藏 / 待看快捷操作：未收藏（未加入待看）点击即收藏（即加入），
+ *  已收藏（已加入）高亮显示，再次点击二次确认后移除 */
 
 function dayKey(ms: number): string {
   const d = new Date(ms);
@@ -26,6 +30,107 @@ function timeLabel(ms: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** 缩略图兜底：详情接口不返回缩略图，早先落库的记录 thumb 为空，按 videoId 拼稳定 URL */
+function thumbOf(e: HistoryEntry): string {
+  return e.thumb || `https://i.ytimg.com/vi/${e.videoId}/mqdefault.jpg`;
+}
+
+function HistoryRow({
+  e,
+  onRemove,
+  onUnfav,
+  onUnlater,
+}: {
+  e: HistoryEntry;
+  onRemove: (e: HistoryEntry) => void;
+  onUnfav: (e: HistoryEntry) => void;
+  onUnlater: (e: HistoryEntry) => void;
+}) {
+  const isFav = useFavorites((s) => s.videos.some((v) => v.videoId === e.videoId));
+  const inLater = useWatchLater((s) => s.entries.some((w) => w.videoId === e.videoId));
+
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-line bg-app p-2 transition-colors hover:bg-flat">
+      <Link to={`/watch/${e.videoId}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="relative shrink-0">
+          <Img src={thumbOf(e)} alt="" className="h-12 w-20 rounded-lg bg-flat object-cover" />
+          {e.duration && (
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] font-medium text-white">
+              {e.duration}
+            </span>
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="clamp-2 block text-sm font-medium text-ink">{e.title}</span>
+          <span className="mt-0.5 block truncate text-xs text-ink-3">
+            {e.channelTitle}
+            {e.channelTitle && " · "}
+            {timeLabel(e.watchedAt)}
+          </span>
+        </span>
+      </Link>
+      {/* 收藏：未收藏点击即收藏（默认分组）；已收藏高亮，点击二次确认取消 */}
+      <button
+        type="button"
+        onClick={() => {
+          if (isFav) {
+            onUnfav(e);
+            return;
+          }
+          useFavorites.getState().add({
+            videoId: e.videoId,
+            title: e.title,
+            channelId: e.channelId,
+            channelTitle: e.channelTitle,
+            thumb: thumbOf(e),
+          });
+        }}
+        aria-label={isFav ? "取消收藏" : "收藏"}
+        title={isFav ? "已收藏，点击取消" : "收藏"}
+        className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-flat"
+      >
+        <Icon name={isFav ? "star" : "starBorder"} size={15} className={isFav ? "text-accent" : "text-ink-3 hover:text-ink"} />
+      </button>
+      {/* 待看：未加入点击即加入待看页；已加入高亮，点击二次确认移除 */}
+      <button
+        type="button"
+        onClick={() => {
+          if (inLater) {
+            onUnlater(e);
+            return;
+          }
+          useWatchLater.getState().add({
+            videoId: e.videoId,
+            title: e.title,
+            channelId: e.channelId,
+            channelTitle: e.channelTitle,
+            thumb: thumbOf(e),
+            duration: e.duration,
+          });
+        }}
+        aria-label={inLater ? "移出待看" : "加入待看"}
+        title={inLater ? "已在待看，点击移除" : "加入待看"}
+        className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-flat"
+      >
+        <Icon
+          name="watchLater"
+          size={15}
+          className={inLater ? "text-accent" : "text-ink-3 hover:text-ink"}
+        />
+      </button>
+      <button
+        type="button"
+        onClick={() => onRemove(e)}
+        title="删除该条记录"
+        aria-label={`删除记录 ${e.title}`}
+        className="shrink-0 rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-accent"
+      >
+        <Icon name="close" size={14} />
+      </button>
+    </div>
+  );
+}
+
 export default function History() {
   const { entries, status, error, init, remove, removeDay } = useHistory();
   // 默认只展开今天；手动展开过的日期记住状态
@@ -33,6 +138,9 @@ export default function History() {
   // 删除二次确认：按条 / 按天
   const [confirmItem, setConfirmItem] = useState<HistoryEntry | null>(null);
   const [confirmDay, setConfirmDay] = useState<{ key: string; label: string; count: number; watchedAt: number } | null>(null);
+  // 取消收藏 / 移出待看的二次确认
+  const [confirmUnfav, setConfirmUnfav] = useState<HistoryEntry | null>(null);
+  const [confirmUnlater, setConfirmUnlater] = useState<HistoryEntry | null>(null);
 
   useEffect(() => {
     void init();
@@ -115,42 +223,13 @@ export default function History() {
                 <div className="overflow-hidden">
                   <div className="flex flex-col gap-2 pt-2">
                     {list.map((e) => (
-                      <div
+                      <HistoryRow
                         key={e.videoId}
-                        className="flex items-center gap-1 rounded-xl border border-line bg-app p-2 transition-colors hover:bg-flat"
-                      >
-                        <Link to={`/watch/${e.videoId}`} className="flex min-w-0 flex-1 items-center gap-3">
-                          {e.thumb ? (
-                            <span className="relative shrink-0">
-                              <Img src={e.thumb} alt="" className="h-12 w-20 rounded-lg bg-flat object-cover" />
-                              {e.duration && (
-                                <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] font-medium text-white">
-                                  {e.duration}
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="h-12 w-20 shrink-0 rounded-lg bg-flat" />
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="clamp-2 block text-sm font-medium text-ink">{e.title}</span>
-                            <span className="mt-0.5 block truncate text-xs text-ink-3">
-                              {e.channelTitle}
-                              {e.channelTitle && " · "}
-                              {timeLabel(e.watchedAt)}
-                            </span>
-                          </span>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmItem(e)}
-                          title="删除该条记录"
-                          aria-label={`删除记录 ${e.title}`}
-                          className="shrink-0 rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-accent"
-                        >
-                          <Icon name="close" size={14} />
-                        </button>
-                      </div>
+                        e={e}
+                        onRemove={setConfirmItem}
+                        onUnfav={setConfirmUnfav}
+                        onUnlater={setConfirmUnlater}
+                      />
                     ))}
                   </div>
                 </div>
@@ -158,6 +237,32 @@ export default function History() {
             </section>
           );
         })}
+
+        {/* 取消收藏 / 移出待看 二次确认 */}
+        {confirmUnfav && (
+          <ConfirmDialog
+            title={`取消收藏「${confirmUnfav.title}」？`}
+            message="将从收藏列表中移除该视频（含分组归属）。"
+            confirmText="取消收藏"
+            onConfirm={() => {
+              useFavorites.getState().remove(confirmUnfav.videoId);
+              setConfirmUnfav(null);
+            }}
+            onCancel={() => setConfirmUnfav(null)}
+          />
+        )}
+        {confirmUnlater && (
+          <ConfirmDialog
+            title="移出待看？"
+            message={confirmUnlater.title}
+            confirmText="移出"
+            onConfirm={() => {
+              useWatchLater.getState().remove(confirmUnlater.videoId);
+              setConfirmUnlater(null);
+            }}
+            onCancel={() => setConfirmUnlater(null)}
+          />
+        )}
 
         {/* 删除二次确认：按条 / 按天 */}
         {confirmItem && (

@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useWatchLater, WATCH_LATER_STATUS, type WatchLaterEntry } from "../stores/watchLater";
+import {
+  useWatchLater,
+  WATCH_LATER_STATUS,
+  WATCH_LATER_STATUS_ORDER,
+  type WatchLaterEntry,
+  type WatchLaterStatus,
+} from "../stores/watchLater";
 import Img from "../components/Img";
 import Icon from "../components/Icon";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 /** 待看页（稍后再看）：行卡片样式对齐观看历史列表（缩略图 + 标题 + 频道 + 时间）；
- *  每条带进度状态标签（待看绿 → 看一半黄 → 看完蓝），点击标签循环切换，右侧按钮移除 */
+ *  每条带进度状态 select（待看绿 / 看一半黄 / 看完蓝，下拉自选），右侧按钮移除 */
 
 function timeLabel(ms: number): string {
   const d = new Date(ms);
@@ -14,24 +20,25 @@ function timeLabel(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** 缩略图兜底：早先落库的记录 thumb 可能为空（详情接口无缩略图字段），按 videoId 拼稳定 URL */
+function thumbOf(e: { videoId: string; thumb: string }): string {
+  return e.thumb || `https://i.ytimg.com/vi/${e.videoId}/mqdefault.jpg`;
+}
+
 function Row({ entry, onRemove }: { entry: WatchLaterEntry; onRemove: (e: WatchLaterEntry) => void }) {
-  const cycleStatus = useWatchLater((s) => s.cycleStatus);
+  const setStatus = useWatchLater((s) => s.setStatus);
   const status = WATCH_LATER_STATUS[entry.status];
   return (
     <div className="flex items-center gap-1 rounded-xl border border-line bg-app p-2 transition-colors hover:bg-flat">
       <Link to={`/watch/${entry.videoId}`} className="flex min-w-0 flex-1 items-center gap-3">
-        {entry.thumb ? (
-          <span className="relative shrink-0">
-            <Img src={entry.thumb} alt="" className="h-12 w-20 rounded-lg bg-flat object-cover" />
-            {entry.duration && (
-              <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] font-medium text-white">
-                {entry.duration}
-              </span>
-            )}
-          </span>
-        ) : (
-          <span className="h-12 w-20 shrink-0 rounded-lg bg-flat" />
-        )}
+        <span className="relative shrink-0">
+          <Img src={thumbOf(entry)} alt="" className="h-12 w-20 rounded-lg bg-flat object-cover" />
+          {entry.duration && (
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] font-medium text-white">
+              {entry.duration}
+            </span>
+          )}
+        </span>
         <span className="min-w-0 flex-1">
           <span className="clamp-2 block text-sm font-medium text-ink">{entry.title}</span>
           <span className="mt-0.5 block truncate text-xs text-ink-3">
@@ -41,16 +48,22 @@ function Row({ entry, onRemove }: { entry: WatchLaterEntry; onRemove: (e: WatchL
           </span>
         </span>
       </Link>
-      {/* 进度状态标签：点击循环 待看 → 看一半 → 看完 */}
-      <button
-        type="button"
-        onClick={() => cycleStatus(entry.videoId)}
-        title="点击切换状态（待看 → 看一半 → 看完）"
-        aria-label={`状态：${status.label}，点击切换`}
-        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-[filter] hover:brightness-95 dark:hover:brightness-125 ${status.tagCls}`}
-      >
-        {status.label}
-      </button>
+      {/* 进度状态：select 自选（待看 / 看一半 / 看完），外层按状态着色 */}
+      <span className={`shrink-0 inline-flex items-center rounded-full ${status.tagCls}`}>
+        <select
+          value={entry.status}
+          onChange={(e) => setStatus(entry.videoId, e.target.value as WatchLaterStatus)}
+          aria-label="观看状态"
+          title="选择观看状态"
+          className="cursor-pointer appearance-none bg-transparent py-1 pl-2.5 pr-2 text-xs font-medium outline-none"
+        >
+          {WATCH_LATER_STATUS_ORDER.map((s) => (
+            <option key={s} value={s}>
+              {WATCH_LATER_STATUS[s].label}
+            </option>
+          ))}
+        </select>
+      </span>
       <button
         type="button"
         onClick={() => onRemove(entry)}
@@ -79,7 +92,7 @@ export default function WatchLater() {
           待看（{entries.length}）
         </h1>
         <p className="mt-1 text-xs text-ink-3">
-          观看页点钟表 icon 加入；点击状态标签可切换 待看 → 看一半 → 看完。
+          观看页点钟表 icon 加入；用状态下拉标记 待看 / 看一半 / 看完。
           {entries.length > 0 && ` 其中待看 ${todoCount} 条。`}
         </p>
 

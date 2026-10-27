@@ -1,6 +1,6 @@
 [package]
 name = "youtube-desktop"
-version = "0.5.0"
+version = "0.6.0"
 description = "YouTube Desktop built with Tauri 2"
 edition = "2021"
 

@@ -15,12 +15,8 @@ export const WATCH_LATER_STATUS: Record<WatchLaterStatus, { label: string; tagCl
   done: { label: "看完", tagCls: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
 };
 
-/** 状态循环顺序：待看 → 看一半 → 看完 → 待看 */
-const NEXT_STATUS: Record<WatchLaterStatus, WatchLaterStatus> = {
-  todo: "half",
-  half: "done",
-  done: "todo",
-};
+/** select 的选项序（与 WATCH_LATER_STATUS 的 key 对齐） */
+export const WATCH_LATER_STATUS_ORDER: WatchLaterStatus[] = ["todo", "half", "done"];
 
 export interface WatchLaterEntry {
   videoId: string;
@@ -39,8 +35,8 @@ interface WatchLaterState {
   /** 加入待看；已存在则刷新时间置顶（状态保留） */
   add: (video: Omit<WatchLaterEntry, "addedAt" | "status">) => void;
   remove: (videoId: string) => void;
-  /** 切换到下一个状态（点击标签循环） */
-  cycleStatus: (videoId: string) => void;
+  /** 直接设置状态（待看页 select 选择） */
+  setStatus: (videoId: string, status: WatchLaterStatus) => void;
 }
 
 export const useWatchLater = create<WatchLaterState>()(
@@ -64,11 +60,9 @@ export const useWatchLater = create<WatchLaterState>()(
         set({ entries: [{ ...video, addedAt: now, status: "todo" }, ...entries] });
       },
       remove: (videoId) => set({ entries: get().entries.filter((e) => e.videoId !== videoId) }),
-      cycleStatus: (videoId) =>
+      setStatus: (videoId, status) =>
         set({
-          entries: get().entries.map((e) =>
-            e.videoId === videoId ? { ...e, status: NEXT_STATUS[e.status] } : e,
-          ),
+          entries: get().entries.map((e) => (e.videoId === videoId ? { ...e, status } : e)),
         }),
     }),
     { name: "yt-desktop-watchlater" },
