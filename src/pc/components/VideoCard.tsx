@@ -1,11 +1,16 @@
 import Img from "../../common/components/Img";
 import { Link } from "react-router-dom";
 import type { VideoItem } from "../../common/types/youtube";
-import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration } from "../../common/lib/format";
+import {
+  bestThumb,
+  formatCount,
+  formatRelativeDate,
+  formatViews,
+  parseDuration,
+  videoIdOf,
+} from "../../common/lib/format";
 
-export function videoIdOf(v: VideoItem): string {
-  return typeof v.id === "string" ? v.id : (v.id.videoId ?? "");
-}
+export { videoIdOf };
 
 /** 宽卡片：缩略图在左，信息在右（搜索 / 热门列表用） */
 export function VideoRow({ video, rank }: { video: VideoItem; rank?: number }) {

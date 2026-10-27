@@ -5,12 +5,12 @@ import { useTheme } from "../common/stores/theme";
 import { useSettings } from "../common/stores/settings";
 import { useHistory } from "../common/stores/history";
 import { refreshChannelsMeta } from "../common/stores/subsFeed";
-import { initDownloads } from "../common/stores/downloads";
-import { useDownloads } from "../common/stores/downloads";
+import { initDownloads, useDownloads } from "../common/stores/downloads";
 import GlassTabBar from "./components/GlassTabBar";
-import MobileNavBar from "./components/MobileNavBar";
 import HomeView from "./views/Home";
 import SubscriptionsView from "./views/Subscriptions";
+import WatchView from "./views/Watch";
+import SearchView from "./views/Search";
 import HistoryView from "./views/History";
 import WatchLaterView from "./views/WatchLater";
 import MeView from "./views/Me";
@@ -18,11 +18,20 @@ import MeView from "./views/Me";
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用） */
 const TAB_PATHS = new Set(["/", "/subscriptions", "/history", "/watchlater", "/me"]);
 
+/** TabBar 高亮映射：/search 归首页位（UI 稿 A3 结果态） */
+function activeTabOf(pathname: string): string {
+  if (TAB_PATHS.has(pathname)) return pathname;
+  if (pathname.startsWith("/search")) return "/";
+  return "/";
+}
+
 export default function MobileApp() {
   const theme = useTheme((s) => s.theme);
   const navigate = useNavigate();
   const location = useLocation();
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
+  // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
+  const immersive = location.pathname.startsWith("/watch/");
 
   // 明暗模式：class 挂在 <html> 上（与桌面同款 theme store）
   useEffect(() => {
@@ -91,23 +100,31 @@ export default function MobileApp() {
 
   return (
     <div className="m-root">
-      <MobileNavBar title={<span>YouTube Desktop</span>} />
-      <div className="m-body" key={location.pathname}>
+      <div
+        id="m-scroll"
+        className="m-body"
+        key={location.pathname}
+        style={immersive ? { paddingBottom: 12 } : undefined}
+      >
         <Routes>
           <Route path="/" element={<HomeView />} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/subscriptions" element={<SubscriptionsView />} />
+          <Route path="/watch/:videoId" element={<WatchView />} />
+          <Route path="/search" element={<SearchView />} />
           <Route path="/history" element={<HistoryView />} />
           <Route path="/watchlater" element={<WatchLaterView />} />
           <Route path="/me" element={<MeView />} />
-          <Route path="/search" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-      <GlassTabBar
-        active={TAB_PATHS.has(location.pathname) ? location.pathname : "/"}
-        badge={activeCount}
-        onSelect={(to) => navigate(to)}
-      />
+      {!immersive && (
+        <GlassTabBar
+          active={activeTabOf(location.pathname)}
+          badge={activeCount}
+          onSelect={(to) => navigate(to)}
+        />
+      )}
     </div>
   );
 }

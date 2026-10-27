@@ -1,14 +1,98 @@
-import MobileNavBar from "../components/MobileNavBar";
+import { useEffect } from "react";
+import { useVideos } from "../../common/stores/videos";
+import GlassChipGroup from "../../common/components/GlassChipGroup";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { FeedCard } from "../components/VideoCards";
+import { videoIdOf } from "../../common/lib/format";
 
-/** 首页：M2 实现分类 chips + 单列视频流 + IntersectionObserver 上拉加载（占位为 M1 壳验证） */
+/** 首页分类（YouTube 官方 videoCategoryId，与桌面同源常量） */
+const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
+  ["10", "音乐"],
+  ["20", "游戏"],
+  ["17", "体育"],
+  ["25", "新闻"],
+  ["24", "娱乐"],
+  ["28", "科技"],
+  ["27", "教育"],
+  ["19", "旅行与活动"],
+];
+
+const TAB_OPTIONS = [
+  { value: "", label: "全部" },
+  ...CATEGORIES.map(([id, label]) => ({ value: id, label })),
+] as const;
+
+/** 移动端首页：分类 chips + 单列视频流，触底自动加载下一页 */
 export default function HomeView() {
+  const {
+    items,
+    status,
+    error,
+    loadPopular,
+    nextPageToken,
+    loadingMore,
+    loadMorePopular,
+    category,
+  } = useVideos();
+
+  useEffect(() => {
+    if (status === "idle" || useVideos.getState().mode !== "popular") void loadPopular(category);
+  }, [status, loadPopular, category]);
+
+  const pickCategory = (catId?: string) => {
+    if (catId === category) return;
+    void loadPopular(catId);
+  };
+
+  // 触底加载（提前 600px 预取）：桌面端 IntersectionObserver 在 WebView2 实测不触发，
+  // 沿用 scroll 事件方案；移动端同系 Chromium 内核，同一实现（Android 上待真机复验）
+  useEffect(() => {
+    if (status !== "ready") return;
+    const scroller = document.getElementById("m-scroll");
+    if (!scroller) return;
+    const check = () => {
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 600) {
+        void loadMorePopular();
+      }
+    };
+    check();
+    scroller.addEventListener("scroll", check, { passive: true });
+    return () => scroller.removeEventListener("scroll", check);
+  }, [status, nextPageToken, loadingMore, loadMorePopular]);
+
+  // 分类 chips 常驻不随加载态卸载（桌面 v0.4.1 行为对齐）
   return (
-    <>
-      <MobileNavBar title={<span>首页</span>} />
-      <div className="m-placeholder">
-        <b>首页</b>
-        <span>M2 待实现：分类 chips + 单列视频流 + 上拉加载</span>
+    <div>
+      <div className="sticky top-0 z-10 border-b border-line bg-app py-2.5">
+        <GlassChipGroup
+          options={TAB_OPTIONS}
+          value={category ?? ""}
+          onChange={(v) => pickCategory(v || undefined)}
+          wrap={false}
+          className="max-w-full overflow-x-auto"
+        />
       </div>
-    </>
+
+      {status === "loading" || status === "idle" ? (
+        <Spinner label="加载推荐视频…" />
+      ) : status === "error" ? (
+        <ErrorBox message={error} onRetry={() => void loadPopular(category)} />
+      ) : (
+        <>
+          <div className="flex flex-col">
+            {items.map((v, i) => (
+              <FeedCard key={videoIdOf(v) ?? i} video={v} />
+            ))}
+          </div>
+          {items.length === 0 && (
+            <p className="p-6 text-sm text-ink-2">该分类下没有获取到视频。</p>
+          )}
+          {loadingMore && <Spinner label="加载更多…" />}
+          {!nextPageToken && items.length > 0 && (
+            <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
+          )}
+        </>
+      )}
+    </div>
   );
 }

@@ -64,3 +64,9 @@ export function bestThumb(snippet: { thumbnails?: { medium?: { url: string }; hi
   const t = snippet.thumbnails;
   return t?.medium?.url ?? t?.high?.url ?? t?.default?.url ?? "";
 }
+
+/** 从 VideoItem 取视频 id（id 可能是字符串或 { videoId } 对象；无效返回 null） */
+export function videoIdOf(v: { id: string | { videoId?: string | null } | null | undefined }): string | null {
+  if (typeof v.id === "string") return v.id;
+  return v.id?.videoId ?? null;
+}
