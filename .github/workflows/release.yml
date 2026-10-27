@@ -1,11 +1,19 @@
-# 发布流程（参考 whf-stock-board release.yml，裁剪为 Windows 桌面单平台）：
-# - 推送 v* tag → GitHub Actions 在 windows runner 上构建 msi / nsis 安装包，
-#   自动创建 GitHub Release 并上传产物
+# 发布流程（参考 whf-stock-board release.yml）：
+# - 推送 v* tag → GitHub Actions 构建桌面（msi / nsis）+ 安卓（arm64 apk），
+#   进同一个 GitHub Release
 # - Release 描述由上一个可到达 tag 到当前 tag 的提交主题自动生成
 #   （提交须遵循 conventional commits：feat:/fix:/refactor: ...）
 # - 守卫：tag 指向的提交必须可从 main 到达，防止绕过分支保护直接发版
+#
+# 安卓 job 前置（沿用 whf-stock-board mobile 口径）：
+# 1. src-tauri/tauri.android.conf.json 提供 beforeBuildCommand（pnpm build:mobile）
+# 2. gen/android 已 gitignore，CI 内 tauri android init 重建
+# 3. 签名：Secrets 的 ANDROID_KEYSTORE(base64) / ANDROID_KEYSTORE_PASSWORD /
+#    ANDROID_KEY_ALIAS 做 zipalign + apksigner 签名；未配置时上传未签名 APK 并告警
+#    （未签名 APK 无法安装，仅可 adb install -t 调试）
+# 4. 只编 arm64：真机均为 arm64，universal 四 ABI 会让 APK 膨胀（单 arm64 约 1/4 体积）
 
-name: Release App (Desktop)
+name: Release App (Desktop / Android)
 
 on:
   push:
@@ -103,3 +111,124 @@ jobs:
           releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: false
           prerelease: false
+
+  android:
+    name: Android（arm64 APK）
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 与桌面 job 同一守卫：tag 必须在 main 历史上
+      - name: Verify tag is on main
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          if git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "tag ${GITHUB_REF_NAME} 位于 main 分支历史上，允许发布"
+          else
+            echo "::error::tag ${GITHUB_REF_NAME} 的提交不在 main 分支上，拒绝发布"
+            exit 1
+          fi
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Rust (Android targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ubuntu runner 自带 ANDROID_HOME 与 cmdline-tools；补装固定版本 NDK 并导出 NDK_HOME
+      - name: Install Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve release version
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "VERSION_TAG=v${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Init Android project (gen/android 不入库，CI 重建)
+        run: pnpm tauri android init
+
+      - name: Build APK (arm64)
+        run: pnpm tauri android build --apk --target aarch64
+
+      # 签名：Secrets 配齐时 zipalign + apksigner；未配置上传未签名包并告警
+      - name: Sign APK
+        id: sign
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          APK=$(find src-tauri/gen/android -path "*apk/aarch64/release*" -name "*.apk" | head -1)
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          if [ -z "$KS_B64" ]; then
+            echo "::warning::未配置 ANDROID_KEYSTORE 等 Secrets，本次上传未签名 APK（无法直接安装）"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KS_B64" | base64 -d > keystore.jks
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/34.0.0"
+          ALIGNED="${APK%.apk}-aligned.apk"
+          SIGNED="YouTube-Desktop_${VERSION}_arm64.apk"
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK" "$ALIGNED"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks keystore.jks --ks-key-alias "$KS_ALIAS" --ks-pass "env:KS_PASS" \
+            --out "$SIGNED" "$ALIGNED"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "SIGNED_APK=$SIGNED" >> "$GITHUB_ENV"
+
+      # 桌面 job 的 tauri-action 创建 Release 有先后，轮询等待其出现（上限 10 分钟）
+      - name: Wait for release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 60); do
+            if gh release view "$VERSION_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              echo "Release $VERSION_TAG 已就绪"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::等待 Release $VERSION_TAG 超时（桌面 job 未创建？）"
+          exit 1
+
+      - name: Upload APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
+            gh release upload "$VERSION_TAG" "$SIGNED_APK" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release upload "$VERSION_TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+          fi
