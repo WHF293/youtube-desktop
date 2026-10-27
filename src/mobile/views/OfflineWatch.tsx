@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { useSettings } from "../../common/stores/settings";
 import Spinner from "../../common/components/Spinner";
-import { EmptyState, ErrorState } from "../components/StateViews";
+import { EmptyState } from "../components/StateViews";
 import Icon from "../../common/components/Icon";
 import type { ManifestEntry } from "../../common/types/offline";
 
