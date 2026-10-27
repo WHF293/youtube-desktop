@@ -182,31 +182,29 @@ jobs:
       - name: Build APK (arm64)
         run: pnpm tauri android build --apk --target aarch64
 
-      # 签名：Secrets 配齐时 zipalign + apksigner；未配置上传未签名包并告警
+      # tauri android build 产出的是未签名 APK，用 Secrets 里的 keystore 做 zipalign + 签名
+      # （步骤与 whf-stock-board release.yml 同源：RUNNER_TEMP 存 keystore、--key-pass 同
+      #   keystore 口令、签名后 verify --print-certs 并清理密钥文件）
       - name: Sign APK
-        id: sign
         env:
-          KS_B64: ${{ secrets.ANDROID_KEYSTORE }}
-          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          APK=$(find src-tauri/gen/android -path "*apk/aarch64/release*" -name "*.apk" | head -1)
-          echo "APK=$APK" >> "$GITHUB_ENV"
-          if [ -z "$KS_B64" ]; then
-            echo "::warning::未配置 ANDROID_KEYSTORE 等 Secrets，本次上传未签名 APK（无法直接安装）"
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "$KS_B64" | base64 -d > keystore.jks
-          BUILD_TOOLS="$ANDROID_HOME/build-tools/34.0.0"
-          ALIGNED="${APK%.apk}-aligned.apk"
-          SIGNED="YouTube-Desktop_${VERSION}_arm64.apk"
-          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK" "$ALIGNED"
-          "$BUILD_TOOLS/apksigner" sign \
-            --ks keystore.jks --ks-key-alias "$KS_ALIAS" --ks-pass "env:KS_PASS" \
-            --out "$SIGNED" "$ALIGNED"
-          echo "signed=true" >> "$GITHUB_OUTPUT"
-          echo "SIGNED_APK=$SIGNED" >> "$GITHUB_ENV"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "$ANDROID_KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          IN=$(find src-tauri/gen/android/app/build/outputs/apk -name '*unsigned.apk' | head -1)
+          echo "unsigned apk: $IN"
+          OUT="youtubedesktop_${VERSION_TAG}_arm64.apk"
+          "$BT/zipalign" -p -f 4 "$IN" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign \
+            --ks "$RUNNER_TEMP/release.keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --key-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --out "$OUT" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --print-certs "$OUT"
+          rm -f "$RUNNER_TEMP/release.keystore"
 
       # 桌面 job 的 tauri-action 创建 Release 有先后，轮询等待其出现（上限 10 分钟）
       - name: Wait for release
@@ -223,12 +221,10 @@ jobs:
           echo "::error::等待 Release $VERSION_TAG 超时（桌面 job 未创建？）"
           exit 1
 
-      - name: Upload APK to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
-            gh release upload "$VERSION_TAG" "$SIGNED_APK" --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release upload "$VERSION_TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
-          fi
+      # 追加到同版本 Release（桌面 job 的 tauri-action 已创建）
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION_TAG }}
+          files: youtubedesktop_*_arm64.apk
+          fail_on_unmatched_files: true
