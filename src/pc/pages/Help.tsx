@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import Icon from "../components/Icon";
+import Icon from "../../common/components/Icon";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

@@ -1,12 +1,12 @@
-import Img from "../components/Img";
+import Img from "../../common/components/Img";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useSubsFeed } from "../stores/subsFeed";
-import { useChannels, type SubChannel } from "../stores/channels";
-import { registerPageRefresh } from "../lib/refresh";
+import { useSubsFeed } from "../../common/stores/subsFeed";
+import { useChannels, type SubChannel } from "../../common/stores/channels";
+import { registerPageRefresh } from "../../common/lib/refresh";
 import { VideoRow } from "../components/VideoCard";
-import Icon from "../components/Icon";
-import Spinner, { ErrorBox } from "../components/Spinner";
+import Icon from "../../common/components/Icon";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
 
 /** 订阅页（FreeTube 模式，Islands 双岛布局）：左侧订阅视频流岛 +
  *  右侧「我的博主」分组岛（可整体收起为头像列）。左右各自独立滚动。

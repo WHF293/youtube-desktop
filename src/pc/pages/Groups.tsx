@@ -16,12 +16,12 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useChannels, type SubChannel, buildChannelsExport } from "../stores/channels";
-import { refreshChannelsMeta } from "../stores/subsFeed";
-import { registerPageRefresh } from "../lib/refresh";
-import ConfirmDialog from "../components/ConfirmDialog";
-import Img from "../components/Img";
-import Icon from "../components/Icon";
+import { useChannels, type SubChannel, buildChannelsExport } from "../../common/stores/channels";
+import { refreshChannelsMeta } from "../../common/stores/subsFeed";
+import { registerPageRefresh } from "../../common/lib/refresh";
+import ConfirmDialog from "../../common/components/ConfirmDialog";
+import Img from "../../common/components/Img";
+import Icon from "../../common/components/Icon";
 
 /**
  * 博主分组页（看板式）：一个分组一列，拖拽博主卡片到不同列即切换分组，

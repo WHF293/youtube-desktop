@@ -2,15 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { Link } from "react-router-dom";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { useDownloads } from "../stores/downloads";
-import { useSettings } from "../stores/settings";
-import { errorMessage } from "../stores/videos";
-import { registerPageRefresh } from "../lib/refresh";
-import type { ManifestEntry } from "../types/offline";
-import Img from "../components/Img";
-import Icon from "../components/Icon";
-import Spinner, { ErrorBox } from "../components/Spinner";
-import { formatBytes } from "../lib/format";
+import { useDownloads } from "../../common/stores/downloads";
+import { useSettings } from "../../common/stores/settings";
+import { errorMessage } from "../../common/stores/videos";
+import { registerPageRefresh } from "../../common/lib/refresh";
+import type { ManifestEntry } from "../../common/types/offline";
+import Img from "../../common/components/Img";
+import Icon from "../../common/components/Icon";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { formatBytes } from "../../common/lib/format";
 
 /**
  * 离线视频页（读取设置里的下载目录，不依赖网络）：

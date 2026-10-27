@@ -1,12 +1,12 @@
-import Img from "./Img";
+import Img from "../../common/components/Img";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Icon from "./Icon";
-import { ytApi } from "../lib/youtube";
-import { errorMessage } from "../stores/videos";
-import { useSearchHistory } from "../stores/searchHistory";
-import type { VideoItem } from "../types/youtube";
-import { bestThumb } from "../lib/format";
+import Icon from "../../common/components/Icon";
+import { ytApi } from "../../common/lib/youtube";
+import { errorMessage } from "../../common/stores/videos";
+import { useSearchHistory } from "../../common/stores/searchHistory";
+import type { VideoItem } from "../../common/types/youtube";
+import { bestThumb } from "../../common/lib/format";
 import { videoIdOf } from "./VideoCard";
 
 /**

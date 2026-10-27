@@ -1,18 +1,18 @@
-import Img from "../components/Img";
+import Img from "../../common/components/Img";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { usePlayer } from "../stores/player";
-import { useFavorites } from "../stores/favorites";
-import { useHistory } from "../stores/history";
-import { useChannels } from "../stores/channels";
-import { useWatchLater } from "../stores/watchLater";
+import { usePlayer } from "../../common/stores/player";
+import { useFavorites } from "../../common/stores/favorites";
+import { useHistory } from "../../common/stores/history";
+import { useChannels } from "../../common/stores/channels";
+import { useWatchLater } from "../../common/stores/watchLater";
 import DownloadModal from "../components/DownloadModal";
-import ConfirmDialog from "../components/ConfirmDialog";
+import ConfirmDialog from "../../common/components/ConfirmDialog";
 import { VideoRow } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../components/Spinner";
-import Icon from "../components/Icon";
-import { bestThumb, formatCount, formatDate, formatViews, parseDuration } from "../lib/format";
-import { openExternal } from "../lib/open";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import Icon from "../../common/components/Icon";
+import { bestThumb, formatCount, formatDate, formatViews, parseDuration } from "../../common/lib/format";
+import { openExternal } from "../../common/lib/open";
 
 /** 观看页：iframe 播放器 + 标题/统计 + 频道信息 + 简介 + 评论 + 相关视频。
  *  播放器为静态 iframe（IFrame API 创建的播放器在本机 WebView2 实测黑屏，弃用），

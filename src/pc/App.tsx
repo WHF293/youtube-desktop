@@ -3,8 +3,8 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
-import InfoPin from "./components/InfoPin";
-import Icon from "./components/Icon";
+import InfoPin from "../common/components/InfoPin";
+import Icon from "../common/components/Icon";
 import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Watch from "./pages/Watch";
@@ -18,13 +18,13 @@ import Offline from "./pages/Offline";
 import OfflineWatch from "./pages/OfflineWatch";
 import Help from "./pages/Help";
 import Settings from "./pages/Settings";
-import { useTheme } from "./stores/theme";
-import { useVideos } from "./stores/videos";
-import { useSettings } from "./stores/settings";
-import { NEWS_CATEGORY_ID } from "./lib/youtube";
-import { useHistory } from "./stores/history";
-import { refreshChannelsMeta } from "./stores/subsFeed";
-import { initDownloads } from "./stores/downloads";
+import { useTheme } from "../common/stores/theme";
+import { useVideos } from "../common/stores/videos";
+import { useSettings } from "../common/stores/settings";
+import { NEWS_CATEGORY_ID } from "../common/lib/youtube";
+import { useHistory } from "../common/stores/history";
+import { refreshChannelsMeta } from "../common/stores/subsFeed";
+import { initDownloads } from "../common/stores/downloads";
 
 export default function App() {
   const theme = useTheme((s) => s.theme);

@@ -1,10 +1,10 @@
-import Img from "../components/Img";
+import Img from "../../common/components/Img";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useChannel } from "../stores/channel";
+import { useChannel } from "../../common/stores/channel";
 import { VideoCard } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../components/Spinner";
-import { bestThumb, formatCount, formatDate } from "../lib/format";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { bestThumb, formatCount, formatDate } from "../../common/lib/format";
 
 /** 频道页：头图 + 频道信息 + 「视频 / 播放列表」两个 tab */
 export default function Channel() {

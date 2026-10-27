@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { getVideoFormats, pickOptionByDefault, type FormatResult, type QualityOption } from "../lib/extract";
-import { useDownloads } from "../stores/downloads";
-import { useSettings } from "../stores/settings";
-import { errorMessage } from "../stores/videos";
-import Icon from "./Icon";
-import { formatBytes } from "../lib/format";
+import { getVideoFormats, pickOptionByDefault, type FormatResult, type QualityOption } from "../../common/lib/extract";
+import { useDownloads } from "../../common/stores/downloads";
+import { useSettings } from "../../common/stores/settings";
+import { errorMessage } from "../../common/stores/videos";
+import Icon from "../../common/components/Icon";
+import { formatBytes } from "../../common/lib/format";
 
 /**
  * 下载清晰度选择弹窗：调 player 拿格式列表（ANDROID_VR 流），

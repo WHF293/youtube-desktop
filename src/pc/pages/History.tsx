@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useHistory, type HistoryEntry } from "../stores/history";
-import { useFavorites } from "../stores/favorites";
-import { useWatchLater } from "../stores/watchLater";
-import Img from "../components/Img";
-import Icon from "../components/Icon";
-import ConfirmDialog from "../components/ConfirmDialog";
-import Spinner, { ErrorBox } from "../components/Spinner";
+import { useHistory, type HistoryEntry } from "../../common/stores/history";
+import { useFavorites } from "../../common/stores/favorites";
+import { useWatchLater } from "../../common/stores/watchLater";
+import Img from "../../common/components/Img";
+import Icon from "../../common/components/Icon";
+import ConfirmDialog from "../../common/components/ConfirmDialog";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
 
 /** 观看记录页：按日期分组，今天自动展开，更早的日期默认收起（点击展开），时间倒序；
  *  仅保留近 7 天，应用打开时自动清理更早的记录（SQLite 本地库）。

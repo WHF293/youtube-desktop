@@ -1,7 +1,7 @@
-import Img from "./Img";
+import Img from "../../common/components/Img";
 import { Link } from "react-router-dom";
-import type { VideoItem } from "../types/youtube";
-import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration } from "../lib/format";
+import type { VideoItem } from "../../common/types/youtube";
+import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration } from "../../common/lib/format";
 
 export function videoIdOf(v: VideoItem): string {
   return typeof v.id === "string" ? v.id : (v.id.videoId ?? "");

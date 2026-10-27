@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useFavorites, type FavVideo } from "../stores/favorites";
-import { refreshChannelsMeta } from "../stores/subsFeed";
-import { registerPageRefresh } from "../lib/refresh";
-import Img from "../components/Img";
-import Icon from "../components/Icon";
-import { formatRelativeDate } from "../lib/format";
+import { useFavorites, type FavVideo } from "../../common/stores/favorites";
+import { refreshChannelsMeta } from "../../common/stores/subsFeed";
+import { registerPageRefresh } from "../../common/lib/refresh";
+import Img from "../../common/components/Img";
+import Icon from "../../common/components/Icon";
+import { formatRelativeDate } from "../../common/lib/format";
 
 /** 收藏页：按收藏分组展示收藏的视频，支持移动分组与删除（二次确认） */
 export default function Favorites() {

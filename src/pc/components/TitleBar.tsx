@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import Icon, { YouTubeLogo } from "./Icon";
+import Icon, { YouTubeLogo } from "../../common/components/Icon";
 import SearchModal from "./SearchModal";
-import { useUi } from "../stores/ui";
-import { useTheme } from "../stores/theme";
-import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateInfo } from "../lib/updater";
+import { useUi } from "../../common/stores/ui";
+import { useTheme } from "../../common/stores/theme";
+import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateInfo } from "../../common/lib/updater";
 
 /**
  * 版本号标签（TitleBar 左侧品牌旁）：显示当前版本 vX.Y.Z；

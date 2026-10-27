@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useChannels } from "../stores/channels";
-import { resolveChannelInput } from "../lib/innertube";
-import { errorMessage } from "../stores/videos";
-import Icon from "../components/Icon";
+import { useChannels } from "../../common/stores/channels";
+import { resolveChannelInput } from "../../common/lib/innertube";
+import { errorMessage } from "../../common/stores/videos";
+import Icon from "../../common/components/Icon";
 
 /** FreeTube 模式的订阅频道管理：添加（链接/ID 自动解析）、Takeout CSV 导入、删除。
  *  博主列表默认收起，标题点击跳转「订阅」页 */

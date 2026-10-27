@@ -1,9 +1,9 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useRef, useState } from "react";
-import Icon from "./Icon";
-import { useUi } from "../stores/ui";
-import { useSettings, REGIONS } from "../stores/settings";
-import { thumbPhaseCls, thumbStyle, useSlidingThumb } from "../lib/useSlidingThumb";
+import Icon from "../../common/components/Icon";
+import { useUi } from "../../common/stores/ui";
+import { useSettings, REGIONS } from "../../common/stores/settings";
+import { thumbPhaseCls, thumbStyle, useSlidingThumb } from "../../common/lib/useSlidingThumb";
 
 const NAV_ITEMS = [
   { to: "/", label: "首页", icon: "home", end: true },

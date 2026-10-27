@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { useVideos } from "../stores/videos";
-import { registerPageRefresh } from "../lib/refresh";
-import GlassChipGroup from "../components/GlassChipGroup";
+import { useVideos } from "../../common/stores/videos";
+import { registerPageRefresh } from "../../common/lib/refresh";
+import GlassChipGroup from "../../common/components/GlassChipGroup";
 import { VideoGrid } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../components/Spinner";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
 
 /** 首页分类 tab（YouTube 官方 videoCategoryId）；「新闻」分类内容跟随地区（InnerTube 搜索地区化） */
 const CATEGORIES: ReadonlyArray<readonly [string, string]> = [

@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useVideos } from "../stores/videos";
+import { useVideos } from "../../common/stores/videos";
 import { VideoRow } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../components/Spinner";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
 
 /** 搜索结果页：/search?q=xxx */
 export default function Search() {

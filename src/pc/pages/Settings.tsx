@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useSettings, DEFAULT_PROXY, CONTENT_LANGS, DEFAULT_DOWNLOAD_DIR, DOWNLOAD_QUALITIES } from "../stores/settings";
-import { openExternal } from "../lib/open";
-import GlassChipGroup from "../components/GlassChipGroup";
+import { useSettings, DEFAULT_PROXY, CONTENT_LANGS, DEFAULT_DOWNLOAD_DIR, DOWNLOAD_QUALITIES } from "../../common/stores/settings";
+import { openExternal } from "../../common/lib/open";
+import GlassChipGroup from "../../common/components/GlassChipGroup";
 import ChannelManager from "./ChannelManager";
-import Icon from "../components/Icon";
+import Icon from "../../common/components/Icon";
 
 /** 项目仓库地址（设置页「关于」展示 + 系统浏览器打开） */
 const REPO_URL = "https://github.com/WHF293/youtube-desktop";

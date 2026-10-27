@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
+#[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -256,6 +257,8 @@ async fn yt_refresh_token(
 
 /// 下载更新包到临时目录（流式写盘，进度经 update-download-progress 事件推送）。
 /// 更新通道与数据请求共用代理（官方 updater 插件走不了应用内代理，本地网络直连 GitHub 不可靠）。
+/// Windows 桌面专属（配套 NSIS 静默安装链）；Android 走「检查更新 → 跳浏览器下载 APK」。
+#[cfg(windows)]
 #[tauri::command]
 async fn download_update(
     url: String,
@@ -291,8 +294,29 @@ async fn download_update(
     Ok(dest.to_string_lossy().to_string())
 }
 
+/// 非 Windows（Android）：无应用内自更新，前端据此跳浏览器下载 APK（开发方案 §6/§8）。
+#[cfg(not(windows))]
+#[tauri::command]
+async fn download_update(
+    _url: String,
+    _proxy: String,
+    _filename: String,
+    _app: tauri::AppHandle,
+    _state: State<'_, HttpClient>,
+) -> Result<String, String> {
+    Err("应用内自更新仅支持桌面端；移动端请到 GitHub Releases 下载最新安装包".to_string())
+}
+
+/// 非 Windows（Android）：无静默安装通道，同 download_update 的移动端口径。
+#[cfg(not(windows))]
+#[tauri::command]
+fn finish_update(_installer: String, _app: tauri::AppHandle) -> Result<(), String> {
+    Err("应用内自更新仅支持桌面端；移动端请到 GitHub Releases 下载最新安装包".to_string())
+}
+
 /// 静默安装更新：起独立 cmd 链「等当前进程退出 → 静默安装 → 启动新版本」，
 /// 随后退出当前应用。安装器替换文件前应用必须先退出，否则 exe 被占用会失败。
+#[cfg(windows)]
 #[tauri::command]
 fn finish_update(installer: String, app: tauri::AppHandle) -> Result<(), String> {
     let exe = std::env::current_exe()
@@ -721,16 +745,51 @@ fn delete_offline_video(dir: String, video_id: String, filename: String) -> Resu
     Ok(())
 }
 
-fn main() {
-    // WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到。
-    // 双保险：① setup 里创建窗口时用官方 proxy_url 挂代理（Windows 原生支持）；
-    // ② 兜底再注入 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS 环境变量。
+/// WebView2 代理：iframe 视频播放走 WebView 网络栈，应用内代理（yt_fetch）管不到。
+/// Windows 桌面双保险之一：启动前注入 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS 环境变量
+/// （另一处在 build_main_window 的 proxy_url）。
+/// Android System WebView 不支持 --proxy-server 命令行注入，空实现（reqwest 层代理不受影响）。
+#[cfg(windows)]
+fn init_webview_proxy_env() {
     if let Some(p) = read_webview_proxy() {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             format!("--proxy-server={p}"),
         );
     }
+}
+#[cfg(not(windows))]
+fn init_webview_proxy_env() {}
+
+/// 主窗口创建：
+/// - Windows 桌面：代码创建（tauri.conf.json 不声明窗口），以便按代理配置创建 WebView；
+/// - 非 Windows（Android）：窗口由 tauri.android.conf.json 的 app.windows 声明创建——
+///   Android System WebView 无 --proxy-server 注入通道，按代理建窗无意义，
+///   且回退桌面默认代理（127.0.0.1:7897）在真机上必然不可达。
+#[cfg(windows)]
+fn build_main_window(app: &tauri::App) -> tauri::Result<()> {
+    let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+        .title("YouTube Desktop")
+        .inner_size(1360.0, 860.0)
+        .min_inner_size(900.0, 600.0)
+        .resizable(true)
+        .decorations(false);
+    if let Some(p) = read_webview_proxy() {
+        match p.parse::<tauri::Url>() {
+            Ok(u) => builder = builder.proxy_url(u),
+            Err(e) => eprintln!("代理地址解析失败（{p}）：{e}，WebView 将直连"),
+        }
+    }
+    builder.build()?;
+    Ok(())
+}
+#[cfg(not(windows))]
+fn build_main_window(_app: &tauri::App) -> tauri::Result<()> {
+    Ok(())
+}
+
+fn main() {
+    init_webview_proxy_env();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -788,20 +847,9 @@ fn main() {
                     }
                 }
             });
-            // 主窗口代码创建（tauri.conf.json 不再声明窗口），以便按代理配置创建 WebView
-            let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
-                .title("YouTube Desktop")
-                .inner_size(1360.0, 860.0)
-                .min_inner_size(900.0, 600.0)
-                .resizable(true)
-                .decorations(false);
-            if let Some(p) = read_webview_proxy() {
-                match p.parse::<tauri::Url>() {
-                    Ok(u) => builder = builder.proxy_url(u),
-                    Err(e) => eprintln!("代理地址解析失败（{p}）：{e}，WebView 将直连"),
-                }
-            }
-            builder.build()?;
+            // 主窗口创建：Windows 桌面按代理配置建 WebView（tauri.conf.json 不声明窗口）；
+            // Android 窗口由 tauri.android.conf.json 声明创建（见 build_main_window 注释）
+            build_main_window(app)?;
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -809,11 +857,14 @@ fn main() {
 }
 
 /// proxy 持久化文件：%LOCALAPPDATA%/youtube-desktop/proxy.txt
+/// （Windows 桌面专属链：Android 无 LOCALAPPDATA，WebView 代理注入也不可用）
+#[cfg(windows)]
 fn proxy_file_path() -> Option<std::path::PathBuf> {
     let base = std::env::var("LOCALAPPDATA").ok()?;
     Some(std::path::Path::new(&base).join("youtube-desktop").join("proxy.txt"))
 }
 
+#[cfg(windows)]
 fn normalize_proxy(proxy: &str) -> Option<String> {
     let p = proxy.trim();
     if p.is_empty() {
@@ -827,6 +878,7 @@ fn normalize_proxy(proxy: &str) -> Option<String> {
 }
 
 /// 启动时读取已持久化的 proxy（返回归一化后的代理 URL）。
+#[cfg(windows)]
 /// 文件不存在（全新安装、前端还没落盘过）时回退默认代理，
 /// 保证首次启动 WebView 就能挂代理；文件存在但为空 = 用户主动直连。
 fn read_webview_proxy() -> Option<String> {
@@ -838,7 +890,10 @@ fn read_webview_proxy() -> Option<String> {
     }
 }
 
-/// 前端在保存设置 / 应用启动时调用，把 proxy 落盘（下次启动对 WebView 生效）
+/// 前端在保存设置 / 应用启动时调用，把 proxy 落盘（下次启动对 WebView 生效）。
+/// Windows 桌面：落盘后下次启动 WebView2 按 --proxy-server 挂代理；
+/// Android：System WebView 无该注入通道，空实现（数据/图片请求的 reqwest 代理即时生效不受影响）。
+#[cfg(windows)]
 #[tauri::command]
 fn save_webview_proxy(proxy: String) -> Result<(), String> {
     let path = proxy_file_path().ok_or("无法定位 LOCALAPPDATA")?;
@@ -846,4 +901,11 @@ fn save_webview_proxy(proxy: String) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     std::fs::write(path, proxy.trim()).map_err(|e| e.to_string())
+}
+
+/// 非 Windows（Android）：WebView 代理注入不可用，空实现保持命令通道一致。
+#[cfg(not(windows))]
+#[tauri::command]
+fn save_webview_proxy(_proxy: String) -> Result<(), String> {
+    Ok(())
 }

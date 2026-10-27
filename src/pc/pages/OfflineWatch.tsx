@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { useParams } from "react-router-dom";
-import { useSettings } from "../stores/settings";
-import { errorMessage } from "../stores/videos";
-import type { ManifestEntry } from "../types/offline";
-import Spinner, { ErrorBox } from "../components/Spinner";
+import { useSettings } from "../../common/stores/settings";
+import { errorMessage } from "../../common/stores/videos";
+import type { ManifestEntry } from "../../common/types/offline";
+import Spinner, { ErrorBox } from "../../common/components/Spinner";
 import { openPath } from "@tauri-apps/plugin-opener";
-import Icon from "../components/Icon";
+import Icon from "../../common/components/Icon";
 
 /** 离线播放页：asset 协议加载本地 mp4（<video> 原生播放，无网络依赖） */
 export default function OfflineWatch() {
