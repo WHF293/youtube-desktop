@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -298,13 +299,22 @@ fn finish_update(installer: String, app: tauri::AppHandle) -> Result<(), String>
         .map_err(|e| e.to_string())?
         .to_string_lossy()
         .to_string();
-    // ping -n 4 ≈ 等 3 秒让当前应用退出；/S 静默安装；完成后重新打开新版本
+    // ping -n 4 ≈ 等 3 秒让当前应用退出；/S 静默安装；/D= 指定安装目录
+    // （NSIS 规范：/D= 必须是最后一个参数且不加引号，含空格也原样取到行尾）
+    // 保证更新安装回当前安装位置；完成后重新打开新版本。
+    // 注意：必须用 raw_arg 原样传整条命令——普通 arg 会被 Rust 转义成 \"，
+    // 而 cmd 不认 \" 转义，引号语义错乱会导致安装器被当成命令名执行失败。
+    let install_dir = Path::new(&exe)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
     let script = format!(
-        "ping 127.0.0.1 -n 4 >nul & \"{}\" /S & start \"\" \"{}\"",
-        installer, exe
+        "ping 127.0.0.1 -n 4 >nul & \"{}\" /S /D={} & start \"\" \"{}\"",
+        installer, install_dir, exe
     );
     std::process::Command::new("cmd")
-        .args(["/C", &script])
+        .arg("/C")
+        .raw_arg(&script)
         .spawn()
         .map_err(|e| e.to_string())?;
     // 留出时间给 cmd 链启动后再退出
