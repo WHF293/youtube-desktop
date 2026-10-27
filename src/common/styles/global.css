@@ -44,6 +44,13 @@
   --shadow-island: var(--shadow-island);
 }
 
+/* 小米大屏断点（UX 指南 pId=2041 三档：Mobile 600 / Expanded 840）。
+   自定义 token 不动默认 sm/md/lg——PC 端（如订阅页 lg:flex ≥1024）语义保持不变 */
+@theme {
+  --breakpoint-tablet: 600px;
+  --breakpoint-wide: 840px;
+}
+
 html,
 body,
 #root {

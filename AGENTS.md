@@ -78,7 +78,13 @@ cd src-tauri && cargo clean
 pnpm tauri dev       # 桌面开发模式（vite + tauri，热更新）
 pnpm tauri build     # 打包 Windows 安装包（NSIS + MSI）
 pnpm build           # 仅前端：tsc --noEmit + vite build
+pnpm dev:mobile      # 移动端开发模式（vite --mode mobile；?mock=1 注入 dev-only 假数据供截图比对）
+pnpm build:apk       # Android APK（自动先跑 scripts/patch-android.mjs 重放原生层补丁）
 ```
+
+Android 原生层（manifest / MainActivity）改动不在 git 内（`src-tauri/gen` 被 ignore），
+统一固化在 `scripts/patch-android.mjs` 幂等补丁中；重新 `tauri android init` 或换机后
+先跑该脚本再构建。小米自由窗口适配细节见 `.ai/开发方案/2026-10-28-*` 与方案内说明。
 
 ## Tauri 命令清单（src-tauri/src/main.rs）
 

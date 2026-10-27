@@ -69,7 +69,7 @@ export default function SearchView() {
   }, [status, nextPageToken, q]);
 
   return (
-    <div>
+    <div className="m-page">
       {/* 搜索栏：返回 + 输入框（圆角胶囊）+ 清空 */}
       <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-line bg-surface px-2 py-2">
         <button
@@ -145,7 +145,7 @@ export default function SearchView() {
         <ErrorState title="搜索失败" desc={error} onRetry={() => void runSearch(q)} />
       ) : (
         <>
-          <div className="flex flex-col">
+          <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
             {items.map((v, i) => (
               <RowCard key={videoIdOf(v) ?? i} video={v} />
             ))}

@@ -174,7 +174,7 @@ export default function HistoryView() {
   }
 
   return (
-    <div>
+    <div className="m-page">
       {status === "loading" ? (
         <Spinner label="加载观看记录…" />
       ) : status === "error" ? (
@@ -187,9 +187,11 @@ export default function HistoryView() {
             <h2 className="sticky top-0 z-[5] bg-app px-3.5 py-2 text-xs font-bold text-ink-2">
               {g.label}
             </h2>
-            {g.items.map((e) => (
-              <HistoryRow key={e.videoId} entry={e} />
-            ))}
+            <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
+              {g.items.map((e) => (
+                <HistoryRow key={e.videoId} entry={e} />
+              ))}
+            </div>
           </section>
         ))
       )}

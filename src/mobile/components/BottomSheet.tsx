@@ -34,16 +34,20 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
         style={{ opacity: open ? 1 : 0, transition: "opacity .15s ease" }}
         onClick={onClose}
       />
-      <div
-        className="m-sheet"
-        style={{
-          transform: open ? "translateY(0)" : "translateY(100%)",
-          transition: "transform .22s cubic-bezier(.16,1,.3,1)",
-        }}
-      >
-        <div className="m-sheet__grip" />
-        {title != null && <div className="text-[15px] font-extrabold">{title}</div>}
-        {children}
+      {/* 滑入动画挂在 .m-sheet__panel（内层）：外层 .m-sheet 的 transform
+          留给 tablet 档居中定位（translateX(-50%)），两层互不干扰 */}
+      <div className="m-sheet">
+        <div
+          className="m-sheet__panel"
+          style={{
+            transform: open ? "translateY(0)" : "translateY(100%)",
+            transition: "transform .22s cubic-bezier(.16,1,.3,1)",
+          }}
+        >
+          <div className="m-sheet__grip" />
+          {title != null && <div className="text-[15px] font-extrabold">{title}</div>}
+          {children}
+        </div>
       </div>
     </>
   );

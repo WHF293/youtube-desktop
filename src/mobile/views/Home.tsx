@@ -63,7 +63,7 @@ export default function HomeView() {
   // 分类 chips 常驻不随加载态卸载（桌面 v0.4.1 行为对齐）；
   // 移动端用分体胶囊按钮（每颗独立，选中态高光玻璃），不用桌面连体 GlassChipGroup
   return (
-    <div>
+    <div className="m-page">
       <div className="m-chips sticky top-0 z-10">
         {TAB_OPTIONS.map((o) => (
           <button
@@ -83,7 +83,8 @@ export default function HomeView() {
         <ErrorState desc={error} onRetry={() => void loadPopular(category)} />
       ) : (
         <>
-          <div className="flex flex-col">
+          {/* 小米断点（UI 稿 A0/A1/A2）：<600 单列全宽；600–840 两列；≥840 三列 */}
+          <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-2.5 tablet:p-2.5 wide:grid-cols-3">
             {items.map((v, i) => (
               <FeedCard key={videoIdOf(v) ?? i} video={v} />
             ))}

@@ -125,10 +125,12 @@ export default function WatchView() {
   };
 
   return (
-    <div className="bg-app">
+    <div className="bg-app wide:mx-auto wide:flex wide:w-full wide:max-w-[1440px] wide:items-start wide:gap-4 wide:p-4">
+      {/* 主列：播放器 + 标题 + 频道行 + 操作；wide 档为双栏左列（UI 稿 A3） */}
+      <div className="wide:min-w-0 wide:flex-[1.6]">
       {/* 播放器：静态 iframe（IFrame API 在 WebView2 实测黑屏，桌面同款方案）；
           Android WebView 无 --proxy-server 注入，挂代理用户画面可能加载不出（见开发方案 §6） */}
-      <div className="relative aspect-video bg-black">
+      <div className="relative aspect-video bg-black wide:overflow-hidden wide:rounded-xl">
         <iframe
           className="h-full w-full"
           src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=zh-Hans&hl=zh-CN`}
@@ -217,6 +219,22 @@ export default function WatchView() {
         </button>
       </div>
 
+      </div>
+
+      {/* 相关视频：wide 档右侧栏（双栏 list-detail，UI 稿 A3）；窄档保持底部流 */}
+      <aside className="mt-2 wide:mt-0 wide:min-w-0 wide:flex-1">
+        <h2 className="hidden wide:block wide:pb-2 wide:text-[13px] wide:font-extrabold wide:text-ink">
+          相关视频
+        </h2>
+        {relatedStatus === "loading" ? (
+          <Spinner label="加载相关视频…" />
+        ) : relatedStatus === "error" ? (
+          <p className="p-4 text-xs text-ink-3">相关视频加载失败</p>
+        ) : (
+          related.map((rv, i) => <RowCard key={videoIdOf(rv) ?? i} video={rv} />)
+        )}
+      </aside>
+
       {/* 收藏分组 sheet */}
       <FavGroupSheet
         open={favOpen}
@@ -299,17 +317,6 @@ export default function WatchView() {
           </>
         )}
       </BottomSheet>
-
-      {/* 相关视频 */}
-      <div className="mt-2">
-        {relatedStatus === "loading" ? (
-          <Spinner label="加载相关视频…" />
-        ) : relatedStatus === "error" ? (
-          <p className="p-4 text-xs text-ink-3">相关视频加载失败</p>
-        ) : (
-          related.map((rv, i) => <RowCard key={videoIdOf(rv) ?? i} video={rv} />)
-        )}
-      </div>
     </div>
   );
 }

@@ -17,24 +17,26 @@ export default function WatchLaterView() {
   };
 
   return (
-    <div>
+    <div className="m-page">
       {entries.length === 0 ? (
         <EmptyState illust="◷" title="待看清单还是空的" desc="刷到感兴趣的视频，点「◷ 待看」就能存进这里" />
       ) : (
         <>
-          {entries.map((e) => (
-            <div key={e.videoId} className="relative">
-              <HistoryCard entry={{ ...e, watchedAt: e.addedAt }} />
-              <button
-                type="button"
-                aria-label="移出待看"
-                onClick={() => askRemove(e.videoId)}
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+          <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
+            {entries.map((e) => (
+              <div key={e.videoId} className="relative">
+                <HistoryCard entry={{ ...e, watchedAt: e.addedAt }} />
+                <button
+                  type="button"
+                  aria-label="移出待看"
+                  onClick={() => askRemove(e.videoId)}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
           <p className="py-4 text-center text-xs text-ink-3">共 {entries.length} 个</p>
         </>
       )}

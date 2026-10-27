@@ -12,7 +12,7 @@
     "build:pc": "tauri build",
     "build:web": "tsc --noEmit && vite build",
     "build:mobile": "tsc --noEmit && vite build --mode mobile",
-    "build:apk": "tauri android build --apk --target aarch64",
+    "build:apk": "node scripts/patch-android.mjs && tauri android build --apk --target aarch64",
     "preview": "vite preview",
     "tauri": "tauri"
   },

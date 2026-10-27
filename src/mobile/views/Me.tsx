@@ -34,7 +34,7 @@ export default function MeView() {
   ];
 
   return (
-    <div>
+    <div className="m-page">
       {/* 应用卡 */}
       <div className="mx-3.5 mt-3.5 flex items-center gap-3 rounded-2xl bg-surface p-3.5 shadow-island">
         <YouTubeLogo size={40} />

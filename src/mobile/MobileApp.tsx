@@ -8,6 +8,7 @@ import { useHistory } from "../common/stores/history";
 import { refreshChannelsMeta } from "../common/stores/subsFeed";
 import { initDownloads, useDownloads } from "../common/stores/downloads";
 import GlassTabBar from "./components/GlassTabBar";
+import NavigationRail from "./components/NavigationRail";
 import MobileNavBar from "./components/MobileNavBar";
 import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
@@ -117,91 +118,98 @@ export default function MobileApp() {
     return () => unlisten?.();
   }, [location.pathname, navigate]);
 
-  return (
-    <div className="m-root">
-      {/* 固定顶部 NavBar（对照 UI 稿 A0/A2/A4/A5）：Tab 页标题栏 + 二级页离线返回栏。
-          观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 离线观看（播放器全宽）不渲染 */}
-      {!immersive && pathname !== "/search" && !pathname.startsWith("/offline/watch/") && (
-        <MobileNavBar
-          title={
-            pathname.startsWith("/offline") ? (
-              <span>离线下载</span>
-            ) : pathname === "/subscriptions" ? (
-              <span>订阅</span>
-            ) : pathname === "/history" ? (
-              <span>历史</span>
-            ) : pathname === "/watchlater" ? (
-              <span>待看</span>
-            ) : pathname === "/me" ? (
-              <span>我的</span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <YouTubeLogo size={22} />
-                YouTube Desktop
-              </span>
-            )
-          }
-          left={
-            pathname.startsWith("/offline") ? (
+  // 顶部 NavBar（对照 UI 稿 A0/A2/A4/A5）：Tab 页标题栏 + 二级页离线返回栏。
+  // 观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 离线观看（播放器全宽）不渲染
+  const navBar =
+    !immersive && pathname !== "/search" && !pathname.startsWith("/offline/watch/") ? (
+      <MobileNavBar
+        title={
+          pathname.startsWith("/offline") ? (
+            <span>离线下载</span>
+          ) : pathname === "/subscriptions" ? (
+            <span>订阅</span>
+          ) : pathname === "/history" ? (
+            <span>历史</span>
+          ) : pathname === "/watchlater" ? (
+            <span>待看</span>
+          ) : pathname === "/me" ? (
+            <span>我的</span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <YouTubeLogo size={22} />
+              YouTube Desktop
+            </span>
+          )
+        }
+        left={
+          pathname.startsWith("/offline") ? (
+            <button
+              type="button"
+              aria-label="返回"
+              onClick={() => navigate(-1)}
+              className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-full text-ink-2"
+            >
+              ‹
+            </button>
+          ) : undefined
+        }
+        right={
+          pathname === "/" || pathname === "/me" ? (
+            <>
               <button
                 type="button"
-                aria-label="返回"
-                onClick={() => navigate(-1)}
-                className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-full text-ink-2"
+                aria-label="搜索"
+                onClick={() => navigate("/search")}
+                className="m-nav__icon"
               >
-                ‹
+                <Icon name="search" size={19} />
               </button>
-            ) : undefined
-          }
-          right={
-            pathname === "/" || pathname === "/me" ? (
-              <>
+              {pathname === "/" && (
                 <button
                   type="button"
-                  aria-label="搜索"
-                  onClick={() => navigate("/search")}
+                  aria-label="我的"
+                  onClick={() => navigate("/me")}
                   className="m-nav__icon"
                 >
-                  <Icon name="search" size={19} />
+                  <Icon name="settings" size={19} />
                 </button>
-                {pathname === "/" && (
-                  <button
-                    type="button"
-                    aria-label="我的"
-                    onClick={() => navigate("/me")}
-                    className="m-nav__icon"
-                  >
-                    <Icon name="settings" size={19} />
-                  </button>
-                )}
-              </>
-            ) : undefined
-          }
-        />
-      )}
-      <div
-        id="m-scroll"
-        className="m-body"
-        key={location.pathname}
-        style={immersive ? { paddingBottom: 12 } : undefined}
-      >
-        <Routes>
-          <Route path="/" element={<HomeView />} />
-          <Route path="/home" element={<Navigate to="/" replace />} />
-          <Route path="/subscriptions" element={<SubscriptionsView />} />
-          <Route path="/watch/:videoId" element={<WatchView />} />
-          <Route path="/search" element={<SearchView />} />
-          <Route path="/history" element={<HistoryView />} />
-          <Route path="/watchlater" element={<WatchLaterView />} />
-          <Route path="/me" element={<MeView />} />
-          <Route path="/offline" element={<OfflineView />} />
-          <Route path="/offline/watch/:videoId" element={<OfflineWatchView />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+              )}
+            </>
+          ) : undefined
+        }
+      />
+    ) : null;
+
+  return (
+    <div className="m-root">
+      {/* 大屏（≥840）侧边导航：wide 档取代底部 TabBar（UI 稿 A2/A3），<840 由 .m-rail CSS 隐藏 */}
+      {!immersive && <NavigationRail active={activeTabOf(pathname)} badge={activeCount} />}
+      <div className="m-main">
+        {navBar}
+        <div
+          id="m-scroll"
+          className="m-body"
+          key={location.pathname}
+          style={immersive ? { paddingBottom: 12 } : undefined}
+        >
+          <Routes>
+            <Route path="/" element={<HomeView />} />
+            <Route path="/home" element={<Navigate to="/" replace />} />
+            <Route path="/subscriptions" element={<SubscriptionsView />} />
+            <Route path="/watch/:videoId" element={<WatchView />} />
+            <Route path="/search" element={<SearchView />} />
+            <Route path="/history" element={<HistoryView />} />
+            <Route path="/watchlater" element={<WatchLaterView />} />
+            <Route path="/me" element={<MeView />} />
+            <Route path="/offline" element={<OfflineView />} />
+            <Route path="/offline/watch/:videoId" element={<OfflineWatchView />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </div>
       {!immersive && (
         <GlassTabBar
-          active={activeTabOf(location.pathname)}
+          active={activeTabOf(pathname)}
           badge={activeCount}
           onSelect={(to) => navigate(to)}
         />

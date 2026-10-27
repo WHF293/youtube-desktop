@@ -34,7 +34,7 @@ export default function SubscriptionsView() {
 
 
   return (
-    <div>
+    <div className="m-page">
       {/* 博主横滑岛（桌面右栏博主岛的移动形态；M3 接频道页跳转） */}
       {channels.length > 0 && (
         <div className="flex gap-3.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-3">
@@ -98,7 +98,7 @@ export default function SubscriptionsView() {
           action={chip === "all" ? { label: "⌕ 去搜索", onClick: () => navigate("/search") } : undefined}
         />
       ) : (
-        <div className="flex flex-col">
+        <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
           {items.map((v, i) => (
             <RowCard key={videoIdOf(v) ?? i} video={v} />
           ))}

@@ -1,7 +1,8 @@
 import Icon from "../../common/components/Icon";
 
-/** 底部四主 Tab（历史 2026-10-28 移入「我的」页；与 .m-tabbar 的 /4 同步） */
-const TABS = [
+/** 底部四主 Tab（历史 2026-10-28 移入「我的」页；与 .m-tabbar 的 /4 同步）。
+ *  NavigationRail（大屏侧边导航）复用同一份 TABS，改这里两处同步生效。 */
+export const TABS = [
   { to: "/", label: "首页", icon: "home" },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions" },
   { to: "/watchlater", label: "待看", icon: "watchLater" },
