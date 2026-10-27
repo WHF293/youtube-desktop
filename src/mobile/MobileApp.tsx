@@ -21,12 +21,12 @@ import OfflineView from "./views/Offline";
 import OfflineWatchView from "./views/OfflineWatch";
 
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用） */
-const TAB_PATHS = new Set(["/", "/subscriptions", "/history", "/watchlater", "/me"]);
+const TAB_PATHS = new Set(["/", "/subscriptions", "/watchlater", "/me"]);
 
 /** TabBar 高亮映射：/search、/offline 归属位（首页 / 我的） */
 function activeTabOf(pathname: string): string {
   if (TAB_PATHS.has(pathname)) return pathname;
-  if (pathname.startsWith("/search")) return "/";
+  if (pathname.startsWith("/search") || pathname === "/history") return "/me";
   if (pathname.startsWith("/offline")) return "/me";
   return "/";
 }

@@ -67,13 +67,13 @@ export default function MeView() {
       {/* 内容库菜单 */}
       <div className="mx-3.5 mt-2.5 overflow-hidden rounded-2xl bg-surface shadow-island">
         <MenuItem icon="star" title="收藏夹" desc={`${favCount} 个视频`} disabled />
+        <MenuItem icon="subscriptions" title="历史记录" desc="保留最近 7 天" onClick={() => navigate("/history")} />
         <MenuItem
           icon="download"
           title="离线下载"
           desc={dlCount > 0 ? `${dlCount} 个任务进行中` : "本地缓存视频"}
           onClick={() => navigate("/offline")}
         />
-        <MenuItem icon="subscriptions" title="历史记录" desc="保留最近 7 天" onClick={() => navigate("/history")} />
       </div>
 
       {/* 应用设置 */}

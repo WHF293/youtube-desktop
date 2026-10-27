@@ -1,10 +1,9 @@
 import Icon from "../../common/components/Icon";
 
-/** 底部五主 Tab（与 .m-tabbar 的 grid-template-columns / thumb 宽度 /5 同步） */
+/** 底部四主 Tab（历史 2026-10-28 移入「我的」页；与 .m-tabbar 的 /4 同步） */
 const TABS = [
   { to: "/", label: "首页", icon: "home" },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions" },
-  { to: "/history", label: "历史", icon: "history" },
   { to: "/watchlater", label: "待看", icon: "watchLater" },
   { to: "/me", label: "我的", icon: "settings" },
 ] as const;

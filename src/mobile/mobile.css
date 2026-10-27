@@ -64,8 +64,8 @@
   bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 100;
   display: grid;
-  /* 5 等分 = 五主 Tab；指示气泡宽度 .m-tabbar__thumb 的 /5 需一并改 */
-  grid-template-columns: repeat(5, 1fr);
+  /* 4 等分 = 四主 Tab（历史 2026-10-28 移入「我的」页）；指示气泡宽度 .m-tabbar__thumb 的 /4 需一并改 */
+  grid-template-columns: repeat(4, 1fr);
   padding: 6px;
   border-radius: 999px;
   --tb-blur: 32px;
@@ -145,7 +145,7 @@
   bottom: 6px;
   left: 6px;
   z-index: 0;
-  width: calc((100% - 12px) / 5);
+  width: calc((100% - 12px) / 4);
   border-radius: 999px;
   background: var(--tb-light-strong);
   box-shadow:
