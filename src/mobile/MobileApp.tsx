@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { appDataDir } from "@tauri-apps/api/path";
 import { useTheme } from "../common/stores/theme";
 import { useSettings } from "../common/stores/settings";
 import { useHistory } from "../common/stores/history";
@@ -14,14 +15,17 @@ import SearchView from "./views/Search";
 import HistoryView from "./views/History";
 import WatchLaterView from "./views/WatchLater";
 import MeView from "./views/Me";
+import OfflineView from "./views/Offline";
+import OfflineWatchView from "./views/OfflineWatch";
 
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用） */
 const TAB_PATHS = new Set(["/", "/subscriptions", "/history", "/watchlater", "/me"]);
 
-/** TabBar 高亮映射：/search 归首页位（UI 稿 A3 结果态） */
+/** TabBar 高亮映射：/search、/offline 归属位（首页 / 我的） */
 function activeTabOf(pathname: string): string {
   if (TAB_PATHS.has(pathname)) return pathname;
   if (pathname.startsWith("/search")) return "/";
+  if (pathname.startsWith("/offline")) return "/me";
   return "/";
 }
 
@@ -48,6 +52,18 @@ export default function MobileApp() {
   // 观看记录：打开应用即清理 7 天前的记录（SQLite）
   useEffect(() => {
     void useHistory.getState().init();
+  }, []);
+
+  // 下载目录：移动端固定 app data dir/offline（Android 私有存储免权限申请），
+  // 每次启动覆盖（移动端无目录选择入口；桌面默认 C:/download/youtube 不受影响）
+  useEffect(() => {
+    if (!isTauri()) return;
+    void appDataDir().then((base) => {
+      const dir = `${base.replace(/[\\/]+$/, "")}/offline`;
+      if (useSettings.getState().downloadDir !== dir) {
+        useSettings.getState().setDownloadDir(dir);
+      }
+    });
   }, []);
 
   // 博主元数据后台自愈（与桌面一致）
@@ -115,6 +131,8 @@ export default function MobileApp() {
           <Route path="/history" element={<HistoryView />} />
           <Route path="/watchlater" element={<WatchLaterView />} />
           <Route path="/me" element={<MeView />} />
+          <Route path="/offline" element={<OfflineView />} />
+          <Route path="/offline/watch/:videoId" element={<OfflineWatchView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
