@@ -6,6 +6,7 @@ import type { VideoItem } from "../../common/types/youtube";
 import Spinner from "../../common/components/Spinner";
 import Icon from "../../common/components/Icon";
 import { RowCard } from "../components/VideoCards";
+import { EmptyState, ErrorState } from "../components/StateViews";
 import { videoIdOf } from "../../common/lib/format";
 
 /** 移动端搜索页（替代桌面 SearchModal）：输入 + 历史 + 结果流触底分页。

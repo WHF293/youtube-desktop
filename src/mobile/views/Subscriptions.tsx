@@ -32,8 +32,6 @@ export default function SubscriptionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chip]);
 
-  const groupNameOf = (key: string) =>
-    key === "ungrouped" ? "默认分组" : (groups.find((g) => g.id === key)?.name ?? key);
 
   return (
     <div>
