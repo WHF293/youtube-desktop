@@ -53,6 +53,17 @@ gh release create vX.Y.Z \
 
 Release notes 要点：面向使用者的语言（不写内部实现细节）、分「新增/修复/说明」三节、涉及行为变化时写明迁移提示（如数据自愈、需重启等）。
 
+## 发版成功后清理本地构建缓存（硬性，王总 2026-10-27 指定）
+
+第 4 步确认成功（GitHub Release 创建完成、两个安装包上传成功）后，**必须**清理 `src-tauri/target/` 构建缓存：
+
+```bash
+cd src-tauri && cargo clean
+# 或直接删除 target 下的构建产物目录（debug / release）
+```
+
+原因：`target/` 是 Cargo 构建产物缓存（debug 含完整符号 `.pdb` + 增量编译缓存 + 依赖升级残留），只增不减，两个 Tauri 项目曾累计积累近 50GB。删除仅导致下次 `tauri dev` / `tauri build` 全量重编译（首次约 5–15 分钟），不影响任何源码与用户数据。
+
 ## 红线（违反即事故）
 
 1. **未经用户明确要求，禁止自动打 tag / 推送 tag / 创建 GitHub Release。** 提交代码、推送 main 分支是常规操作可以做，但 `git tag` 和 `gh release create` 必须等用户**明确说「发版 / 发布 vX.Y.Z / release」**——"更新一下""提交一下"都不算发版指令。存疑时先问，不要假设。
