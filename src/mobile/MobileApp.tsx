@@ -8,6 +8,8 @@ import { useHistory } from "../common/stores/history";
 import { refreshChannelsMeta } from "../common/stores/subsFeed";
 import { initDownloads, useDownloads } from "../common/stores/downloads";
 import GlassTabBar from "./components/GlassTabBar";
+import MobileNavBar from "./components/MobileNavBar";
+import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
 import SubscriptionsView from "./views/Subscriptions";
 import WatchView from "./views/Watch";
@@ -36,6 +38,7 @@ export default function MobileApp() {
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
+  const pathname = location.pathname;
 
   // 明暗模式：class 挂在 <html> 上（与桌面同款 theme store）
   useEffect(() => {
@@ -116,6 +119,66 @@ export default function MobileApp() {
 
   return (
     <div className="m-root">
+      {/* 固定顶部 NavBar（对照 UI 稿 A0/A2/A4/A5）：Tab 页标题栏 + 二级页离线返回栏。
+          观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 离线观看（播放器全宽）不渲染 */}
+      {!immersive && pathname !== "/search" && !pathname.startsWith("/offline/watch/") && (
+        <MobileNavBar
+          title={
+            pathname.startsWith("/offline") ? (
+              <span>离线下载</span>
+            ) : pathname === "/subscriptions" ? (
+              <span>订阅</span>
+            ) : pathname === "/history" ? (
+              <span>历史</span>
+            ) : pathname === "/watchlater" ? (
+              <span>待看</span>
+            ) : pathname === "/me" ? (
+              <span>我的</span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <YouTubeLogo size={22} />
+                YouTube Desktop
+              </span>
+            )
+          }
+          left={
+            pathname.startsWith("/offline") ? (
+              <button
+                type="button"
+                aria-label="返回"
+                onClick={() => navigate(-1)}
+                className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-full text-ink-2"
+              >
+                ‹
+              </button>
+            ) : undefined
+          }
+          right={
+            pathname === "/" || pathname === "/me" ? (
+              <>
+                <button
+                  type="button"
+                  aria-label="搜索"
+                  onClick={() => navigate("/search")}
+                  className="m-nav__icon"
+                >
+                  <Icon name="search" size={19} />
+                </button>
+                {pathname === "/" && (
+                  <button
+                    type="button"
+                    aria-label="我的"
+                    onClick={() => navigate("/me")}
+                    className="m-nav__icon"
+                  >
+                    <Icon name="settings" size={19} />
+                  </button>
+                )}
+              </>
+            ) : undefined
+          }
+        />
+      )}
       <div
         id="m-scroll"
         className="m-body"

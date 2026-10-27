@@ -7,7 +7,6 @@ import Img from "../../common/components/Img";
 import { useDownloads } from "../../common/stores/downloads";
 import type { ManifestEntry } from "../../common/types/offline";
 import BottomSheet from "../components/BottomSheet";
-import MobileNavBar from "../components/MobileNavBar";
 
 /** 移动端离线下载页：清单行卡 + 总占用 + 删除（BottomSheet 二次确认）。
  *  下载中任务经 downloads store 角标同步；进行中任务在此页展示进度条。 */
@@ -35,19 +34,6 @@ export default function OfflineView() {
 
   return (
     <div>
-      <MobileNavBar
-        title={<span>离线下载</span>}
-        left={
-          <button
-            type="button"
-            aria-label="返回"
-            onClick={() => navigate(-1)}
-            className="mr-1.5 flex h-9 w-9 items-center justify-center rounded-full text-ink-2"
-          >
-            ‹
-          </button>
-        }
-      />
       {error ? (
         <p className="p-6 text-sm text-ink-2">清单读取失败：{error}</p>
       ) : entries === null ? (
