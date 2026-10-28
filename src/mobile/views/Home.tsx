@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVideos } from "../../common/stores/videos";
 import Spinner from "../../common/components/Spinner";
-import { FeedCard, FeedSkeleton } from "../components/VideoCards";
-import { EmptyState, ErrorState } from "../components/StateViews";
+import { FeedCard, FeedSkeleton } from "../components/VideoCards";import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { videoIdOf } from "../../common/lib/format";
 
@@ -170,7 +169,8 @@ export default function HomeView() {
             <FeedSkeleton />
           </div>
         ) : status === "loading" || status === "idle" ? (
-        <Spinner label="加载推荐视频…" />
+        /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
+        <FeedSkeleton />
       ) : status === "error" ? (
         <ErrorState desc={error} onRetry={() => void loadPopular(category)} />
       ) : (

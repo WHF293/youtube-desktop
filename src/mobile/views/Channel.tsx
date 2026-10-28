@@ -48,6 +48,8 @@ export default function ChannelView() {
         <EmptyState illust="👤" title="博主不存在" desc="频道可能已注销或链接有误" />
       ) : (
         <>
+          {/* 频道信息岛 + Tab chips 固定头：sticky 吸顶，列表滚动时保持不动 */}
+          <div className="sticky top-0 z-10">
           {/* 频道信息岛 */}
           <div className="flex items-center gap-3 border-b border-line bg-surface px-3.5 py-3.5">
             <Img
@@ -92,6 +94,7 @@ export default function ChannelView() {
                 {label}
               </button>
             ))}
+          </div>
           </div>
 
           {tab === "videos" ? (

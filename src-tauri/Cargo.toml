@@ -1,6 +1,6 @@
 [package]
 name = "youtube-desktop"
-version = "0.12.0"
+version = "0.13.0"
 description = "YouTube Desktop"
 [lib]
 name = "youtube_desktop_lib"

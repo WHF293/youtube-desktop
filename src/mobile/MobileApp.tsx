@@ -201,6 +201,24 @@ export default function MobileApp() {
             >
               <Icon name="grip" size={19} />
             </button>
+          ) : pathname === "/subscriptions/manage" ? (
+            <button
+              type="button"
+              aria-label="添加频道"
+              onClick={() => window.dispatchEvent(new CustomEvent("m-manage-add"))}
+              className="m-nav__icon"
+            >
+              <Icon name="plus" size={19} />
+            </button>
+          ) : pathname === "/watchlater" ? (
+            <button
+              type="button"
+              aria-label="排序方式"
+              onClick={() => window.dispatchEvent(new CustomEvent("m-watchlater-sort"))}
+              className="m-nav__icon"
+            >
+              <Icon name="filter" size={19} />
+            </button>
           ) : pathname === "/history" ? (
             <button
               type="button"

@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels } from "../../common/stores/channels";
-import Spinner from "../../common/components/Spinner";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard, RowSkeleton } from "../components/VideoCards";
 import { videoIdOf } from "../../common/lib/format";
+
+/** 上次选中的分组 chip（模块级）：切到别的页再回来时恢复选中且不触发重拉 */
+let lastChip = "all";
 
 /** 移动端订阅页：博主横滑岛 + 分组 chips（sticky 固定，不随列表滚动）
  *  + 订阅更新流（分组筛选复用桌面 selectedGroups 逻辑；列表左右滑切换分组） */
@@ -16,8 +18,12 @@ export default function SubscriptionsView() {
   const { items, failed, status, error, selectedGroups, setSelectedGroups, load } = useSubsFeed();
   const channels = useChannels((s) => s.channels);
   const groups = useChannels((s) => s.groups);
-  // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）
-  const [chip, setChip] = useState("all");
+  // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）；跨页面保留
+  const [chip, setChipState] = useState(lastChip);
+  const setChip = (k: string) => {
+    lastChip = k;
+    setChipState(k);
+  };
   const chipOptions = [
     { key: "all", name: "全部" },
     { key: "ungrouped", name: "默认分组" },
@@ -51,20 +57,91 @@ export default function SubscriptionsView() {
     if (status === "idle") void load();
   }, [status, load]);
 
+  // chip 变化即重拉（桌面端确认按钮触发，这里单选 chips 直达）。
+  // 首次挂载跳过：切页返回时 status 已 ready，直接复用 store 数据，不自动刷新
+  const chipMounted = useRef(false);
   useEffect(() => {
+    if (!chipMounted.current) {
+      chipMounted.current = true;
+      return;
+    }
     if (chip === "all") {
       if (selectedGroups !== null) setSelectedGroups(null);
     } else if (selectedGroups?.length !== 1 || selectedGroups[0] !== chip) {
       setSelectedGroups([chip]);
     }
-    // chip 变化即重拉（桌面端确认按钮触发，这里单选 chips 直达）
     if (status === "ready") void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chip]);
 
 
+  // 触顶下拉刷新（首页同款）：列表滚动到顶部继续下拉才重拉订阅流；
+  // 切页返回不触发刷新（见上方 chip effect 的首挂载跳过）
+  const PULL_TRIGGER_PX = 70;
+  const PULL_MAX_PX = 110;
+  const PULL_DAMP = 0.45;
+  const [pull, setPull] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchY = useRef<number | null>(null);
+  const atTop = useRef(false);
+  useEffect(() => {
+    const scroller = document.getElementById("m-scroll");
+    if (!scroller) return;
+    const onStart = (e: TouchEvent) => {
+      touchY.current = e.touches[0]?.clientY ?? null;
+      atTop.current = scroller.scrollTop <= 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (touchY.current === null || !atTop.current || refreshing) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - touchY.current;
+      setPull(dy > 0 ? Math.min(dy * PULL_DAMP, PULL_MAX_PX) : 0);
+    };
+    const onEnd = () => {
+      touchY.current = null;
+      setPull((p) => {
+        if (p >= PULL_TRIGGER_PX && !refreshing) {
+          setRefreshing(true);
+          void load().finally(() => {
+            setRefreshing(false);
+            setPull(0);
+          });
+          return PULL_TRIGGER_PX;
+        }
+        return 0;
+      });
+    };
+    scroller.addEventListener("touchstart", onStart, { passive: true });
+    scroller.addEventListener("touchmove", onMove, { passive: true });
+    scroller.addEventListener("touchend", onEnd);
+    scroller.addEventListener("touchcancel", onEnd);
+    return () => {
+      scroller.removeEventListener("touchstart", onStart);
+      scroller.removeEventListener("touchmove", onMove);
+      scroller.removeEventListener("touchend", onEnd);
+      scroller.removeEventListener("touchcancel", onEnd);
+    };
+  }, [refreshing, load]);
+
+  const refreshHint = refreshing ? "刷新中…" : pull >= PULL_TRIGGER_PX ? "松手刷新" : "下拉刷新";
+
   return (
-    <div className="m-page">
+    <div className="m-page relative">
+      {/* 触顶下拉刷新指示条 */}
+      {(pull > 0 || refreshing) && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-end justify-center overflow-hidden bg-transparent text-[11.5px] text-ink-2"
+          style={{ height: refreshing ? 44 : pull, transition: refreshing ? "height .18s" : undefined }}
+        >
+          <span className="pb-2">{refreshHint}</span>
+        </div>
+      )}
+      <div
+        style={
+          pull > 0 || refreshing
+            ? { transform: `translateY(${refreshing ? 44 : pull}px)`, transition: refreshing ? "transform .18s" : undefined }
+            : undefined
+        }
+      >
       {/* 固定头：博主横滑岛（桌面右栏博主岛的移动形态；点击进博主主页）+ 分组 chips，
           sticky 常驻不随列表滚动（首页 m-chips 同款做法） */}
       <div className="sticky top-0 z-10 bg-surface">
@@ -127,7 +204,8 @@ export default function SubscriptionsView() {
 
       {swipeAnim === null &&
         (status === "loading" || status === "idle" ? (
-          <Spinner label="拉取订阅更新…" />
+          /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
+          <RowSkeleton />
         ) : status === "error" ? (
           <ErrorState desc={error} onRetry={() => void load()} />
         ) : items.length === 0 ? (
@@ -144,6 +222,7 @@ export default function SubscriptionsView() {
             ))}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

@@ -70,8 +70,8 @@ export default function SearchView() {
 
   return (
     <div className="m-page">
-      {/* 搜索栏：返回 + 输入框（圆角胶囊）+ 清空 */}
-      <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-line bg-surface px-2 py-2">
+      {/* 搜索栏：返回 + 输入框（圆角胶囊）+ 清空；顶部让出状态栏安全区（本页不渲染 m-nav） */}
+      <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-line bg-surface px-2 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
         <button
           type="button"
           aria-label="返回"

@@ -39,6 +39,15 @@ export default function WatchView() {
   // 订阅两步确认（删除类二次确认约定，确认态 3 秒自动复位）
   const [confirming, setConfirming] = useState(false);
   const confirmTimer = useRef<number | undefined>(undefined);
+  // 轻提示 toast（待看加/移成功反馈，1.8s 自动消失）
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+  const showToast = (text: string) => {
+    setToast(text);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(""), 1800);
+  };
   // 收藏 / 下载弹层
   const [favOpen, setFavOpen] = useState(false);
   const favVideos = useFavorites((s) => s.videos);
@@ -97,6 +106,7 @@ export default function WatchView() {
       window.clearTimeout(confirmTimer.current);
       setConfirming(false);
       wlRemove(videoId);
+      showToast("已移出待看");
       return;
     }
     wlAdd({
@@ -109,6 +119,7 @@ export default function WatchView() {
         ? parseDuration(video.contentDetails.duration)
         : "",
     });
+    showToast("已加入待看");
   };
 
   /** 打开下载 sheet：先提取清晰度（流地址 6h 有效不入盘，重试需重新提取） */
@@ -126,6 +137,14 @@ export default function WatchView() {
 
   return (
     <div className="bg-app wide:mx-auto wide:flex wide:w-full wide:max-w-[1440px] wide:items-start wide:gap-4 wide:p-4">
+      {/* 轻提示 toast：屏幕下方居中，不遮标题区 */}
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[120px] z-[60] flex justify-center">
+          <span className="rounded-full bg-black/80 px-4 py-2 text-[12.5px] font-medium text-white shadow-island">
+            {toast}
+          </span>
+        </div>
+      )}
       {/* 主列：播放器 + 标题 + 频道行 + 操作；wide 档为双栏左列（UI 稿 A3） */}
       <div className="wide:min-w-0 wide:flex-[1.6]">
       {/* 播放器：静态 iframe（IFrame API 在 WebView2 实测黑屏，桌面同款方案）；

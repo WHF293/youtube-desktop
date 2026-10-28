@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { useHistory, type HistoryEntry } from "../../common/stores/history";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { useFavorites } from "../../common/stores/favorites";
-import { useChannels } from "../../common/stores/channels";
-import Spinner from "../../common/components/Spinner";
+import Img from "../../common/components/Img";
+import { RowSkeleton } from "../components/VideoCards";
 import BottomSheet from "../components/BottomSheet";
 import { EmptyState, ErrorState } from "../components/StateViews";
 
@@ -85,7 +85,8 @@ export function HistoryCard({ entry }: { entry: HistoryEntry }) {
     >
       <div className="relative aspect-video w-[142px] shrink-0 overflow-hidden rounded-xl bg-flat">
         {entry.thumb ? (
-          <img src={entry.thumb} alt="" loading="lazy" className="aspect-video w-full object-cover" />
+          /* 缩略图必须走代理 Img 组件（裸 img 直连 i.ytimg.com 在国内加载不出） */
+          <Img src={entry.thumb} alt="" loading="lazy" className="aspect-video w-full object-cover" />
         ) : null}
         {entry.duration && (
           <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[10px] font-bold text-white">
@@ -124,7 +125,8 @@ export function FavGroupSheet({
   faved: boolean;
   onPick: (groupId?: string) => void;
 }) {
-  const groups = useChannels((s) => s.groups);
+  // 收藏分组与博主分组是两套独立数据：这里必须用 useFavorites 的分组
+  const groups = useFavorites((s) => s.groups);
   return (
     <BottomSheet open={open} onClose={onClose} title={faved ? "换到分组" : "收藏到分组"}>
       <p className="mb-2 clamp-2 text-[11.5px] text-ink-3">{video.title}</p>
@@ -176,7 +178,8 @@ export default function HistoryView() {
   return (
     <div className="m-page">
       {status === "loading" ? (
-        <Spinner label="加载观看记录…" />
+        /* 加载期骨架屏（与订阅页 RowSkeleton 同款，骨架即 loading） */
+        <RowSkeleton />
       ) : status === "error" ? (
         <ErrorState title="观看记录加载失败" desc={error} />
       ) : entries.length === 0 ? (
