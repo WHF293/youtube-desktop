@@ -20,12 +20,14 @@ export interface UpdateInfo {
   latest: string;
   /** 更新说明（release notes） */
   notes: string;
-  /** 安装包下载地址（NSIS setup.exe） */
+  /** 安装包下载地址（桌面 -setup.exe / 移动 .apk） */
   url: string;
   /** 安装包文件名 */
   filename: string;
   /** 安装包大小（字节） */
   size: number;
+  /** Release 页面地址（移动端跳浏览器手动下载用） */
+  pageUrl: string;
 }
 
 function parseVersion(v: string): number[] {
@@ -51,8 +53,9 @@ export async function currentVersion(): Promise<string> {
   return (await getVersion()).replace(/^v/, "");
 }
 
-/** 检查更新：有新版本返回 UpdateInfo，已是最新返回 null */
-export async function checkForUpdate(): Promise<UpdateInfo | null> {
+/** 检查更新：有新版本返回 UpdateInfo，已是最新返回 null。
+ *  kind 选择安装包资产——桌面 exe / 移动 apk（安装与安装器能力不同端不同）。 */
+export async function checkForUpdate(kind: "exe" | "apk" = "exe"): Promise<UpdateInfo | null> {
   const current = await currentVersion();
   const { proxy } = useSettings.getState();
   const { status, body } = await invoke<{ status: number; body: string }>("yt_fetch", {
@@ -65,19 +68,22 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
   const rel = JSON.parse(body) as {
     tag_name: string;
     body?: string;
+    html_url?: string;
     assets?: { name: string; size: number; browser_download_url: string }[];
   };
   const latest = rel.tag_name.replace(/^v/, "");
   if (!isNewer(latest, current)) return null;
-  const exe = rel.assets?.find((a) => a.name.endsWith("-setup.exe"));
-  if (!exe) throw new Error("最新版本未提供安装包（-setup.exe）");
+  const suffix = kind === "apk" ? ".apk" : "-setup.exe";
+  const asset = rel.assets?.find((a) => a.name.endsWith(suffix));
+  if (!asset) throw new Error(`最新版本未提供${kind === "apk" ? " APK" : "安装包"}`);
   return {
     current,
     latest,
     notes: rel.body ?? "",
-    url: exe.browser_download_url,
-    filename: exe.name,
-    size: exe.size,
+    url: asset.browser_download_url,
+    filename: asset.name,
+    size: asset.size,
+    pageUrl: rel.html_url ?? "https://github.com/WHF293/youtube-desktop/releases/latest",
   };
 }
 

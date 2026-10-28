@@ -179,6 +179,15 @@ jobs:
       - name: Init Android project (gen/android 不入库，CI 重建)
         run: pnpm tauri android init
 
+      # android init 不取自定义图标（产出 Tauri 默认 launcher），tauri icon
+      # 按 src-tauri/icons/icon.png（YouTube logo）重生成全套 mipmap 到 gen/android
+      - name: Regenerate launcher icons
+        run: pnpm tauri icon src-tauri/icons/icon.png
+
+      # 原生层幂等补丁（小米自由窗口/失焦不断播）——与本地 pnpm build:apk 同口径
+      - name: Apply Android native patches
+        run: node scripts/patch-android.mjs
+
       - name: Build APK (arm64)
         run: pnpm tauri android build --apk --target aarch64
 

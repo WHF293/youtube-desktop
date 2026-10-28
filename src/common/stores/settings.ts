@@ -75,7 +75,7 @@ interface SettingsState {
   regionCode: string;
   /** 搜索内容语言偏好（单选，InnerTube context.hl；历史多选数据取第一个） */
   languages: string[];
-  /** API 请求代理（仅桌面端生效；留空则不走代理） */
+  /** API 请求代理（PC/Android 通用，经 Rust reqwest 即时生效；留空则不走代理） */
   proxy: string;
   /** 视频下载目录（离线视频保存位置） */
   downloadDir: string;
