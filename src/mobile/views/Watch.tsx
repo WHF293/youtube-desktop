@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { usePlayer } from "../../common/stores/player";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
@@ -7,7 +7,6 @@ import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration,
 import Spinner from "../../common/components/Spinner";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
-import Icon from "../../common/components/Icon";
 import BottomSheet from "../components/BottomSheet";
 import { ErrorState } from "../components/StateViews";
 import { FavGroupSheet } from "./History";
@@ -20,7 +19,6 @@ import { isTauri } from "@tauri-apps/api/core";
  *  待看开关 + 相关视频。收藏/下载/评论 M3 接入（BottomSheet 已就位）。 */
 export default function WatchView() {
   const { videoId = "" } = useParams();
-  const navigate = useNavigate();
   const video = usePlayer((s) => s.video);
   const channel = usePlayer((s) => s.channel);
   const related = usePlayer((s) => s.related);
@@ -157,14 +155,6 @@ export default function WatchView() {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
         />
-        <button
-          type="button"
-          aria-label="返回"
-          onClick={() => navigate(-1)}
-          className="absolute left-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white"
-        >
-          <Icon name="arrowLeft" size={18} />
-        </button>
       </div>
 
       {/* 标题与统计 */}

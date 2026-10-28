@@ -158,24 +158,32 @@ if (
 const MAIN_ACTIVITY = `package com.whf.youtube_desktop
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import app.tauri.plugin.PluginManager
 import java.io.File
 
 class MainActivity : TauriActivity() {
     private var wv: WebView? = null
-    /** 系统栏 inset（px）：edge-to-edge 下 WebView 画到状态栏/手势条底下，
+    /** 系统栏 inset（CSS px）：edge-to-edge 下 WebView 画到状态栏/手势条底下，
      *  而 Android WebView 的 env(safe-area-inset-*) 恒为 0，页面让不出空间，
      *  由原生层量出后经 CSS 变量 --m-inset-top/bottom 注入（mobile.css 消费） */
     private var insetTop = 0
     private var insetBottom = 0
+    /** iframe 视频全屏视图（onShowCustomView 回调持有），退出时移除 */
+    private var fullscreenView: View? = null
+    /** iframe 退出全屏回调（onShowCustomView 的第二参数），onHideCustomView 时必须调用 */
+    private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -206,6 +214,47 @@ class MainActivity : TauriActivity() {
     override fun onWebViewCreate(webView: WebView) {
         wv = webView
         applyInsetsToPage()
+
+        // iframe 视频全屏接管：Android WebView 默认忽略 iframe 全屏请求
+        // （点播放器全屏按钮无反应），挂 WebChromeClient：
+        // onShowCustomView 进入全屏（横屏 + 沉浸系统栏），onHideCustomView 还原
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                // 已在全屏则忽略重复请求（幂等）
+                if (fullscreenView != null) {
+                    callback.onCustomViewHidden()
+                    return
+                }
+                fullscreenView = view
+                fullscreenCallback = callback
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                WindowInsetsControllerCompat(window, window.decorView).let { c ->
+                    c.hide(WindowInsetsCompat.Type.systemBars())
+                    c.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+                (window.decorView as android.view.ViewGroup).addView(
+                    view,
+                    android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+            }
+
+            override fun onHideCustomView() {
+                val v = fullscreenView ?: return
+                fullscreenView = null
+                (window.decorView as android.view.ViewGroup).removeView(v)
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                WindowInsetsControllerCompat(window, window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+                // 必须回调，否则 iframe 内部停在半退出状态、视频黑屏
+                fullscreenCallback?.onCustomViewHidden()
+                fullscreenCallback = null
+            }
+        }
+
         // 应用内更新桥：前端经 download_update 下载完 APK 后调
         // AndroidBridge.installApk(path) 经 FileProvider 弹系统安装界面
         webView.addJavascriptInterface(object {

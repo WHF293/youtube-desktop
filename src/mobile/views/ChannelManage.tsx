@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   useChannels,
   type SubChannel,
@@ -93,18 +94,22 @@ export default function ChannelManageView() {
     })),
   ].filter((s) => s.groupId !== undefined || s.list.length > 0);
 
-  /** 博主条目（改分组 / 删除） */
+  /** 博主条目（改分组 / 删除）；头像+名称点击进博主主页 */
   const channelRow = (c: SubChannel, first: boolean) => (
     <div key={c.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${first ? "" : "border-t border-line"}`}>
-      {c.thumb ? (
-        <Img src={c.thumb} alt="" className="h-10 w-10 shrink-0 rounded-full bg-flat object-cover" />
-      ) : (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-flat text-[15px] font-bold text-ink-2">
-          {c.title.slice(0, 1).toUpperCase()}
-        </span>
-      )}
+      <Link to={`/channel/${c.id}`} aria-label={`前往 ${c.title} 主页`} className="shrink-0 active:opacity-70">
+        {c.thumb ? (
+          <Img src={c.thumb} alt="" className="h-10 w-10 rounded-full bg-flat object-cover" />
+        ) : (
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-flat text-[15px] font-bold text-ink-2">
+            {c.title.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+      </Link>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-semibold text-ink">{c.title}</p>
+        <Link to={`/channel/${c.id}`} className="mt-0 block truncate text-[13.5px] font-semibold text-ink">
+          {c.title}
+        </Link>
         <button
           type="button"
           onClick={() => setPickFor(c)}

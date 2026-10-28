@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { isTauri } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 import { useTheme } from "../common/stores/theme";
-import { useSettings } from "../common/stores/settings";
+import { useSettings, REGIONS } from "../common/stores/settings";
 import { useHistory } from "../common/stores/history";
 import { refreshChannelsMeta } from "../common/stores/subsFeed";
 import { initDownloads, useDownloads } from "../common/stores/downloads";
@@ -45,6 +45,9 @@ export default function MobileApp() {
   // 历史全部清除确认 sheet（历史页 navbar 右上角入口）
   const [histClearOpen, setHistClearOpen] = useState(false);
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
+  // 当前地区名（首页 navbar 地区 icon 边上显示，弹层修改后实时联动）
+  const regionCode = useSettings((s) => s.regionCode);
+  const regionName = REGIONS.find(([code]) => code === regionCode)?.[1] ?? regionCode;
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
   const pathname = location.pathname;
@@ -151,7 +154,6 @@ export default function MobileApp() {
   // 观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 频道页（自带返回栏，标题随频道加载）/
   // 离线观看（播放器全宽）不渲染
   const navBar =
-    !immersive &&
     pathname !== "/search" &&
     !pathname.startsWith("/channel/") &&
     !pathname.startsWith("/offline/watch/") ? (
@@ -169,6 +171,8 @@ export default function MobileApp() {
             <span>待看</span>
           ) : pathname === "/me" ? (
             <span>我的</span>
+          ) : pathname.startsWith("/watch/") ? (
+            <span>视频详情</span>
           ) : (
             <span className="flex items-center gap-1.5">
               <YouTubeLogo size={22} />
@@ -177,9 +181,10 @@ export default function MobileApp() {
           )
         }
         left={
-          // 二级页（离线下载 / 历史 / 订阅管理）带返回箭头；根 Tab 页无
+          // 二级页（离线下载 / 历史 / 订阅管理 / 视频详情）带返回箭头；根 Tab 页无
           pathname.startsWith("/offline") ||
           pathname === "/history" ||
+          pathname.startsWith("/watch/") ||
           pathname.startsWith("/subscriptions/") ? (
             <button
               type="button"
@@ -244,8 +249,11 @@ export default function MobileApp() {
                     type="button"
                     aria-label="地区设置"
                     onClick={() => setRegionOpen(true)}
-                    className="m-nav__icon"
+                    className="m-nav__icon flex-row items-center gap-1"
                   >
+                    <span className="max-w-[52px] truncate text-[11px] font-semibold text-ink-2">
+                      {regionName}
+                    </span>
                     <Icon name="language" size={19} />
                   </button>
                 </>
