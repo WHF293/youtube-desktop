@@ -168,7 +168,8 @@ export default function MobileApp() {
           )
         }
         left={
-          pathname.startsWith("/offline") ? (
+          // 二级页（离线下载 / 历史）带返回箭头；根 Tab 页无
+          pathname.startsWith("/offline") || pathname === "/history" ? (
             <button
               type="button"
               aria-label="返回"
