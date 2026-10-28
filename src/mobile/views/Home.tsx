@@ -3,6 +3,7 @@ import { useVideos } from "../../common/stores/videos";
 import Spinner from "../../common/components/Spinner";
 import { FeedCard } from "../components/VideoCards";
 import { EmptyState, ErrorState } from "../components/StateViews";
+import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { videoIdOf } from "../../common/lib/format";
 
 /** 首页分类（YouTube 官方 videoCategoryId，与桌面同源常量） */
@@ -43,6 +44,16 @@ export default function HomeView() {
     if (catId === category) return;
     void loadPopular(catId);
   };
+
+  // 列表区左右滑切换分类（与 TAB_OPTIONS 同序；首尾边界不循环，见 useSwipeSwitch；
+  // 手势只绑 chips 下方内容区，不与 chips 条横向滚动冲突；垂直滑动占优时不触发，
+  // 与触顶下拉刷新共存）
+  const swipeIndex = Math.max(0, TAB_OPTIONS.findIndex((o) => (category ?? "") === o.value));
+  const swipeRef = useSwipeSwitch<HTMLDivElement>({
+    count: TAB_OPTIONS.length,
+    index: swipeIndex,
+    onChange: (next) => pickCategory(TAB_OPTIONS[next].value || undefined),
+  });
 
   // 触底加载（提前 600px 预取）：桌面端 IntersectionObserver 在 WebView2 实测不触发，
   // 沿用 scroll 事件方案；移动端同系 Chromium 内核，同一实现（Android 上待真机复验）
@@ -144,6 +155,7 @@ export default function HomeView() {
         ))}
       </div>
 
+      <div ref={swipeRef}>
       {status === "loading" || status === "idle" ? (
         <Spinner label="加载推荐视频…" />
       ) : status === "error" ? (
@@ -165,6 +177,7 @@ export default function HomeView() {
           )}
         </>
       )}
+      </div>
       </div>
     </div>
   );

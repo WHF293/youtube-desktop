@@ -4,9 +4,7 @@ import { useChannels, buildChannelsExport } from "../../common/stores/channels";
 import { useFavorites } from "../../common/stores/favorites";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { useDownloads } from "../../common/stores/downloads";
-import { useTheme } from "../../common/stores/theme";
-import { useSettings, REGIONS } from "../../common/stores/settings";
-import { useVideos, errorMessage } from "../../common/stores/videos";
+import { errorMessage } from "../../common/stores/videos";
 import { resolveChannelInput } from "../../common/lib/innertube";
 import { refreshChannelsMeta } from "../../common/stores/subsFeed";
 import { checkForUpdate, type UpdateInfo } from "../../common/lib/updater";
@@ -15,7 +13,7 @@ import { YouTubeLogo, default as Icon } from "../../common/components/Icon";
 import BottomSheet from "../components/BottomSheet";
 
 /** 移动端「我的」聚合页：应用卡 + 数据概览 + 功能菜单 + 应用设置
- *  （地区 / 订阅管理 / 明暗 / 检查更新）。移动端固定直连，无网络代理入口 */
+ *  （订阅管理 / 检查更新；地区与明暗入口已移至顶部 navbar）。移动端固定直连，无网络代理入口 */
 export default function MeView() {
   const navigate = useNavigate();
   const channels = useChannels((s) => s.channels);
@@ -25,12 +23,7 @@ export default function MeView() {
   const favCount = useFavorites((s) => s.videos.length);
   const wlCount = useWatchLater((s) => s.entries.length);
   const dlCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
-  const theme = useTheme((s) => s.theme);
-  const toggleTheme = useTheme((s) => s.toggle);
-  const regionCode = useSettings((s) => s.regionCode);
-  const setRegionCode = useSettings((s) => s.setRegionCode);
   const [version, setVersion] = useState("");
-  const [regionOpen, setRegionOpen] = useState(false);
   const [subsOpen, setSubsOpen] = useState(false);
   const [channelInput, setChannelInput] = useState("");
   const [jsonInput, setJsonInput] = useState("");
@@ -41,18 +34,6 @@ export default function MeView() {
   const [updateState, setUpdateState] = useState<"checking" | "latest" | UpdateInfo | null>(null);
   const [updateErr, setUpdateErr] = useState<string | null>(null);
   const updateOpen = updateState !== null;
-
-  /** 切地区：写入 settings 并重拉首页推荐（仅当首页正处在 popular 模式） */
-  const pickRegion = (code: string) => {
-    if (code === regionCode) {
-      setRegionOpen(false);
-      return;
-    }
-    setRegionCode(code);
-    setRegionOpen(false);
-    const v = useVideos.getState();
-    if (v.mode === "popular") void v.loadPopular(v.category);
-  };
 
   /** 添加订阅频道：链接/ID 自动解析（与 PC 博主管理同源逻辑） */
   const commitAdd = async () => {
@@ -175,27 +156,6 @@ export default function MeView() {
 
       {/* 应用设置 */}
       <div className="mx-3.5 mt-2.5 mb-4 overflow-hidden rounded-2xl bg-surface shadow-island">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="flex w-full items-center gap-3 border-b border-line px-3.5 py-3 text-left"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-flat text-[15px]">
-            {theme === "dark" ? "☾" : "☀"}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13.5px] font-semibold">明暗模式</span>
-          </span>
-          <span className="text-[11.5px] text-ink-3">
-            {theme === "dark" ? "暗色" : "亮色"} ›
-          </span>
-        </button>
-        <MenuItem
-          icon="public"
-          title="地区设置"
-          desc={REGIONS.find(([c]) => c === regionCode)?.[1] ?? regionCode}
-          onClick={() => setRegionOpen(true)}
-        />
         <MenuItem
           icon="subscriptions"
           title="订阅管理"
@@ -212,27 +172,6 @@ export default function MeView() {
           onClick={() => void checkUpdate()}
         />
       </div>
-
-      {/* 地区设置 sheet：热门地区单选，切换后首页推荐立即按新地区重拉 */}
-      <BottomSheet open={regionOpen} onClose={() => setRegionOpen(false)} title="地区设置">
-        <p className="mb-3 text-[11.5px] leading-relaxed text-ink-3">
-          影响首页推荐与搜索的地区偏好（InnerTube gl）。不含中国大陆（实测搜索返回空结果）。
-        </p>
-        <div className="mb-2 grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
-          {REGIONS.map(([code, label]) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => pickRegion(code)}
-              className={`rounded-xl px-2 py-2.5 text-[12.5px] font-medium ${
-                code === regionCode ? "bg-accent text-white" : "bg-flat text-ink"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </BottomSheet>
 
       {/* 订阅管理 sheet：添加频道链接 / 导入 / 导出订阅分组 JSON（载荷与 PC 博主管理一致） */}
       <BottomSheet open={subsOpen} onClose={() => setSubsOpen(false)} title="订阅管理">

@@ -31,7 +31,7 @@ export interface GlassTabBarProps {
 }
 
 /** 底部 TabBar：iOS 柔光玻璃悬浮胶囊 + 滑动指示气泡。
- *  气泡支持跟手拖拽：pointerdown 命中激活项 → 越过 slop 进入拖拽（气泡关过渡、
+ *  气泡支持跟手拖拽：pointerdown 在玻璃底座任意位置 → 越过 slop 进入拖拽（气泡关过渡、
  *  px 级跟手、缩至行程档）→ 松手吸附最近 tab 并跳转 + 回弹恢复（规格同
  *  whf-stock-board MobileTabBar）。位移小于 slop 视为普通点击，行为不变。 */
 export default function GlassTabBar({ active, badge = 0, onSelect }: GlassTabBarProps) {
@@ -106,9 +106,7 @@ export default function GlassTabBar({ active, badge = 0, onSelect }: GlassTabBar
   const onPointerDown = (e: React.PointerEvent) => {
     const s = st.current;
     if (s.dragging || !e.isPrimary) return;
-    // 只认按在激活项上的按下（气泡所在位置；thumb 本身 pointer-events:none）
-    const target = e.target as Element | null;
-    if (!target?.closest(".m-tabbar__item.active")) return;
+    // 底座任意位置按住即可起拖（气泡所在 slot 不限；thumb 本身 pointer-events:none）
     const nav = navRef.current;
     if (!nav) return;
     s.navRect = nav.getBoundingClientRect();

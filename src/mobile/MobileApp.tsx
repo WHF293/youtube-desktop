@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { isTauri } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
@@ -10,6 +10,7 @@ import { initDownloads, useDownloads } from "../common/stores/downloads";
 import GlassTabBar from "./components/GlassTabBar";
 import NavigationRail from "./components/NavigationRail";
 import MobileNavBar from "./components/MobileNavBar";
+import RegionSheet from "./components/RegionSheet";
 import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
 import SubscriptionsView from "./views/Subscriptions";
@@ -37,6 +38,7 @@ export default function MobileApp() {
   const theme = useTheme((s) => s.theme);
   const navigate = useNavigate();
   const location = useLocation();
+  const [regionOpen, setRegionOpen] = useState(false);
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
@@ -183,22 +185,33 @@ export default function MobileApp() {
         right={
           pathname === "/" || pathname === "/me" ? (
             <>
-              <button
-                type="button"
-                aria-label="搜索"
-                onClick={() => navigate("/search")}
-                className="m-nav__icon"
-              >
-                <Icon name="search" size={19} />
-              </button>
-              {pathname === "/" && (
+              {pathname === "/" ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label="搜索"
+                    onClick={() => navigate("/search")}
+                    className="m-nav__icon"
+                  >
+                    <Icon name="search" size={19} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="地区设置"
+                    onClick={() => setRegionOpen(true)}
+                    className="m-nav__icon"
+                  >
+                    <Icon name="language" size={19} />
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  aria-label="我的"
-                  onClick={() => navigate("/me")}
+                  aria-label={theme === "dark" ? "切换亮色模式" : "切换暗色模式"}
+                  onClick={() => useTheme.getState().toggle()}
                   className="m-nav__icon"
                 >
-                  <Icon name="settings" size={19} />
+                  <Icon name={theme === "dark" ? "sun" : "moon"} size={19} />
                 </button>
               )}
             </>
@@ -209,6 +222,8 @@ export default function MobileApp() {
 
   return (
     <div className="m-root">
+      {/* 地区设置 sheet（首页 navbar 地球图标唤起） */}
+      <RegionSheet open={regionOpen} onClose={() => setRegionOpen(false)} />
       {/* 大屏（≥840）侧边导航：wide 档取代底部 TabBar（UI 稿 A2/A3），<840 由 .m-rail CSS 隐藏 */}
       {!immersive && <NavigationRail active={activeTabOf(pathname)} badge={activeCount} />}
       <div className="m-main">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState, ErrorState } from "../components/StateViews";
+import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels } from "../../common/stores/channels";
 import Spinner from "../../common/components/Spinner";
@@ -8,7 +9,8 @@ import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
 import { videoIdOf } from "../../common/lib/format";
 
-/** 移动端订阅页：博主横滑岛 + 分组 chips + 订阅更新流（分组筛选复用桌面 selectedGroups 逻辑） */
+/** 移动端订阅页：博主横滑岛 + 分组 chips（sticky 固定，不随列表滚动）
+ *  + 订阅更新流（分组筛选复用桌面 selectedGroups 逻辑；列表左右滑切换分组） */
 export default function SubscriptionsView() {
   const navigate = useNavigate();
   const { items, failed, status, error, selectedGroups, setSelectedGroups, load } = useSubsFeed();
@@ -16,6 +18,17 @@ export default function SubscriptionsView() {
   const groups = useChannels((s) => s.groups);
   // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）
   const [chip, setChip] = useState("all");
+  const chipOptions = [
+    { key: "all", name: "全部" },
+    { key: "ungrouped", name: "默认分组" },
+    ...groups.map((g) => ({ key: g.id, name: g.name })),
+  ];
+  // 列表左右滑切换分组（与 chips 同序；首尾边界不循环，见 useSwipeSwitch）
+  const swipeRef = useSwipeSwitch<HTMLDivElement>({
+    count: chipOptions.length,
+    index: Math.max(0, chipOptions.findIndex((g) => g.key === chip)),
+    onChange: (next) => setChip(chipOptions[next].key),
+  });
 
   useEffect(() => {
     if (status === "idle") void load();
@@ -35,55 +48,54 @@ export default function SubscriptionsView() {
 
   return (
     <div className="m-page">
-      {/* 博主横滑岛（桌面右栏博主岛的移动形态）；点击进博主主页 */}
-      {channels.length > 0 && (
-        <div className="flex gap-3.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-3">
-          {channels.map((c) => (
+      {/* 固定头：博主横滑岛（桌面右栏博主岛的移动形态；点击进博主主页）+ 分组 chips，
+          sticky 常驻不随列表滚动（首页 m-chips 同款做法） */}
+      <div className="sticky top-0 z-10 bg-surface">
+        {channels.length > 0 && (
+          <div className="flex gap-3.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-3">
+            {channels.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => navigate(`/channel/${c.id}`)}
+                className="flex w-15 shrink-0 flex-col items-center gap-1.5"
+              >
+                {c.thumb ? (
+                  <Img
+                    src={c.thumb}
+                    alt=""
+                    className="h-13 w-13 shrink-0 rounded-full bg-flat object-cover"
+                  />
+                ) : (
+                  <AvatarBadge name={c.title} size={52} />
+                )}
+                <span className="w-15 truncate text-center text-[10.5px] text-ink-2">
+                  {c.title}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 分组筛选 chips（单选直达，持久化经 selectedGroups） */}
+        <div className="flex gap-2 overflow-x-auto border-b border-line bg-surface px-3.5 py-2.5">
+          {chipOptions.map((g) => (
             <button
-              key={c.id}
+              key={g.key}
               type="button"
-              onClick={() => navigate(`/channel/${c.id}`)}
-              className="flex w-15 shrink-0 flex-col items-center gap-1.5"
+              onClick={() => setChip(g.key)}
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                chip === g.key ? "bg-accent/10 font-bold text-accent" : "bg-flat text-ink-2"
+              }`}
             >
-              {c.thumb ? (
-                <Img
-                  src={c.thumb}
-                  alt=""
-                  className="h-13 w-13 shrink-0 rounded-full bg-flat object-cover"
-                />
-              ) : (
-                <AvatarBadge name={c.title} size={52} />
-              )}
-              <span className="w-15 truncate text-center text-[10.5px] text-ink-2">
-                {c.title}
-              </span>
+              {g.name}
             </button>
           ))}
         </div>
-      )}
-
-      {/* 分组筛选 chips（单选直达，持久化经 selectedGroups） */}
-      <div className="flex gap-2 overflow-x-auto border-b border-line bg-surface px-3.5 py-2.5">
-        {(
-          [
-            { key: "all", name: "全部" },
-            { key: "ungrouped", name: "默认分组" },
-            ...groups.map((g) => ({ key: g.id, name: g.name })),
-          ] as Array<{ key: string; name: string }>
-        ).map((g) => (
-          <button
-            key={g.key}
-            type="button"
-            onClick={() => setChip(g.key)}
-            className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-              chip === g.key ? "bg-accent/10 font-bold text-accent" : "bg-flat text-ink-2"
-            }`}
-          >
-            {g.name}
-          </button>
-        ))}
       </div>
 
+      {/* 更新流：列表区左右滑切换分组（手势只绑此处，不碰顶部横滑岛/chips） */}
+      <div ref={swipeRef}>
       {failed.length > 0 && (
         <p className="bg-flat px-3.5 py-2 text-[11px] text-ink-3">
           {failed.length} 个频道更新拉取失败：{failed.slice(0, 3).join("、")}
@@ -109,6 +121,7 @@ export default function SubscriptionsView() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }
