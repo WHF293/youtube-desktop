@@ -68,16 +68,24 @@ if (!manifest.includes("android:resizeableActivity")) {
   const actStart = manifest.lastIndexOf("<activity", mainIdx);
   const head = manifest.slice(0, actStart + "<activity".length);
   const tail = manifest.slice(actStart + "<activity".length);
-  manifest = `${head} android:resizeableActivity="true"\n            android:supportsSizeChanges="true"${tail}`;
-  actions.push("manifest: MainActivity 增加 resizeableActivity / supportsSizeChanges");
+  // 注意：不能加 android:supportsSizeChanges —— 该属性是 framework 隐藏属性
+  // （不在公开 android.jar 的 R$attr 中），AAPT 资源链接阶段必然报
+  // "attribute not found"（compileSdk 37 亦然，v0.9.1 CI 实测）。自由窗口与
+  // 拖拽 resize 由 resizeableActivity 覆盖，WebView 自身随窗口尺寸回调。
+  manifest = `${head} android:resizeableActivity="true"${tail}`;
+  actions.push("manifest: MainActivity 增加 resizeableActivity");
+}
+
+// 清掉早期补丁误加的 supportsSizeChanges（隐藏属性，AAPT 无法链接）
+if (manifest.includes("android:supportsSizeChanges")) {
+  manifest = manifest.replace(/\s*android:supportsSizeChanges="true"/g, "");
+  actions.push("manifest: 移除 supportsSizeChanges（隐藏属性，AAPT 拒绝）");
 }
 
 writeFileSync(manifestPath, manifest);
 
 /* ---------- 1.5 app/build.gradle.kts：compileSdk / targetSdk 提到 37 ---------- */
-// 模板默认 compileSdk 较低，AndroidManifest 里的 android:supportsSizeChanges
-// （API 34 才进 android.jar）在 AAPT 资源链接阶段报 "attribute not found"；
-// 本地已实测 37 可通过，CI 重新 init 后由本补丁拉齐。
+// 与本地 gen/android 口径拉齐（CI 模板已是 37 时为幂等 no-op）。
 const appGradlePath = join(pkgDir, "app", "build.gradle.kts");
 let appGradle = readFileSync(appGradlePath, "utf8");
 const SDK_LEVEL = "37";
