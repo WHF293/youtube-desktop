@@ -182,8 +182,11 @@ class MainActivity : TauriActivity() {
         super.onCreate(savedInstanceState)
         ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            insetTop = bars.top
-            insetBottom = bars.bottom
+            // bars.top/bottom 是设备物理像素，CSS px 需除以屏幕密度（dpr），
+            // 否则高密度手机上 --m-inset-top 是正确值的 2~3 倍，navbar 上方留白巨大
+            val density = resources.displayMetrics.density
+            insetTop = Math.round(bars.top / density)
+            insetBottom = Math.round(bars.bottom / density)
             applyInsetsToPage()
             insets
         }

@@ -45,11 +45,15 @@
 }
 
 /* 小米大屏断点（UX 指南 pId=2041 三档：Mobile 600 / Expanded 840）。
-   自定义 token 不动默认 sm/md/lg——PC 端（如订阅页 lg:flex ≥1024）语义保持不变 */
+   自定义 token 不动默认 sm/md/lg——PC 端（如订阅页 lg:flex ≥1024）语义保持不变。
+   tablet/wide 仅在「宽度达标且横屏」生效：pad 竖屏回落手机样式（单列 + TabBar），
+   pad 横屏保持宽屏效果（双列/三列 + NavigationRail） */
 @theme {
   --breakpoint-tablet: 600px;
   --breakpoint-wide: 840px;
 }
+@custom-variant tablet (@media (min-width: 600px) and (orientation: landscape));
+@custom-variant wide (@media (min-width: 840px) and (orientation: landscape));
 
 html,
 body,

@@ -387,7 +387,7 @@
 .m-page {
   width: 100%;
 }
-@media (min-width: 600px) {
+@media (min-width: 600px) and (orientation: landscape) {
   .m-page {
     max-width: 960px;
     margin-inline: auto;
@@ -400,7 +400,7 @@
 /* wide 档（≥840）主体通栏贴边（UI 约定：内容卡片不左右留白）：
    去掉上面的限宽居中——否则主列与 rail 之间留出一条深色空边，
    标题也与内容列错位；左右间距交由各区块自带的 px-3.5 承担 */
-@media (min-width: 840px) {
+@media (min-width: 840px) and (orientation: landscape) {
   .m-page,
   .m-nav__inner {
     max-width: none;
@@ -412,7 +412,7 @@
 .m-rail {
   display: none;
 }
-@media (min-width: 840px) {
+@media (min-width: 840px) and (orientation: landscape) {
   .m-root {
     flex-direction: row;
   }
@@ -498,7 +498,7 @@
 }
 
 /* Bottom Sheet：tablet 档起转居中对话框形态（UI 稿 B5，宽度上限） */
-@media (min-width: 600px) {
+@media (min-width: 600px) and (orientation: landscape) {
   .m-sheet {
     left: 50%;
     right: auto;
