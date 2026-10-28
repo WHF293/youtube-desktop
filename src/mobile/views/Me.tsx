@@ -7,7 +7,7 @@ import { useDownloads } from "../../common/stores/downloads";
 import { errorMessage } from "../../common/stores/videos";
 import { resolveChannelInput } from "../../common/lib/innertube";
 import { refreshChannelsMeta } from "../../common/stores/subsFeed";
-import { checkForUpdate, type UpdateInfo } from "../../common/lib/updater";
+import { checkForUpdate, downloadApk, installApk, type UpdateInfo } from "../../common/lib/updater";
 import { openExternal } from "../../common/lib/open";
 import { YouTubeLogo, default as Icon } from "../../common/components/Icon";
 import BottomSheet from "../components/BottomSheet";
@@ -33,6 +33,8 @@ export default function MeView() {
   // 检查更新：null=还没查过；"checking"=请求中；"latest"=已是最新；UpdateInfo=有新版
   const [updateState, setUpdateState] = useState<"checking" | "latest" | UpdateInfo | null>(null);
   const [updateErr, setUpdateErr] = useState<string | null>(null);
+  // APK 下载中：进度百分比；null = 未在下载
+  const [dlPct, setDlPct] = useState<number | null>(null);
   const updateOpen = updateState !== null;
 
   /** 添加订阅频道：链接/ID 自动解析（与 PC 博主管理同源逻辑） */
@@ -94,6 +96,28 @@ export default function MeView() {
       setUpdateState(info ?? "latest");
     } catch (e) {
       setUpdateErr(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /** 应用内下载 APK → 下载完经原生桥弹系统安装界面（桥缺失时兜底跳 Release 页） */
+  const startApkDownload = async () => {
+    if (!updateState || typeof updateState === "string" || dlPct !== null) return;
+    setUpdateErr(null);
+    setDlPct(0);
+    try {
+      const path = await downloadApk(updateState, (downloaded, total) => {
+        if (total > 0) setDlPct(Math.floor((downloaded / total) * 100));
+      });
+      // 未知体积时进度停在 0，下载完直接补 100
+      setDlPct(100);
+      if (!installApk(path)) {
+        // 旧包无原生桥：兜底跳 Release 页手动下载
+        void openExternal(updateState.pageUrl);
+      }
+    } catch (e) {
+      setUpdateErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDlPct(null);
     }
   };
 
@@ -269,25 +293,27 @@ export default function MeView() {
               {updateState.notes || "暂无更新说明"}
             </p>
             <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
-              将跳转浏览器下载 APK；若提示「未知来源」，允许安装本应用来源即可。
+              应用内直接下载，完成后自动弹出系统安装界面；首次安装需在系统弹窗中允许「安装未知应用」。
             </p>
             <div className="mb-2 mt-3 flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setUpdateState(null);
-                  void openExternal(updateState.pageUrl);
+                  setUpdateErr(null);
                 }}
-                className="m-glass-btn flex-1 justify-center"
+                disabled={dlPct !== null}
+                className="m-glass-btn flex-1 justify-center disabled:opacity-50"
               >
                 稍后再说
               </button>
               <button
                 type="button"
-                onClick={() => void openExternal(updateState.pageUrl)}
-                className="flex-1 rounded-full bg-accent py-2 text-[13px] font-bold text-white"
+                onClick={() => void startApkDownload()}
+                disabled={dlPct !== null}
+                className="flex-1 rounded-full bg-accent py-2 text-[13px] font-bold text-white disabled:opacity-70"
               >
-                打开下载页
+                {dlPct === null ? "下载并安装" : dlPct >= 100 ? "正在唤起安装…" : `下载中 ${dlPct}%`}
               </button>
             </div>
           </>

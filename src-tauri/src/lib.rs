@@ -295,24 +295,57 @@ async fn download_update(
     Ok(dest.to_string_lossy().to_string())
 }
 
-/// 非 Windows（Android）：无应用内自更新，前端据此跳浏览器下载 APK（开发方案 §6/§8）。
+/// 非 Windows（Android）：下载 APK 到应用内部缓存 apk/ 目录，返回路径交前端
+/// 经原生 JS 桥（AndroidBridge.installApk）弹系统安装界面。更新通道与数据请求共用代理。
 #[cfg(not(windows))]
 #[tauri::command]
 async fn download_update(
-    _url: String,
-    _proxy: String,
-    _filename: String,
-    _app: tauri::AppHandle,
-    _state: State<'_, HttpClient>,
+    url: String,
+    proxy: String,
+    filename: String,
+    app: tauri::AppHandle,
+    state: State<'_, HttpClient>,
 ) -> Result<String, String> {
-    Err("应用内自更新仅支持桌面端；移动端请到 GitHub Releases 下载最新安装包".to_string())
+    use tauri::Manager;
+    let client = client_for(&proxy, &state)?;
+    let mut resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("下载失败（HTTP {}）", resp.status().as_u16()));
+    }
+    let total = resp.content_length().unwrap_or(0);
+    // 内部缓存 apk/ 子目录（file_paths.xml 只暴露该目录给安装器）
+    let dir = app
+        .path()
+        .cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("apk");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let dest = dir.join(&filename);
+    let mut file = std::fs::File::create(&dest).map_err(|e| e.to_string())?;
+    let mut downloaded: u64 = 0;
+    use std::io::Write;
+    loop {
+        match resp.chunk().await.map_err(|e| e.to_string())? {
+            Some(chunk) => {
+                file.write_all(&chunk).map_err(|e| e.to_string())?;
+                downloaded += chunk.len() as u64;
+                let _ = app.emit(
+                    "update-download-progress",
+                    serde_json::json!({ "downloaded": downloaded, "total": total }),
+                );
+            }
+            None => break,
+        }
+    }
+    file.flush().map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().to_string())
 }
 
-/// 非 Windows（Android）：无静默安装通道，同 download_update 的移动端口径。
+/// 非 Windows（Android）：无静默安装通道——安装由前端原生桥弹系统安装界面完成。
 #[cfg(not(windows))]
 #[tauri::command]
 fn finish_update(_installer: String, _app: tauri::AppHandle) -> Result<(), String> {
-    Err("应用内自更新仅支持桌面端；移动端请到 GitHub Releases 下载最新安装包".to_string())
+    Err("桌面端专属；移动端经 AndroidBridge.installApk 弹系统安装界面".to_string())
 }
 
 /// 静默安装更新：起独立 cmd 链「等当前进程退出 → 静默安装 → 启动新版本」，

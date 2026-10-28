@@ -110,3 +110,35 @@ export async function downloadAndInstall(
     unlisten();
   }
 }
+
+/** 移动端：下载 APK 到应用缓存，返回落盘路径（进度事件同桌面通道）。
+ *  下载完成后再经 installApk() 调原生桥弹系统安装界面。 */
+export async function downloadApk(
+  info: UpdateInfo,
+  onProgress: (downloaded: number, total: number) => void,
+): Promise<string> {
+  const { proxy } = useSettings.getState();
+  const unlisten = await listen<{ downloaded: number; total: number }>(
+    "update-download-progress",
+    (e) => onProgress(e.payload.downloaded, e.payload.total),
+  );
+  try {
+    return await invoke<string>("download_update", {
+      url: info.url,
+      proxy,
+      filename: info.filename,
+    });
+  } finally {
+    unlisten();
+  }
+}
+
+/** 经原生桥（AndroidBridge.installApk，patch-android.mjs 注入）弹系统安装界面。
+ *  桥不存在（旧包/网页端）返回 false，调用方兜底跳 Release 页。 */
+export function installApk(path: string): boolean {
+  const bridge = (window as unknown as { AndroidBridge?: { installApk?: (p: string) => void } })
+    .AndroidBridge;
+  if (typeof bridge?.installApk !== "function") return false;
+  bridge.installApk(path);
+  return true;
+}

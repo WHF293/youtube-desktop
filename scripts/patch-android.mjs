@@ -8,13 +8,15 @@
  *  2. MainActivity.kt：生命周期重排（小米 Stop Playback 适配，窗口文档 §6/§7）——
  *     多窗口内失焦跳过 WebView.onPause（wry 默认在 onPause 暂停 WebView 导致断播），
  *     真不可见在 onStop 暂停、onStart 成对恢复。
+ *  3. 应用内更新链：REQUEST_INSTALL_PACKAGES 权限 + FileProvider（file_paths.xml 暴露
+ *     内部缓存 apk/）+ MainActivity 的 AndroidBridge.installApk JS 桥弹系统安装界面。
  *
  * 用法：node scripts/patch-android.mjs（build:apk 已前置自动执行）；
  *      gen/android 缺失时先 `pnpm tauri android init` 再跑本脚本。
  * 注意：wry 的 Kotlin 模板把 {{package}} 替换为应用包名，Rust/PluginManager 与 MainActivity
  *      同包可直接引用；若 tauri/wry 升级后编译报 unresolved，按实际包名调整 import。
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -82,7 +84,53 @@ if (manifest.includes("android:supportsSizeChanges")) {
   actions.push("manifest: 移除 supportsSizeChanges（隐藏属性，AAPT 拒绝）");
 }
 
+// 应用内更新：申请安装未知来源应用权限（用户首次安装时系统弹开关授权）
+const INSTALL_PERMISSION = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />';
+if (!manifest.includes("android.permission.REQUEST_INSTALL_PACKAGES")) {
+  const permAnchor = manifest.match(/<application\b[^>]*>/);
+  if (!permAnchor) {
+    console.error("[patch-android] AndroidManifest.xml 中未找到 <application> 标签");
+    process.exit(1);
+  }
+  manifest = manifest.replace(permAnchor[0], `${INSTALL_PERMISSION}\n    ${permAnchor[0]}`);
+  actions.push("manifest: 注入 REQUEST_INSTALL_PACKAGES 权限");
+}
+
+// 应用内更新：FileProvider——Android 7+ 安装 APK 必须经 content:// URI 暴露给系统安装器
+const PROVIDER_XML = `        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="\${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+`;
+if (!manifest.includes("androidx.core.content.FileProvider")) {
+  const closeApp = manifest.lastIndexOf("</application>");
+  if (closeApp === -1) {
+    console.error("[patch-android] AndroidManifest.xml 中未找到 </application> 标签");
+    process.exit(1);
+  }
+  manifest = manifest.slice(0, closeApp) + PROVIDER_XML + manifest.slice(closeApp);
+  actions.push("manifest: 注入 FileProvider（content:// 暴露 APK 给系统安装器）");
+}
+
 writeFileSync(manifestPath, manifest);
+
+/* ---------- 1.4 res/xml/file_paths.xml：FileProvider 暴露范围（仅内部缓存 apk/） ---------- */
+const filePathsPath = join(pkgDir, "app", "src", "main", "res", "xml", "file_paths.xml");
+const FILE_PATHS = `<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="apk" path="apk/" />
+</paths>
+`;
+if (!existsSync(filePathsPath) || readFileSync(filePathsPath, "utf8") !== FILE_PATHS) {
+  mkdirSync(dirname(filePathsPath), { recursive: true });
+  writeFileSync(filePathsPath, FILE_PATHS);
+  actions.push("res/xml/file_paths.xml: 写入 FileProvider 暴露范围（cache/apk）");
+}
 
 /* ---------- 1.5 app/build.gradle.kts：compileSdk / targetSdk 提到 37 ---------- */
 // 与本地 gen/android 口径拉齐（CI 模板已是 37 时为幂等 no-op）。
@@ -103,10 +151,15 @@ if (
 /* ---------- 2. MainActivity.kt（整文件覆写，该文件本就由用户所有） ---------- */
 const MAIN_ACTIVITY = `package com.whf.youtube_desktop
 
+import android.content.Intent
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.FileProvider
 import app.tauri.plugin.PluginManager
+import java.io.File
 
 class MainActivity : TauriActivity() {
     private var wv: WebView? = null
@@ -119,6 +172,35 @@ class MainActivity : TauriActivity() {
     // WryActivity 的 open 钩子：持有 WebView 引用（wry 的 mWebView 为 private）
     override fun onWebViewCreate(webView: WebView) {
         wv = webView
+        // 应用内更新桥：前端经 download_update 下载完 APK 后调
+        // AndroidBridge.installApk(path) 经 FileProvider 弹系统安装界面
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun installApk(path: String) {
+                runOnUiThread {
+                    try {
+                        val uri = FileProvider.getUriForFile(
+                            this@MainActivity,
+                            "$packageName.fileprovider",
+                            File(path)
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW)
+                            .setDataAndType(uri, "application/vnd.android.package-archive")
+                            .addFlags(
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    or Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "安装失败：" + e.message,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }, "AndroidBridge")
     }
 
     // 小米 Stop Playback 适配（窗口文档 pId=1593 §6/§7）：
