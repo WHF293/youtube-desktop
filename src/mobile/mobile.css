@@ -391,6 +391,16 @@
     margin-inline: auto;
   }
 }
+/* wide 档（≥840）主体通栏贴边（UI 约定：内容卡片不左右留白）：
+   去掉上面的限宽居中——否则主列与 rail 之间留出一条深色空边，
+   标题也与内容列错位；左右间距交由各区块自带的 px-3.5 承担 */
+@media (min-width: 840px) {
+  .m-page,
+  .m-nav__inner {
+    max-width: none;
+    margin-inline: 0;
+  }
+}
 
 /* NavigationRail：wide 档侧边导航（<840 不渲染显示） */
 .m-rail {
