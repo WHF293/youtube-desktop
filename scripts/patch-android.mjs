@@ -164,20 +164,45 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import app.tauri.plugin.PluginManager
 import java.io.File
 
 class MainActivity : TauriActivity() {
     private var wv: WebView? = null
+    /** 系统栏 inset（px）：edge-to-edge 下 WebView 画到状态栏/手势条底下，
+     *  而 Android WebView 的 env(safe-area-inset-*) 恒为 0，页面让不出空间，
+     *  由原生层量出后经 CSS 变量 --m-inset-top/bottom 注入（mobile.css 消费） */
+    private var insetTop = 0
+    private var insetBottom = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            insetTop = bars.top
+            insetBottom = bars.bottom
+            applyInsetsToPage()
+            insets
+        }
+    }
+
+    /** 把 inset 写进页面 CSS 变量。WebView 创建早于页面 DOM 就绪，
+     *  立即注入大概率落空，故追加延迟重试（幂等，重复 set 无副作用） */
+    private fun applyInsetsToPage() {
+        val js = "document.documentElement.style.setProperty('--m-inset-top','\${insetTop}px');" +
+            "document.documentElement.style.setProperty('--m-inset-bottom','\${insetBottom}px');"
+        wv?.evaluateJavascript(js, null)
+        wv?.postDelayed({ wv?.evaluateJavascript(js, null) }, 600)
+        wv?.postDelayed({ wv?.evaluateJavascript(js, null) }, 2000)
     }
 
     // WryActivity 的 open 钩子：持有 WebView 引用（wry 的 mWebView 为 private）
     override fun onWebViewCreate(webView: WebView) {
         wv = webView
+        applyInsetsToPage()
         // 应用内更新桥：前端经 download_update 下载完 APK 后调
         // AndroidBridge.installApk(path) 经 FileProvider 弹系统安装界面
         webView.addJavascriptInterface(object {

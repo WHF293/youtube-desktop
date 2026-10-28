@@ -23,13 +23,13 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(76px + var(--m-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 /* === 顶部导航 === */
 .m-nav {
-  height: calc(50px + env(safe-area-inset-top, 0px));
-  padding: env(safe-area-inset-top, 0px) 14px 0;
+  height: calc(50px + var(--m-inset-top, env(safe-area-inset-top, 0px)));
+  padding: var(--m-inset-top, env(safe-area-inset-top, 0px)) 14px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -68,7 +68,7 @@
   position: fixed;
   left: 10px;
   right: 10px;
-  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(10px + var(--m-inset-bottom, env(safe-area-inset-bottom, 0px)));
   z-index: 100;
   display: grid;
   /* 4 等分 = 四主 Tab（历史 2026-10-28 移入「我的」页）；指示气泡宽度 .m-tabbar__thumb 的 /4 需一并改 */
@@ -239,7 +239,7 @@
   overflow: hidden;
   background: var(--app-surface);
   border-radius: 20px 20px 0 0;
-  padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 14px calc(16px + var(--m-inset-bottom, env(safe-area-inset-bottom, 0px)));
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.2);
 }
 .m-sheet__grip {
