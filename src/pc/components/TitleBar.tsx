@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import Icon, { YouTubeLogo } from "../../common/components/Icon";
@@ -96,16 +96,18 @@ function VersionTag() {
 }
 
 /**
- * 自绘标题栏（参照 whf-stock-board 的 TitleBar 模式）：
+ * 自绘标题栏（参照 whf-stock-board 的 TitleBar 模式），按路由自适应：
  * - 拖拽 / 双击最大化由 onMouseDown / onDoubleClick 手动接管
  *   （startDragging / toggleMaximize IPC），按钮以外的空白都能拖；
- * - 左侧：品牌 + 版本号（点击检查更新/下载安装）+ 侧栏开关；
- * - 右侧工具条：搜索（弹窗）/ 明暗主题 / 使用说明 + 窗口控制按钮；
+ * - 首页：左侧品牌 + 版本号（点击检查更新/下载安装）+ 侧栏开关，无设置入口；
+ * - 其余页：左侧返回箭头 + 侧栏开关，标题绝对居中，右侧多出「设置」入口；
+ * - 右侧工具条：搜索（弹窗）/ 明暗主题 / 使用说明 /（非首页）设置 + 窗口控制；
  * - 搜索走 DocSearch 风格弹窗（SearchModal），Ctrl+K 呼出。
  */
 
 export default function TitleBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toggleSidebar = useUi((s) => s.toggleSidebar);
   const { theme, toggle: toggleTheme } = useTheme();
 
@@ -114,6 +116,29 @@ export default function TitleBar() {
 
   const canControlWindow = isTauri();
   const appWindow = canControlWindow ? getCurrentWindow() : null;
+
+  // 首页保留品牌位（标题左对齐、无设置入口）；其余页面：左侧返回 + 标题居中 + 设置入口
+  const isHome = location.pathname === "/";
+
+  // 非首页导航栏标题：静态路由查表，动态路由（观看/频道/搜索等）按前缀解析
+  const PAGE_TITLES: Record<string, string> = {
+    "/subscriptions": "订阅",
+    "/history": "观看记录",
+    "/watchlater": "待看",
+    "/favorites": "收藏",
+    "/offline": "离线",
+    "/settings": "设置",
+    "/help": "使用说明",
+    "/groups": "分组",
+  };
+  const pageTitle = (() => {
+    const p = location.pathname;
+    if (p.startsWith("/watch/")) return "正在播放";
+    if (p.startsWith("/channel/")) return "频道";
+    if (p.startsWith("/offline/watch/")) return "离线观看";
+    if (p.startsWith("/search")) return "搜索";
+    return PAGE_TITLES[p] ?? "";
+  })();
 
   // Ctrl+K 全局呼出搜索弹窗（DocSearch 惯例）
   useEffect(() => {
@@ -166,20 +191,34 @@ export default function TitleBar() {
     <header
       onMouseDown={onDragStart}
       onDoubleClick={onDoubleClick}
-      className="flex h-9 shrink-0 select-none items-center justify-between border-b border-line bg-surface pl-3"
+      className="relative flex h-9 shrink-0 select-none items-center justify-between border-b border-line bg-surface pl-3"
     >
-      {/* 左侧：品牌 + 侧栏开关 */}
+      {/* 左侧：首页 = 品牌 + 版本 + 侧栏开关；其余页 = 返回 + 侧栏开关 */}
       <div className="flex min-w-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          aria-label="回到首页"
-          className="flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-flat"
-        >
-          <YouTubeLogo size={20} />
-          <span className="truncate text-sm font-semibold text-ink">YouTube Desktop</span>
-        </button>
-        <VersionTag />
+        {isHome ? (
+          <>
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              aria-label="回到首页"
+              className="flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-flat"
+            >
+              <YouTubeLogo size={20} />
+              <span className="truncate text-sm font-semibold text-ink">YouTube Desktop</span>
+            </button>
+            <VersionTag />
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="返回上一页"
+            title="返回"
+            className="flex shrink-0 items-center justify-center rounded p-1.5 text-ink-2 hover:bg-flat hover:text-ink"
+          >
+            <Icon name="arrowLeft" size={18} />
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleSidebar}
@@ -191,10 +230,15 @@ export default function TitleBar() {
         </button>
       </div>
 
-      {/* 中部：留给窗口拖拽的空白区（无内容） */}
+      {/* 中部：非首页标题绝对居中（pointer-events-none 让拖拽穿透到 header） */}
+      {!isHome && pageTitle && (
+        <div className="pointer-events-none absolute inset-x-0 flex items-center justify-center px-28">
+          <span className="truncate text-sm font-semibold text-ink">{pageTitle}</span>
+        </div>
+      )}
 
-      {/* 右侧：搜索弹窗 + 主题切换 + 设置 + 窗口控制 */}
-      <div className="flex h-full shrink-0 items-stretch">
+        {/* 右侧：搜索弹窗 + 主题切换 + 使用说明 +（非首页）设置 + 窗口控制 */}
+        <div className="relative z-10 flex h-full shrink-0 items-stretch">
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
@@ -222,6 +266,18 @@ export default function TitleBar() {
         >
           <Icon name="book" size={16} />
         </button>
+        {/* 设置入口：仅非首页显示（首页按需求移除） */}
+        {!isHome && (
+          <button
+            type="button"
+            onClick={() => navigate("/settings")}
+            aria-label="设置"
+            title="设置"
+            className="flex w-11 items-center justify-center text-ink-2 hover:bg-flat hover:text-ink"
+          >
+            <Icon name="settings" size={16} />
+          </button>
+        )}
 
         {/* 窗口控制按钮（浏览器预览时禁用） */}
         <button

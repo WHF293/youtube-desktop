@@ -1,10 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import InfoPin from "../common/components/InfoPin";
-import Icon from "../common/components/Icon";
 import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Watch from "./pages/Watch";
@@ -32,7 +31,6 @@ export default function App() {
   const loadPopular = useVideos((s) => s.loadPopular);
   const regionCode = useSettings((s) => s.regionCode);
   const location = useLocation();
-  const navigate = useNavigate();
   const prevRegion = useRef(regionCode);
 
   // 明暗模式：class 挂在 <html> 上
@@ -96,11 +94,8 @@ export default function App() {
     };
   }, []);
 
-  // 是否有可返回的上一页（React Router 在 history.state.idx 记录栈深）；
-  // 仅二级页显示返回按钮——侧栏有入口的页面不显示
-  const TOP_LEVEL_PATHS = new Set(["/", "/subscriptions", "/history", "/watchlater", "/favorites", "/offline"]);
-  const canGoBack =
-    (window.history.state?.idx ?? 0) > 0 && !TOP_LEVEL_PATHS.has(location.pathname);
+  // 返回上一页统一由 TitleBar 承担：非首页导航栏左侧固定返回箭头，
+  // 这里不再渲染页内返回条（避免双返回入口）
 
   // 首次进入预热首页数据
   useEffect(() => {
@@ -115,22 +110,6 @@ export default function App() {
       <div className="flex min-h-0 flex-1 gap-2.5 p-2.5">
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface shadow-island">
-          {/* 返回上一页：二级/三级页面（观看、频道、搜索、额度等）顶部细页头，
-              仅历史栈里存在 back 记录时显示 */}
-          {canGoBack && (
-            <div className="flex h-10 shrink-0 items-center border-b border-line px-3">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                aria-label="返回上一页"
-                title="返回上一页"
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-ink-2 hover:bg-flat hover:text-ink"
-              >
-                <Icon name="arrowLeft" size={16} />
-                返回
-              </button>
-            </div>
-          )}
           <div id="main-scroll" className="min-h-0 flex-1 overflow-y-auto" key={location.pathname}>
             <Routes>
             <Route path="/" element={<Home />} />
