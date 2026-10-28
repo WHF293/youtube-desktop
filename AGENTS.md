@@ -39,15 +39,14 @@ git add -A
 git commit -m "release: vX.Y.Z <一句话变更摘要>"
 git push origin main
 
-# 3. 构建安装包（NSIS + MSI）
+# 3. 构建安装包（NSIS；bundle.targets 仅 ["nsis"]，不出 MSI）
 pnpm tauri build
 
-# 4. 打 tag 并发布 GitHub Release（上传安装包）
+# 4. 打 tag 并发布 GitHub Release（上传安装包；APK 由 CI release.yml 自动构建上传）
 git tag vX.Y.Z
 git push origin vX.Y.Z
 gh release create vX.Y.Z \
   "src-tauri/target/release/bundle/nsis/YouTube Desktop_X.Y.Z_x64-setup.exe" \
-  "src-tauri/target/release/bundle/msi/YouTube Desktop_X.Y.Z_x64_en-US.msi" \
   --title "vX.Y.Z <标题>" --notes "<release notes：按「新增/修复/说明」分节>"
 ```
 
@@ -76,7 +75,7 @@ cd src-tauri && cargo clean
 
 ```bash
 pnpm tauri dev       # 桌面开发模式（vite + tauri，热更新）
-pnpm tauri build     # 打包 Windows 安装包（NSIS + MSI）
+pnpm tauri build     # 打包 Windows 安装包（仅 NSIS exe）
 pnpm build           # 仅前端：tsc --noEmit + vite build
 pnpm dev:mobile      # 移动端开发模式（vite --mode mobile；?mock=1 注入 dev-only 假数据供截图比对）
 pnpm build:apk       # Android APK（自动先跑 scripts/patch-android.mjs 重放原生层补丁）
