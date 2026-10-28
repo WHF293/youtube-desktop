@@ -119,11 +119,17 @@ if (!manifest.includes("androidx.core.content.FileProvider")) {
 
 writeFileSync(manifestPath, manifest);
 
-/* ---------- 1.4 res/xml/file_paths.xml：FileProvider 暴露范围（仅内部缓存 apk/） ---------- */
+/* ---------- 1.4 res/xml/file_paths.xml：FileProvider 暴露范围 ----------
+ * Tauri path().cache_dir() 在 Android 实测解析到外部缓存
+ * /storage/emulated/0/Android/data/<pkg>/cache，download_update 的 APK 落在外部缓存 apk/，
+ * 因此 external-cache-path 必须暴露（漏配会导致 FileProvider 报
+ * "Failed to find configured root that contains /storage/emulated/0/..."，安装直接失败）；
+ * cache-path 保留兜底，防未来回切内部缓存 */
 const filePathsPath = join(pkgDir, "app", "src", "main", "res", "xml", "file_paths.xml");
 const FILE_PATHS = `<?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="apk" path="apk/" />
+    <external-cache-path name="apk_ext" path="apk/" />
 </paths>
 `;
 if (!existsSync(filePathsPath) || readFileSync(filePathsPath, "utf8") !== FILE_PATHS) {
