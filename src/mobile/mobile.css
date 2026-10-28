@@ -92,6 +92,9 @@
     var(--tb-shadow);
   -webkit-user-select: none;
   user-select: none;
+  /* 关键：关闭浏览器默认触摸平移手势，否则 touch 按下后浏览器接管滚动并派发
+     pointercancel，气泡拖拽的 pointermove 跟手永远收不到后续事件 */
+  touch-action: none;
   will-change: transform;
 }
 .dark .m-tabbar {
@@ -506,3 +509,16 @@
     border-radius: 20px;
   }
 }
+
+/* === 列表左右滑切换分类/分组的过渡动画（Home / Subscriptions 共用） ===
+   切换瞬间先渲染骨架屏并从滑动方向滑入，动画结束后再发起真实请求 */
+@keyframes m-swipe-next {
+  from { transform: translateX(56px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes m-swipe-prev {
+  from { transform: translateX(-56px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.m-swipe-next { animation: m-swipe-next 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+.m-swipe-prev { animation: m-swipe-prev 0.24s cubic-bezier(0.16, 1, 0.3, 1); }

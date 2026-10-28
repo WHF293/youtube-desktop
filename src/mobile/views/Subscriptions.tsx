@@ -6,7 +6,7 @@ import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels } from "../../common/stores/channels";
 import Spinner from "../../common/components/Spinner";
 import Img from "../../common/components/Img";
-import { AvatarBadge, RowCard } from "../components/VideoCards";
+import { AvatarBadge, RowCard, RowSkeleton } from "../components/VideoCards";
 import { videoIdOf } from "../../common/lib/format";
 
 /** 移动端订阅页：博主横滑岛 + 分组 chips（sticky 固定，不随列表滚动）
@@ -23,12 +23,29 @@ export default function SubscriptionsView() {
     { key: "ungrouped", name: "默认分组" },
     ...groups.map((g) => ({ key: g.id, name: g.name })),
   ];
-  // 列表左右滑切换分组（与 chips 同序；首尾边界不循环，见 useSwipeSwitch）
+  // 列表左右滑切换分组（与 chips 同序；首尾边界不循环，见 useSwipeSwitch）。
+  // 切换带过渡：先滑入骨架屏 240ms，动画结束才切分组发真实请求
+  const chipIndex = Math.max(0, chipOptions.findIndex((g) => g.key === chip));
+  const [swipeAnim, setSwipeAnim] = useState<"next" | "prev" | null>(null);
   const swipeRef = useSwipeSwitch<HTMLDivElement>({
     count: chipOptions.length,
-    index: Math.max(0, chipOptions.findIndex((g) => g.key === chip)),
-    onChange: (next) => setChip(chipOptions[next].key),
+    index: chipIndex,
+    onChange: (next) => {
+      if (swipeAnim !== null) return;
+      setSwipeAnim(next > chipIndex ? "next" : "prev");
+      window.setTimeout(() => {
+        setChip(chipOptions[next].key);
+        setSwipeAnim(null);
+      }, 240);
+    },
   });
+  // 头像联动：顶部博主岛只显示当前选中分组下的博主（全部 = 全部；未分组 = 无分组）
+  const shownChannels =
+    chip === "all"
+      ? channels
+      : chip === "ungrouped"
+        ? channels.filter((c) => !c.groupId)
+        : channels.filter((c) => c.groupId === chip);
 
   useEffect(() => {
     if (status === "idle") void load();
@@ -51,9 +68,9 @@ export default function SubscriptionsView() {
       {/* 固定头：博主横滑岛（桌面右栏博主岛的移动形态；点击进博主主页）+ 分组 chips，
           sticky 常驻不随列表滚动（首页 m-chips 同款做法） */}
       <div className="sticky top-0 z-10 bg-surface">
-        {channels.length > 0 && (
+        {shownChannels.length > 0 && (
           <div className="flex gap-3.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-3">
-            {channels.map((c) => (
+            {shownChannels.map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -96,31 +113,37 @@ export default function SubscriptionsView() {
 
       {/* 更新流：列表区左右滑切换分组（手势只绑此处，不碰顶部横滑岛/chips） */}
       <div ref={swipeRef}>
-      {failed.length > 0 && (
+      {swipeAnim !== null ? (
+        /* 切换过渡：骨架屏从滑动方向滑入，动画结束才切分组发真实请求 */
+        <div className={swipeAnim === "next" ? "m-swipe-next" : "m-swipe-prev"}>
+          <RowSkeleton />
+        </div>
+      ) : failed.length > 0 && (
         <p className="bg-flat px-3.5 py-2 text-[11px] text-ink-3">
           {failed.length} 个频道更新拉取失败：{failed.slice(0, 3).join("、")}
           {failed.length > 3 ? " 等" : ""}
         </p>
       )}
 
-      {status === "loading" || status === "idle" ? (
-        <Spinner label="拉取订阅更新…" />
-      ) : status === "error" ? (
-        <ErrorState desc={error} onRetry={() => void load()} />
-      ) : items.length === 0 ? (
-        <EmptyState
-          illust="▤"
-          title={chip === "all" ? "还没有订阅博主" : "分组内暂无更新"}
-          desc={chip === "all" ? "在观看页点「添加订阅」，或从桌面端导入订阅" : "这个分组下的博主还没有新视频"}
-          action={chip === "all" ? { label: "⌕ 去搜索", onClick: () => navigate("/search") } : undefined}
-        />
-      ) : (
-        <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
-          {items.map((v, i) => (
-            <RowCard key={videoIdOf(v) ?? i} video={v} />
-          ))}
-        </div>
-      )}
+      {swipeAnim === null &&
+        (status === "loading" || status === "idle" ? (
+          <Spinner label="拉取订阅更新…" />
+        ) : status === "error" ? (
+          <ErrorState desc={error} onRetry={() => void load()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            illust="▤"
+            title={chip === "all" ? "还没有订阅博主" : "分组内暂无更新"}
+            desc={chip === "all" ? "在观看页点「添加订阅」，或从桌面端导入订阅" : "这个分组下的博主还没有新视频"}
+            action={chip === "all" ? { label: "⌕ 去搜索", onClick: () => navigate("/search") } : undefined}
+          />
+        ) : (
+          <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
+            {items.map((v, i) => (
+              <RowCard key={videoIdOf(v) ?? i} video={v} />
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );

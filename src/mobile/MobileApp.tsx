@@ -11,6 +11,7 @@ import GlassTabBar from "./components/GlassTabBar";
 import NavigationRail from "./components/NavigationRail";
 import MobileNavBar from "./components/MobileNavBar";
 import RegionSheet from "./components/RegionSheet";
+import BottomSheet from "./components/BottomSheet";
 import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
 import SubscriptionsView from "./views/Subscriptions";
@@ -22,13 +23,15 @@ import MeView from "./views/Me";
 import OfflineView from "./views/Offline";
 import OfflineWatchView from "./views/OfflineWatch";
 import ChannelView from "./views/Channel";
+import ChannelManageView from "./views/ChannelManage";
 
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用） */
 const TAB_PATHS = new Set(["/", "/subscriptions", "/watchlater", "/me"]);
 
-/** TabBar 高亮映射：/search、/offline 归属位（首页 / 我的） */
+/** TabBar 高亮映射：/search、/offline、/subscriptions/manage 归属位（首页 / 我的 / 订阅） */
 function activeTabOf(pathname: string): string {
   if (TAB_PATHS.has(pathname)) return pathname;
+  if (pathname.startsWith("/subscriptions")) return "/subscriptions";
   if (pathname.startsWith("/search") || pathname === "/history") return "/me";
   if (pathname.startsWith("/offline")) return "/me";
   return "/";
@@ -39,6 +42,8 @@ export default function MobileApp() {
   const navigate = useNavigate();
   const location = useLocation();
   const [regionOpen, setRegionOpen] = useState(false);
+  // 历史全部清除确认 sheet（历史页 navbar 右上角入口）
+  const [histClearOpen, setHistClearOpen] = useState(false);
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
@@ -154,6 +159,8 @@ export default function MobileApp() {
         title={
           pathname.startsWith("/offline") ? (
             <span>离线下载</span>
+          ) : pathname === "/subscriptions/manage" ? (
+            <span>订阅管理</span>
           ) : pathname === "/subscriptions" ? (
             <span>订阅</span>
           ) : pathname === "/history" ? (
@@ -170,8 +177,10 @@ export default function MobileApp() {
           )
         }
         left={
-          // 二级页（离线下载 / 历史）带返回箭头；根 Tab 页无
-          pathname.startsWith("/offline") || pathname === "/history" ? (
+          // 二级页（离线下载 / 历史 / 订阅管理）带返回箭头；根 Tab 页无
+          pathname.startsWith("/offline") ||
+          pathname === "/history" ||
+          pathname.startsWith("/subscriptions/") ? (
             <button
               type="button"
               aria-label="返回"
@@ -183,7 +192,25 @@ export default function MobileApp() {
           ) : undefined
         }
         right={
-          pathname === "/" || pathname === "/me" ? (
+          pathname === "/subscriptions" ? (
+            <button
+              type="button"
+              aria-label="订阅管理"
+              onClick={() => navigate("/subscriptions/manage")}
+              className="m-nav__icon"
+            >
+              <Icon name="grip" size={19} />
+            </button>
+          ) : pathname === "/history" ? (
+            <button
+              type="button"
+              aria-label="全部清除观看记录"
+              onClick={() => setHistClearOpen(true)}
+              className="m-nav__icon"
+            >
+              <Icon name="close" size={19} />
+            </button>
+          ) : pathname === "/" || pathname === "/me" ? (
             <>
               {pathname === "/" ? (
                 <>
@@ -224,6 +251,32 @@ export default function MobileApp() {
     <div className="m-root">
       {/* 地区设置 sheet（首页 navbar 地球图标唤起） */}
       <RegionSheet open={regionOpen} onClose={() => setRegionOpen(false)} />
+
+      {/* 历史全部清除二次确认（历史页 navbar 右上角） */}
+      <BottomSheet open={histClearOpen} onClose={() => setHistClearOpen(false)} title="全部清除">
+        <p className="mb-4 text-[13px] leading-relaxed text-ink-2">
+          确认清除全部观看记录？该操作不可恢复（仅本地数据，不影响账号）。
+        </p>
+        <div className="mb-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setHistClearOpen(false)}
+            className="m-glass-btn flex-1 justify-center"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void useHistory.getState().clearAll();
+              setHistClearOpen(false);
+            }}
+            className="flex-1 rounded-full bg-red-500 py-2 text-[13px] font-bold text-white"
+          >
+            全部清除
+          </button>
+        </div>
+      </BottomSheet>
       {/* 大屏（≥840）侧边导航：wide 档取代底部 TabBar（UI 稿 A2/A3），<840 由 .m-rail CSS 隐藏 */}
       {!immersive && <NavigationRail active={activeTabOf(pathname)} badge={activeCount} />}
       <div className="m-main">
@@ -233,6 +286,7 @@ export default function MobileApp() {
             <Route path="/" element={<HomeView />} />
             <Route path="/home" element={<Navigate to="/" replace />} />
             <Route path="/subscriptions" element={<SubscriptionsView />} />
+            <Route path="/subscriptions/manage" element={<ChannelManageView />} />
             <Route path="/watch/:videoId" element={<WatchView />} />
             <Route path="/channel/:channelId" element={<ChannelView />} />
             <Route path="/search" element={<SearchView />} />

@@ -132,12 +132,13 @@ function HistoryRow({
 }
 
 export default function History() {
-  const { entries, status, error, init, remove, removeDay } = useHistory();
+  const { entries, status, error, init, remove, removeDay, clearAll } = useHistory();
   // 默认只展开今天；手动展开过的日期记住状态
   const [openKeys, setOpenKeys] = useState<Set<string>>(() => new Set([dayKey(Date.now())]));
-  // 删除二次确认：按条 / 按天
+  // 删除二次确认：按条 / 按天 / 全部
   const [confirmItem, setConfirmItem] = useState<HistoryEntry | null>(null);
   const [confirmDay, setConfirmDay] = useState<{ key: string; label: string; count: number; watchedAt: number } | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
   // 取消收藏 / 移出待看的二次确认
   const [confirmUnfav, setConfirmUnfav] = useState<HistoryEntry | null>(null);
   const [confirmUnlater, setConfirmUnlater] = useState<HistoryEntry | null>(null);
@@ -172,10 +173,23 @@ export default function History() {
   return (
     <div className="h-full min-h-0 overflow-y-auto">
       <div className="mx-auto max-w-3xl p-4">
-        <h1 className="flex items-center gap-2 text-lg font-semibold text-ink">
-          <Icon name="history" size={18} className="text-accent" />
-          观看记录（{entries.length}）
-        </h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="flex items-center gap-2 text-lg font-semibold text-ink">
+            <Icon name="history" size={18} className="text-accent" />
+            观看记录（{entries.length}）
+          </h1>
+          {entries.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setConfirmAll(true)}
+              className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-3 transition-colors hover:bg-flat hover:text-accent"
+              title="清除全部观看记录"
+            >
+              <Icon name="close" size={13} />
+              全部清除
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-xs text-ink-3">仅保留近 7 天，每次打开应用自动清理更早的记录。</p>
 
         {groups.length === 0 && (
@@ -265,6 +279,17 @@ export default function History() {
         )}
 
         {/* 删除二次确认：按条 / 按天 */}
+        {confirmAll && (
+          <ConfirmDialog
+            title="清除全部观看记录？"
+            message={`将删除全部 ${entries.length} 条记录，该操作不可恢复。`}
+            onConfirm={() => {
+              void clearAll();
+              setConfirmAll(false);
+            }}
+            onCancel={() => setConfirmAll(false)}
+          />
+        )}
         {confirmItem && (
           <ConfirmDialog
             title="删除该条观看记录？"

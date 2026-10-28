@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVideos } from "../../common/stores/videos";
 import Spinner from "../../common/components/Spinner";
-import { FeedCard } from "../components/VideoCards";
+import { FeedCard, FeedSkeleton } from "../components/VideoCards";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { videoIdOf } from "../../common/lib/format";
@@ -47,12 +47,20 @@ export default function HomeView() {
 
   // 列表区左右滑切换分类（与 TAB_OPTIONS 同序；首尾边界不循环，见 useSwipeSwitch；
   // 手势只绑 chips 下方内容区，不与 chips 条横向滚动冲突；垂直滑动占优时不触发，
-  // 与触顶下拉刷新共存）
+  // 与触顶下拉刷新共存）。切换带过渡：先滑入骨架屏 240ms，动画结束才发真实请求
   const swipeIndex = Math.max(0, TAB_OPTIONS.findIndex((o) => (category ?? "") === o.value));
+  const [swipeAnim, setSwipeAnim] = useState<"next" | "prev" | null>(null);
   const swipeRef = useSwipeSwitch<HTMLDivElement>({
     count: TAB_OPTIONS.length,
     index: swipeIndex,
-    onChange: (next) => pickCategory(TAB_OPTIONS[next].value || undefined),
+    onChange: (next) => {
+      if (swipeAnim !== null) return;
+      setSwipeAnim(next > swipeIndex ? "next" : "prev");
+      window.setTimeout(() => {
+        pickCategory(TAB_OPTIONS[next].value || undefined);
+        setSwipeAnim(null);
+      }, 240);
+    },
   });
 
   // 触底加载（提前 600px 预取）：桌面端 IntersectionObserver 在 WebView2 实测不触发，
@@ -156,7 +164,12 @@ export default function HomeView() {
       </div>
 
       <div ref={swipeRef}>
-      {status === "loading" || status === "idle" ? (
+        {swipeAnim !== null ? (
+          /* 切换过渡：骨架屏从滑动方向滑入，动画结束才切数据源发真实请求 */
+          <div className={swipeAnim === "next" ? "m-swipe-next" : "m-swipe-prev"}>
+            <FeedSkeleton />
+          </div>
+        ) : status === "loading" || status === "idle" ? (
         <Spinner label="加载推荐视频…" />
       ) : status === "error" ? (
         <ErrorState desc={error} onRetry={() => void loadPopular(category)} />

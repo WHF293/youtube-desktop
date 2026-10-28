@@ -99,3 +99,40 @@ export function RowCard({ video }: { video: VideoItem }) {
 function ImgThumb({ src, title }: { src: string; title: string }) {
   return <Img src={src} alt={title} loading="lazy" className="aspect-video w-full object-cover" />;
 }
+
+/** 骨架屏：左右滑切换分类/分组过渡期占位（动画结束才发真实请求，见 Home/Subscriptions）。
+ *  形态分别对齐 FeedCard（封面+标题两行）与 RowCard（左封面右两行），pulse 呼吸 */
+export function FeedSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-2.5 tablet:p-2.5 wide:grid-cols-3">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="bg-surface">
+          <div className="aspect-video w-full animate-pulse bg-flat" />
+          <div className="flex gap-2.5 px-3.5 pb-2.5 pt-2.5">
+            <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-flat" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3 w-full animate-pulse rounded bg-flat" />
+              <div className="mt-1.5 h-3 w-2/3 animate-pulse rounded bg-flat" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function RowSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex gap-2.5 border-b border-line bg-surface px-3.5 py-2.5">
+          <div className="aspect-video w-[142px] shrink-0 animate-pulse rounded-xl bg-flat" />
+          <div className="min-w-0 flex-1 pt-0.5">
+            <div className="h-3 w-full animate-pulse rounded bg-flat" />
+            <div className="mt-1.5 h-3 w-1/2 animate-pulse rounded bg-flat" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

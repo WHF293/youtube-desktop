@@ -55,6 +55,8 @@ interface HistoryState {
   remove: (videoId: string) => Promise<void>;
   /** 按天删除（传入该天任意一条记录的 watchedAt，删除其本地日期的全天记录） */
   removeDay: (watchedAt: number) => Promise<void>;
+  /** 全部清除（历史页「全部清除」按钮，二次确认后调用） */
+  clearAll: () => Promise<void>;
 }
 
 export const useHistory = create<HistoryState>()((set, get) => ({
@@ -124,5 +126,15 @@ export const useHistory = create<HistoryState>()((set, get) => ({
       /* 同上 */
     }
     set({ entries: get().entries.filter((e) => e.watchedAt < startTime || e.watchedAt >= endTime) });
+  },
+
+  clearAll: async () => {
+    try {
+      const d = await getDb();
+      await d.execute("DELETE FROM watch_history");
+    } catch {
+      /* DB 异常时仍同步本地视图，下次 init 会再对齐 */
+    }
+    set({ entries: [] });
   },
 }));
