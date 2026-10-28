@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVideos } from "../../common/stores/videos";
 import Spinner from "../../common/components/Spinner";
 import { FeedCard } from "../components/VideoCards";
@@ -60,10 +60,77 @@ export default function HomeView() {
     return () => scroller.removeEventListener("scroll", check);
   }, [status, nextPageToken, loadingMore, loadMorePopular]);
 
+  // 触顶下拉刷新参数：超过阈值松手即刷新；带阻尼的上限，避免拉出屏幕外
+  const PULL_TRIGGER_PX = 70;
+  const PULL_MAX_PX = 110;
+  const PULL_DAMP = 0.45;
+
+  // 触顶下拉刷新：列表已在（ready），只有用户在顶部继续下拉才整页重拉——
+  // 切 Tab 回来直接复用 store 里的列表与滚动位置，不自动重载
+  const [pull, setPull] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchY = useRef<number | null>(null);
+  const atTop = useRef(false);
+  useEffect(() => {
+    const scroller = document.getElementById("m-scroll");
+    if (!scroller) return;
+    const onStart = (e: TouchEvent) => {
+      touchY.current = e.touches[0]?.clientY ?? null;
+      atTop.current = scroller.scrollTop <= 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (touchY.current === null || !atTop.current || refreshing) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - touchY.current;
+      setPull(dy > 0 ? Math.min(dy * PULL_DAMP, PULL_MAX_PX) : 0);
+    };
+    const onEnd = () => {
+      touchY.current = null;
+      setPull((p) => {
+        if (p >= PULL_TRIGGER_PX && !refreshing) {
+          setRefreshing(true);
+          void loadPopular(category).finally(() => {
+            setRefreshing(false);
+            setPull(0);
+          });
+          return PULL_TRIGGER_PX;
+        }
+        return 0;
+      });
+    };
+    scroller.addEventListener("touchstart", onStart, { passive: true });
+    scroller.addEventListener("touchmove", onMove, { passive: true });
+    scroller.addEventListener("touchend", onEnd);
+    scroller.addEventListener("touchcancel", onEnd);
+    return () => {
+      scroller.removeEventListener("touchstart", onStart);
+      scroller.removeEventListener("touchmove", onMove);
+      scroller.removeEventListener("touchend", onEnd);
+      scroller.removeEventListener("touchcancel", onEnd);
+    };
+  }, [refreshing, loadPopular, category]);
+
+  const refreshHint = refreshing ? "刷新中…" : pull >= PULL_TRIGGER_PX ? "松手刷新" : "下拉刷新";
+
   // 分类 chips 常驻不随加载态卸载（桌面 v0.4.1 行为对齐）；
   // 移动端用分体胶囊按钮（每颗独立，选中态高光玻璃），不用桌面连体 GlassChipGroup
   return (
-    <div className="m-page">
+    <div className="m-page relative">
+      {/* 触顶下拉刷新指示条：随 pull 距离展开（transform 不参与布局，列表整体下移） */}
+      {(pull > 0 || refreshing) && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-end justify-center overflow-hidden bg-transparent text-[11.5px] text-ink-2"
+          style={{ height: refreshing ? 44 : pull, transition: refreshing ? "height .18s" : undefined }}
+        >
+          <span className="pb-2">{refreshHint}</span>
+        </div>
+      )}
+      <div
+        style={
+          pull > 0 || refreshing
+            ? { transform: `translateY(${refreshing ? 44 : pull}px)`, transition: refreshing ? "transform .18s" : undefined }
+            : undefined
+        }
+      >
       <div className="m-chips sticky top-0 z-10">
         {TAB_OPTIONS.map((o) => (
           <button
@@ -98,6 +165,7 @@ export default function HomeView() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

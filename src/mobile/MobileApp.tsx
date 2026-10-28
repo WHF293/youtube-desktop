@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 import { useTheme } from "../common/stores/theme";
 import { useSettings } from "../common/stores/settings";
@@ -47,11 +47,11 @@ export default function MobileApp() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // 代理落盘：移动端 Android WebView 不支持 --proxy-server 注入（Rust 侧 cfg 降级为空实现），
-  // 保留调用保证双端命令通道一致，reqwest 层代理由设置即时生效
+  // 代理：移动端固定直连（Android 真机无本机代理可用），启动即清掉历史遗留的
+  // persist 代理配置（PC 端默认 127.0.0.1:7897 在手机上必失败），设置页不再提供代理入口
   useEffect(() => {
-    if (!isTauri()) return;
-    invoke("save_webview_proxy", { proxy: useSettings.getState().proxy }).catch(() => {});
+    const s = useSettings.getState();
+    if (s.proxy !== "") s.setProxy("");
   }, []);
 
   // 观看记录：打开应用即清理 7 天前的记录（SQLite）
@@ -118,6 +118,27 @@ export default function MobileApp() {
     })();
     return () => unlisten?.();
   }, [location.pathname, navigate]);
+
+  // 滚动位置记忆：scroll 事件持续把当前页 scrollTop 写进 ref，路由切换时恢复——
+  // 首页等列表页返回不再回到顶部（配合去掉路由 key，列表不重挂载不重载）。
+  // 注意不能在路由切换的 effect 里才读 scrollTop：那时新路由内容已渲染、
+  // 旧 scrollTop 已被浏览器重置为 0
+  const scrollMem = useRef(new Map<string, number>());
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    const sc = document.getElementById("m-scroll");
+    if (!sc) return;
+    const onScroll = () => {
+      scrollMem.current.set(pathnameRef.current, sc.scrollTop);
+    };
+    sc.addEventListener("scroll", onScroll, { passive: true });
+    return () => sc.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+    const sc = document.getElementById("m-scroll");
+    if (sc) sc.scrollTop = scrollMem.current.get(pathname) ?? 0;
+  }, [pathname]);
 
   // 顶部 NavBar（对照 UI 稿 A0/A2/A4/A5）：Tab 页标题栏 + 二级页离线返回栏。
   // 观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 频道页（自带返回栏，标题随频道加载）/
@@ -191,12 +212,7 @@ export default function MobileApp() {
       {!immersive && <NavigationRail active={activeTabOf(pathname)} badge={activeCount} />}
       <div className="m-main">
         {navBar}
-        <div
-          id="m-scroll"
-          className="m-body"
-          key={location.pathname}
-          style={immersive ? { paddingBottom: 12 } : undefined}
-        >
+        <div id="m-scroll" className="m-body" style={immersive ? { paddingBottom: 12 } : undefined}>
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/home" element={<Navigate to="/" replace />} />

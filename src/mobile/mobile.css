@@ -374,6 +374,9 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  /* flex 子项默认 min-height:auto 会被内容撑开、溢出 .m-root（overflow hidden 裁掉），
+     #m-scroll 因此失去滚动空间 → 首页无法滑动（2026-10-28 实测定位），必须置 0 */
+  min-height: 0;
   min-width: 0;
 }
 
