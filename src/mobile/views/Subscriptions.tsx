@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { useSubsFeed } from "../../common/stores/subsFeed";
@@ -224,6 +225,8 @@ export default function SubscriptionsView() {
         ))}
       </div>
       </div>
+      {/* 回到顶部固钉（TabBar 上方 20px，平滑滚动） */}
+      <ScrollTopFab targetId="m-scroll" className="m-fab-top" />
     </div>
   );
 }

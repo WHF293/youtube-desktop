@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useVideos } from "../../common/stores/videos";
 import { VideoRow } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { ErrorBox } from "../../common/components/Spinner";
+import { VideoRowSkeleton } from "../components/VideoCard";
 
 /** 搜索结果页：/search?q=xxx */
 export default function Search() {
@@ -17,7 +18,7 @@ export default function Search() {
   if (!q) {
     return <p className="p-6 text-sm text-ink-2">在顶部搜索框输入关键词开始搜索。</p>;
   }
-  if (status === "loading") return <Spinner label={`搜索「${q}」…`} />;
+  if (status === "loading") return <VideoRowSkeleton rows={8} />;
   if (status === "error") return <ErrorBox message={error} onRetry={() => void loadSearch(q)} />;
 
   return (

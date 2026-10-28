@@ -11,6 +11,11 @@ import { formatRelativeDate } from "../../common/lib/format";
 export default function Favorites() {
   const { videos, groups, remove, setGroup, removeGroup } = useFavorites();
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
+  // 标题关键字过滤（与待看页同款搜索框）
+  const [q, setQ] = useState("");
+
+  const kw = q.trim().toLowerCase();
+  const matched = (v: FavVideo) => !kw || v.title.toLowerCase().includes(kw);
 
   useEffect(() => {
     if (!confirmKey) return;
@@ -21,15 +26,15 @@ export default function Favorites() {
   // 右下角刷新固钉：刷新博主远端元数据（头像/标题自愈，全应用共享数据）
   useEffect(() => registerPageRefresh("/favorites", () => void refreshChannelsMeta()), []);
 
-  // 区块：自定义收藏分组在前，默认分组收尾（无视频则不显示）
+  // 区块：自定义收藏分组在前，默认分组收尾（关键字过滤后空区块隐藏）
   const sections: { key: string; name: string; groupId: string | undefined; list: FavVideo[] }[] = [
     ...groups.map((g) => ({
       key: g.id,
       name: g.name,
       groupId: g.id as string | undefined,
-      list: videos.filter((v) => v.groupId === g.id),
+      list: videos.filter((v) => v.groupId === g.id && matched(v)),
     })),
-    { key: "default", name: "默认分组", groupId: undefined, list: videos.filter((v) => !v.groupId) },
+    { key: "default", name: "默认分组", groupId: undefined, list: videos.filter((v) => !v.groupId && matched(v)) },
   ].filter((s) => s.groupId !== undefined || s.list.length > 0);
 
   const videoRow = (v: FavVideo) => {
@@ -99,6 +104,22 @@ export default function Favorites() {
           <Icon name="star" size={18} className="text-accent" />
           收藏（{videos.length}）
         </h1>
+
+        {videos.length > 0 && (
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="搜索标题关键字…"
+            className="mt-3 w-full rounded-xl border border-line bg-app px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent"
+          />
+        )}
+
+        {videos.length > 0 && videos.filter(matched).length === 0 && (
+          <p className="mt-6 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-ink-3">
+            没有标题包含「{q.trim()}」的收藏视频
+          </p>
+        )}
 
         {sections.map((s) => (
           <section key={s.key} className="mt-4">

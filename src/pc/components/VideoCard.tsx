@@ -116,3 +116,38 @@ export function StatItem({ icon, value }: { icon: string; value: string }) {
 export function formatCountOrEmpty(n?: string) {
   return formatCount(n);
 }
+
+/** 骨架屏：网格卡占位（pulse 呼吸），形态对齐 VideoCard/VideoGrid */
+export function VideoGridSkeleton({ rows = 12 }: { rows?: number }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-3 gap-y-5 p-3">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i}>
+          <div className="aspect-video w-full animate-pulse rounded-lg bg-flat" />
+          <div className="mt-2">
+            <div className="h-3.5 w-3/4 animate-pulse rounded bg-flat" />
+            <div className="mt-1.5 h-3 w-1/2 animate-pulse rounded bg-flat" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 骨架屏：宽行卡占位，形态对齐 VideoRow */
+export function VideoRowSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col gap-1 p-2">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex gap-4 rounded-lg p-2">
+          <div className="aspect-video w-40 shrink-0 animate-pulse rounded-lg bg-flat sm:w-60" />
+          <div className="min-w-0 flex-1 pt-1">
+            <div className="h-4 w-3/4 animate-pulse rounded bg-flat" />
+            <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-flat" />
+            <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-flat" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

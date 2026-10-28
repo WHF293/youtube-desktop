@@ -4,7 +4,8 @@ import { useParams } from "react-router-dom";
 import { useSettings } from "../../common/stores/settings";
 import { errorMessage } from "../../common/stores/videos";
 import type { ManifestEntry } from "../../common/types/offline";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { ErrorBox } from "../../common/components/Spinner";
+import PlayerSkeleton from "../../common/components/PlayerSkeleton";
 import { openPath } from "@tauri-apps/plugin-opener";
 import Icon from "../../common/components/Icon";
 
@@ -31,7 +32,7 @@ export default function OfflineWatch() {
       });
   }, [videoId, downloadDir]);
 
-  if (status === "loading") return <Spinner label="加载本地视频…" />;
+  if (status === "loading") return <PlayerSkeleton />;
   if (status === "error" || !entry) return <ErrorBox message={error} />;
 
   return (

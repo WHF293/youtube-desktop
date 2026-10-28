@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ytApi } from "../../common/lib/youtube";
 import { useSearchHistory } from "../../common/stores/searchHistory";
 import type { VideoItem } from "../../common/types/youtube";
-import Spinner from "../../common/components/Spinner";
+import { RowSkeleton } from "../components/VideoCards";
 import Icon from "../../common/components/Icon";
 import { RowCard } from "../components/VideoCards";
 import { EmptyState, ErrorState } from "../components/StateViews";
@@ -140,7 +140,7 @@ export default function SearchView() {
           )}
         </>
       ) : status === "loading" ? (
-        <Spinner label={`搜索「${q}」…`} />
+        <RowSkeleton rows={8} />
       ) : status === "error" ? (
         <ErrorState title="搜索失败" desc={error} onRetry={() => void runSearch(q)} />
       ) : (
@@ -153,7 +153,7 @@ export default function SearchView() {
           {items.length === 0 && status === "ready" && (
             <EmptyState illust="⌕" title="没有找到相关内容" desc="换个关键词试试" />
           )}
-          {status === "loadingMore" && <Spinner label="加载更多…" />}
+          {status === "loadingMore" && <RowSkeleton rows={3} />}
           {!nextPageToken && items.length > 0 && status === "ready" && (
             <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
           )}

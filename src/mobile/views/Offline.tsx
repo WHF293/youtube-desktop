@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettings } from "../../common/stores/settings";
-import Spinner from "../../common/components/Spinner";
+import { RowSkeleton } from "../components/VideoCards";
 import Img from "../../common/components/Img";
 import { useDownloads } from "../../common/stores/downloads";
 import type { ManifestEntry } from "../../common/types/offline";
@@ -38,7 +38,7 @@ export default function OfflineView() {
       {error ? (
         <ErrorState title="清单读取失败" desc={error} onRetry={refresh} />
       ) : entries === null ? (
-        <Spinner label="扫描离线视频…" />
+        <RowSkeleton rows={6} />
       ) : (
         <>
           {activeTasks.length > 0 && (

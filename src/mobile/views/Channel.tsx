@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useChannel } from "../../common/stores/channel";
 import { bestThumb, formatCount } from "../../common/lib/format";
 import Img from "../../common/components/Img";
-import Spinner from "../../common/components/Spinner";
+import { RowSkeleton } from "../components/VideoCards";
 import MobileNavBar from "../components/MobileNavBar";
 import { RowCard } from "../components/VideoCards";
 import { EmptyState, ErrorState } from "../components/StateViews";
@@ -27,6 +27,7 @@ export default function ChannelView() {
   return (
     <div className="m-page">
       <MobileNavBar
+        className="m-nav--sticky"
         title={<span className="truncate">{detail?.snippet.title ?? "博主主页"}</span>}
         left={
           <button
@@ -41,15 +42,25 @@ export default function ChannelView() {
       />
 
       {status === "loading" || status === "idle" ? (
-        <Spinner label="加载频道…" />
+        <>
+          {/* 频道信息骨架：头像圆 + 两行文字（对齐下方信息岛）+ 行卡骨架 */}
+          <div className="flex items-center gap-3 border-b border-line bg-surface px-3.5 py-3.5">
+            <div className="h-14 w-14 shrink-0 animate-pulse rounded-full bg-flat" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3.5 w-1/3 animate-pulse rounded bg-flat" />
+              <div className="mt-2 h-3 w-1/4 animate-pulse rounded bg-flat" />
+            </div>
+          </div>
+          <RowSkeleton rows={6} />
+        </>
       ) : status === "error" ? (
         <ErrorState desc={error} onRetry={() => void channel.load(channelId)} />
       ) : !detail ? (
         <EmptyState illust="👤" title="博主不存在" desc="频道可能已注销或链接有误" />
       ) : (
         <>
-          {/* 频道信息岛 + Tab chips 固定头：sticky 吸顶，列表滚动时保持不动 */}
-          <div className="sticky top-0 z-10">
+          {/* 频道信息岛 + Tab chips 固定头：sticky 吸顶（top 让出吸顶 navbar），列表滚动时保持不动 */}
+          <div className="m-sticky-under-nav sticky z-10">
           {/* 频道信息岛 */}
           <div className="flex items-center gap-3 border-b border-line bg-surface px-3.5 py-3.5">
             <Img
@@ -108,7 +119,7 @@ export default function ChannelView() {
               </div>
             )
           ) : playlistsStatus === "loading" || playlistsStatus === "idle" ? (
-            <Spinner label="加载播放列表…" />
+            <RowSkeleton rows={4} />
           ) : playlistsStatus === "error" ? (
             <ErrorState desc={error} onRetry={() => channel.setTab("playlists")} />
           ) : playlists.length === 0 ? (

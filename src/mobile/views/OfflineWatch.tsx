@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { useSettings } from "../../common/stores/settings";
-import Spinner from "../../common/components/Spinner";
+import PlayerSkeleton from "../../common/components/PlayerSkeleton";
 import { EmptyState } from "../components/StateViews";
 import Icon from "../../common/components/Icon";
 import type { ManifestEntry } from "../../common/types/offline";
@@ -28,7 +28,7 @@ export default function OfflineWatchView() {
   return (
     <div className="bg-app">
       {status === "loading" ? (
-        <Spinner label="加载离线视频…" />
+        <PlayerSkeleton />
       ) : status === "error" || !entry ? (
         <EmptyState illust="⭳" title="视频不存在" desc="可能已被删除，去「我的 → 离线下载」看看" />
       ) : (

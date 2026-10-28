@@ -130,7 +130,7 @@ export default function MeView() {
 
   const stats = [
     { label: "订阅", value: channels.length, to: "/subscriptions" },
-    { label: "收藏", value: favCount, to: null },
+    { label: "收藏", value: favCount, to: "/favorites" },
     { label: "待看", value: wlCount, to: "/watchlater" },
     { label: "离线", value: dlCount, to: null },
   ];
@@ -168,7 +168,7 @@ export default function MeView() {
 
       {/* 内容库菜单 */}
       <div className="mx-3.5 mt-2.5 overflow-hidden rounded-2xl bg-surface shadow-island">
-        <MenuItem icon="star" title="收藏夹" desc={`${favCount} 个视频`} disabled />
+        <MenuItem icon="star" title="收藏夹" desc={`${favCount} 个视频`} onClick={() => navigate("/favorites")} />
         <MenuItem icon="subscriptions" title="历史记录" desc="保留最近 7 天" onClick={() => navigate("/history")} />
         <MenuItem
           icon="download"

@@ -9,7 +9,9 @@ import { useWatchLater } from "../../common/stores/watchLater";
 import DownloadModal from "../components/DownloadModal";
 import ConfirmDialog from "../../common/components/ConfirmDialog";
 import { VideoRow } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { ErrorBox } from "../../common/components/Spinner";
+import { VideoRowSkeleton } from "../components/VideoCard";
+import PlayerSkeleton from "../../common/components/PlayerSkeleton";
 import Icon from "../../common/components/Icon";
 import { bestThumb, formatCount, formatDate, formatViews, parseDuration } from "../../common/lib/format";
 import { openExternal } from "../../common/lib/open";
@@ -94,7 +96,7 @@ export default function Watch() {
     });
   }, [playerVideo, videoId]);
 
-  if (player.status === "loading") return <Spinner label="加载视频…" />;
+  if (player.status === "loading") return <PlayerSkeleton />;
   if (player.status === "error" || !player.video) {
     return <ErrorBox message={player.error || "视频加载失败"} onRetry={() => void player.load(videoId)} />;
   }
@@ -279,7 +281,20 @@ export default function Watch() {
         {/* 评论 */}
         <section className="mt-5">
           <h2 className="text-base font-semibold text-ink">评论</h2>
-          {player.commentsStatus === "loading" && <Spinner label="加载评论…" />}
+          {player.commentsStatus === "loading" && (
+            <div className="mt-4 flex flex-col gap-4">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-flat" />
+                  <div className="min-w-0 flex-1">
+                    <div className="h-3 w-24 animate-pulse rounded bg-flat" />
+                    <div className="mt-2 h-3 w-full animate-pulse rounded bg-flat" />
+                    <div className="mt-1.5 h-3 w-2/3 animate-pulse rounded bg-flat" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {player.commentsStatus === "error" && (
             <p className="mt-2 text-sm text-ink-2">评论加载失败：{player.error}</p>
           )}
@@ -312,7 +327,7 @@ export default function Watch() {
       {/* 右列：相关视频 */}
       <aside className="w-full shrink-0 xl:w-[400px]">
         <h2 className="mb-1 text-base font-semibold text-ink">相关视频</h2>
-        {player.relatedStatus === "loading" && <Spinner label="加载相关视频…" />}
+        {player.relatedStatus === "loading" && <VideoRowSkeleton rows={4} />}
         {player.relatedStatus === "ready" &&
           related.map((v) => <VideoRow key={v.etag} video={v} />)}
         {player.relatedStatus === "ready" && related.length === 0 && (

@@ -2,8 +2,8 @@ import Img from "../../common/components/Img";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useChannel } from "../../common/stores/channel";
-import { VideoCard } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { VideoCard, VideoGridSkeleton, VideoRowSkeleton } from "../components/VideoCard";
+import { ErrorBox } from "../../common/components/Spinner";
 import { bestThumb, formatCount, formatDate } from "../../common/lib/format";
 
 /** 频道页：头图 + 频道信息 + 「视频 / 播放列表」两个 tab */
@@ -16,7 +16,20 @@ export default function Channel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
-  if (channel.status === "loading") return <Spinner label="加载频道…" />;
+  if (channel.status === "loading")
+    return (
+      <div>
+        {/* 频道头骨架：头像圆 + 频道名两行，对齐真实信息头 */}
+        <div className="flex items-center gap-3 px-4 pt-4">
+          <div className="h-16 w-16 shrink-0 animate-pulse rounded-full bg-flat" />
+          <div className="min-w-0 flex-1">
+            <div className="h-4 w-1/4 animate-pulse rounded bg-flat" />
+            <div className="mt-2 h-3 w-1/6 animate-pulse rounded bg-flat" />
+          </div>
+        </div>
+        <VideoGridSkeleton rows={9} />
+      </div>
+    );
   if (channel.status === "error" || !channel.detail) {
     return <ErrorBox message={channel.error || "频道加载失败"} onRetry={() => void channel.load(channelId)} />;
   }
@@ -89,7 +102,7 @@ export default function Channel() {
 
       {tab === "playlists" && (
         <div className="p-4">
-          {channel.playlistsStatus === "loading" && <Spinner label="加载播放列表…" />}
+          {channel.playlistsStatus === "loading" && <VideoRowSkeleton rows={3} />}
           {channel.playlistsStatus === "error" && (
             <p className="text-sm text-ink-2">播放列表加载失败：{channel.error}</p>
           )}

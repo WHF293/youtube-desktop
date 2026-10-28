@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useVideos } from "../../common/stores/videos";
-import Spinner from "../../common/components/Spinner";
+import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { FeedCard, FeedSkeleton } from "../components/VideoCards";import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { videoIdOf } from "../../common/lib/format";
@@ -184,7 +184,7 @@ export default function HomeView() {
           {items.length === 0 && (
             <EmptyState illust="⌕" title="该分类下没有视频" desc="换个分类逛逛吧" />
           )}
-          {loadingMore && <Spinner label="加载更多…" />}
+          {loadingMore && <FeedSkeleton rows={2} />}
           {!nextPageToken && items.length > 0 && (
             <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
           )}
@@ -192,6 +192,8 @@ export default function HomeView() {
       )}
       </div>
       </div>
+      {/* 回到顶部固钉（TabBar 上方 20px，平滑滚动） */}
+      <ScrollTopFab targetId="m-scroll" className="m-fab-top" />
     </div>
   );
 }

@@ -4,7 +4,8 @@ import { usePlayer } from "../../common/stores/player";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration, videoIdOf } from "../../common/lib/format";
-import Spinner from "../../common/components/Spinner";
+import PlayerSkeleton from "../../common/components/PlayerSkeleton";
+import { RowSkeleton } from "../components/VideoCards";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
 import BottomSheet from "../components/BottomSheet";
@@ -65,7 +66,7 @@ export default function WatchView() {
   }, [videoId, load]);
 
   if (status === "loading" || status === "idle") {
-    return <Spinner label="加载视频…" />;
+    return <PlayerSkeleton />;
   }
   if (status === "error" || !video) {
     return (
@@ -242,7 +243,7 @@ export default function WatchView() {
           相关视频
         </h2>
         {relatedStatus === "loading" ? (
-          <Spinner label="加载相关视频…" />
+          <RowSkeleton rows={4} />
         ) : relatedStatus === "error" ? (
           <p className="p-4 text-xs text-ink-3">相关视频加载失败</p>
         ) : (
@@ -274,7 +275,11 @@ export default function WatchView() {
       {/* 下载清晰度 sheet（ANDROID_VR 提取流；保存目录 M4 指到 appDataDir/offline） */}
       <BottomSheet open={dlOpen} onClose={() => setDlOpen(false)} title="选择下载清晰度">
         {dlLoading ? (
-          <Spinner label="正在提取可用清晰度…" />
+          <div className="flex flex-col gap-2 py-1">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="h-11 animate-pulse rounded-xl bg-flat" />
+            ))}
+          </div>
         ) : dlError ? (
           <p className="py-3 text-[12.5px] text-accent">{dlError}</p>
         ) : (

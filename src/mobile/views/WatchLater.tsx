@@ -35,6 +35,8 @@ export default function WatchLaterView() {
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [statusFor, setStatusFor] = useState<string | null>(null);
+  // 标题关键字过滤（与收藏页同款搜索行）
+  const [q, setQ] = useState("");
   // 排序模式 + 排序选择 sheet + 按状态分组时的区块收起态
   const [sort, setSort] = useState<SortMode>(lastSort);
   const [sortOpen, setSortOpen] = useState(false);
@@ -57,10 +59,13 @@ export default function WatchLaterView() {
     setSortOpen(false);
   };
 
+  const kw = q.trim().toLowerCase();
+  const filtered = kw ? entries.filter((e) => e.title.toLowerCase().includes(kw)) : entries;
+
   // 按观看状态分组：组序固定 待看→看一半→看完，组内按添加时间倒序；空组不显示
   const statusSections = WATCH_LATER_STATUS_ORDER.map((s) => ({
     status: s,
-    list: entries.filter((e) => e.status === s),
+    list: filtered.filter((e) => e.status === s),
   })).filter((sec) => sec.list.length > 0);
 
   const target = entries.find((e) => e.videoId === removing);
@@ -97,8 +102,22 @@ export default function WatchLaterView() {
 
   return (
     <div className="m-page">
+      {/* 搜索行：吸顶（让出 navbar），按标题关键字过滤 */}
+      <div className="m-sticky-under-nav sticky z-10 border-b border-line bg-surface px-3.5 py-2">
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="搜索待看标题…"
+          enterKeyHint="search"
+          className="w-full rounded-full bg-flat px-3.5 py-2 text-[13px] text-ink outline-none placeholder:text-ink-3"
+        />
+      </div>
+
       {entries.length === 0 ? (
         <EmptyState illust="◷" title="待看清单还是空的" desc="刷到感兴趣的视频，点「◷ 待看」就能存进这里" />
+      ) : filtered.length === 0 ? (
+        <EmptyState illust="🔍" title="没有匹配的待看" desc={`没有标题包含「${q.trim()}」的待看视频`} />
       ) : sort === "status" ? (
         <>
           {/* 按观看状态分组：区块头（chevron 展开收起 + 计数）+ 区块间隔 */}
@@ -141,17 +160,21 @@ export default function WatchLaterView() {
             );
           })}
           <p className="py-4 text-center text-xs text-ink-3">
-            共 {entries.length} 个 · 待看 {entries.filter((e) => e.status === "todo").length}
+            {kw
+              ? `匹配 ${filtered.length} / ${entries.length} 个`
+              : `共 ${entries.length} 个 · 待看 ${entries.filter((e) => e.status === "todo").length}`}
           </p>
         </>
       ) : (
         <>
           {/* 自然排序：按添加时间倒序（store 追加置顶的原顺序） */}
           <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
-            {entries.map(entryCard)}
+            {filtered.map(entryCard)}
           </div>
           <p className="py-4 text-center text-xs text-ink-3">
-            共 {entries.length} 个 · 待看 {entries.filter((e) => e.status === "todo").length}
+            {kw
+              ? `匹配 ${filtered.length} / ${entries.length} 个`
+              : `共 ${entries.length} 个 · 待看 ${entries.filter((e) => e.status === "todo").length}`}
           </p>
         </>
       )}

@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { useVideos } from "../../common/stores/videos";
 import { registerPageRefresh } from "../../common/lib/refresh";
 import GlassChipGroup from "../../common/components/GlassChipGroup";
+import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { VideoGrid } from "../components/VideoCard";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { ErrorBox } from "../../common/components/Spinner";
+import { VideoGridSkeleton } from "../components/VideoCard";
 
 /** 首页分类 tab（YouTube 官方 videoCategoryId）；「新闻」分类内容跟随地区（InnerTube 搜索地区化） */
 const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
@@ -92,7 +94,7 @@ export default function Home() {
       </div>
 
       {status === "loading" || status === "idle" ? (
-        <Spinner label="加载推荐视频…" />
+        <VideoGridSkeleton rows={12} />
       ) : status === "error" ? (
         <ErrorBox message={error} onRetry={() => void loadPopular(category)} />
       ) : (
@@ -102,12 +104,17 @@ export default function Home() {
           ) : (
             <VideoGrid videos={items} />
           )}
-          {loadingMore && <Spinner label="加载更多…" />}
+          {loadingMore && <VideoGridSkeleton rows={2} />}
           {!nextPageToken && items.length > 0 && (
             <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
           )}
         </>
       )}
+      {/* 回到顶部固钉（平滑滚动） */}
+      <ScrollTopFab
+        targetId="main-scroll"
+        className="glass-btn fixed bottom-6 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-full text-ink-2"
+      />
     </div>
   );
 }

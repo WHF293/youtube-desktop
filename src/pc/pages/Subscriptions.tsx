@@ -4,9 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels, type SubChannel } from "../../common/stores/channels";
 import { registerPageRefresh } from "../../common/lib/refresh";
-import { VideoRow } from "../components/VideoCard";
+import { VideoRow, VideoRowSkeleton } from "../components/VideoCard";
 import Icon from "../../common/components/Icon";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import ScrollTopFab from "../../common/components/ScrollTopFab";
+import { ErrorBox } from "../../common/components/Spinner";
 
 /** 订阅页（FreeTube 模式，Islands 双岛布局）：左侧订阅视频流岛 +
  *  右侧「我的博主」分组岛（可整体收起为头像列）。左右各自独立滚动。
@@ -161,7 +162,7 @@ function FreeTubeFeed() {
   return (
     <div className="flex h-full min-h-0 gap-2.5 p-2.5">
       {/* 左岛：标题 + 视频流（独立滚动） */}
-      <section className="flex min-w-0 flex-1 flex-col rounded-2xl bg-surface shadow-island">
+      <section className="relative flex min-w-0 flex-1 flex-col rounded-2xl bg-surface shadow-island">
         <header className="shrink-0 px-4 pb-2 pt-4">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-lg font-semibold text-ink">订阅</h1>
@@ -185,7 +186,7 @@ function FreeTubeFeed() {
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-2 pt-0">
           {status === "loading" || status === "idle" ? (
-            <Spinner label="拉取订阅更新…" />
+            <VideoRowSkeleton rows={6} />
           ) : status === "error" ? (
             <ErrorBox message={error} onRetry={() => void load()} />
           ) : (
@@ -231,6 +232,11 @@ function FreeTubeFeed() {
             </>
           )}
         </div>
+        {/* 回到顶部固钉（左岛视频流滚动容器；平滑滚动） */}
+        <ScrollTopFab
+          targetId="main-scroll"
+          className="glass-btn absolute bottom-5 left-1/2 z-30 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full text-ink-2"
+        />
       </section>
 
       {/* 右岛：我的博主（分组展示，可整体收起为头像列，宽度带过渡动画；内部独立滚动） */}

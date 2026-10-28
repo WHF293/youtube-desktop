@@ -81,6 +81,11 @@ export default function WatchLater() {
   const entries = useWatchLater((s) => s.entries);
   const remove = useWatchLater((s) => s.remove);
   const [confirmRemove, setConfirmRemove] = useState<WatchLaterEntry | null>(null);
+  // 标题关键字过滤（与收藏页同款搜索框）
+  const [q, setQ] = useState("");
+
+  const kw = q.trim().toLowerCase();
+  const filtered = kw ? entries.filter((e) => e.title.toLowerCase().includes(kw)) : entries;
 
   const todoCount = entries.filter((e) => e.status === "todo").length;
 
@@ -96,6 +101,16 @@ export default function WatchLater() {
           {entries.length > 0 && ` 其中待看 ${todoCount} 条。`}
         </p>
 
+        {entries.length > 0 && (
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="搜索标题关键字…"
+            className="mt-3 w-full rounded-xl border border-line bg-app px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-accent"
+          />
+        )}
+
         {entries.length === 0 && (
           <div className="mt-6 rounded-2xl border border-dashed border-line p-8 text-center text-sm text-ink-2">
             <p className="font-medium text-ink">待看列表是空的</p>
@@ -103,8 +118,14 @@ export default function WatchLater() {
           </div>
         )}
 
+        {entries.length > 0 && filtered.length === 0 && (
+          <p className="mt-6 rounded-2xl border border-dashed border-line p-6 text-center text-sm text-ink-3">
+            没有标题包含「{q.trim()}」的待看视频
+          </p>
+        )}
+
         <div className="mt-4 flex flex-col gap-2">
-          {entries.map((e) => (
+          {filtered.map((e) => (
             <Row key={e.videoId} entry={e} onRemove={setConfirmRemove} />
           ))}
         </div>

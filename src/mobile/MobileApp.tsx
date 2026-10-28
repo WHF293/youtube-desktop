@@ -19,6 +19,7 @@ import WatchView from "./views/Watch";
 import SearchView from "./views/Search";
 import HistoryView from "./views/History";
 import WatchLaterView from "./views/WatchLater";
+import FavoritesView from "./views/Favorites";
 import MeView from "./views/Me";
 import OfflineView from "./views/Offline";
 import OfflineWatchView from "./views/OfflineWatch";
@@ -32,7 +33,8 @@ const TAB_PATHS = new Set(["/", "/subscriptions", "/watchlater", "/me"]);
 function activeTabOf(pathname: string): string {
   if (TAB_PATHS.has(pathname)) return pathname;
   if (pathname.startsWith("/subscriptions")) return "/subscriptions";
-  if (pathname.startsWith("/search") || pathname === "/history") return "/me";
+  if (pathname.startsWith("/search") || pathname === "/history" || pathname === "/favorites")
+    return "/me";
   if (pathname.startsWith("/offline")) return "/me";
   return "/";
 }
@@ -167,6 +169,8 @@ export default function MobileApp() {
             <span>订阅</span>
           ) : pathname === "/history" ? (
             <span>历史</span>
+          ) : pathname === "/favorites" ? (
+            <span>收藏</span>
           ) : pathname === "/watchlater" ? (
             <span>待看</span>
           ) : pathname === "/me" ? (
@@ -184,6 +188,7 @@ export default function MobileApp() {
           // 二级页（离线下载 / 历史 / 订阅管理 / 视频详情）带返回箭头；根 Tab 页无
           pathname.startsWith("/offline") ||
           pathname === "/history" ||
+          pathname === "/favorites" ||
           pathname.startsWith("/watch/") ||
           pathname.startsWith("/subscriptions/") ? (
             <button
@@ -317,6 +322,7 @@ export default function MobileApp() {
             <Route path="/channel/:channelId" element={<ChannelView />} />
             <Route path="/search" element={<SearchView />} />
             <Route path="/history" element={<HistoryView />} />
+            <Route path="/favorites" element={<FavoritesView />} />
             <Route path="/watchlater" element={<WatchLaterView />} />
             <Route path="/me" element={<MeView />} />
             <Route path="/offline" element={<OfflineView />} />

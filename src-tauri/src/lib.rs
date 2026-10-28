@@ -119,16 +119,18 @@ async fn yt_fetch(
     Ok(FetchResult { status, body })
 }
 
-/// 图片磁盘缓存路径：%LOCALAPPDATA%/youtube-desktop/img-cache/<fnv1a(url)>.img
-/// 头像等不常变化的图片跨会话缓存，避免每次启动重新请求（30 天过期）
-fn image_cache_path(url: &str) -> Option<std::path::PathBuf> {
-    let base = std::env::var("LOCALAPPDATA").ok()?;
+/// 图片磁盘缓存路径：<app_cache_dir>/img-cache/<fnv1a(url)>.img
+/// 头像等不常变化的图片跨会话缓存，避免每次启动重新请求（30 天过期）。
+/// 用 Tauri 的 app_cache_dir 而非 LOCALAPPDATA 环境变量：Android 上没有该变量，
+/// 之前会导致移动端磁盘缓存永远不命中、每次启动重新拉全部头像。
+fn image_cache_path(app: &tauri::AppHandle, url: &str) -> Option<std::path::PathBuf> {
+    let dir = app.path().app_cache_dir().ok()?;
     let mut h: u64 = 0xcbf2_9ce4_8422_2325; // FNV-1a 64
     for b in url.as_bytes() {
         h ^= *b as u64;
         h = h.wrapping_mul(0x0000_0100_0000_01b3);
     }
-    Some(std::path::Path::new(&base).join("youtube-desktop").join("img-cache").join(format!("{h:016x}.img")))
+    Some(dir.join("img-cache").join(format!("{h:016x}.img")))
 }
 
 /// bytes → data URL（按文件头识别 MIME）
@@ -142,6 +144,7 @@ fn to_data_url(bytes: &[u8]) -> String {
 /// 只放行 IMG_HOSTS 白名单域名，防止被当通用代理用。
 #[tauri::command]
 async fn yt_image(
+    app: tauri::AppHandle,
     url: String,
     proxy: String,
     http: State<'_, HttpClient>,
@@ -162,7 +165,7 @@ async fn yt_image(
     }
 
     // 磁盘缓存命中（30 天内）直接回填
-    let disk = image_cache_path(&url);
+    let disk = image_cache_path(&app, &url);
     if let Some(p) = &disk {
         if let Ok(meta) = std::fs::metadata(p) {
             let fresh = meta
@@ -807,7 +810,10 @@ fn build_main_window(app: &tauri::App) -> tauri::Result<()> {
         .inner_size(1360.0, 860.0)
         .min_inner_size(900.0, 600.0)
         .resizable(true)
-        .decorations(false);
+        .decorations(false)
+        // 禁用触屏双指捏合缩放（--disable-pinch；前三个 disable-features 是 wry 的 Windows 默认参数，
+        // 自定义 additional_browser_args 后会被整体替换，需一并带上）
+        .additional_browser_args("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-pinch");
     if let Some(p) = read_webview_proxy() {
         match p.parse::<tauri::Url>() {
             Ok(u) => builder = builder.proxy_url(u),

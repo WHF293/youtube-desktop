@@ -9,7 +9,8 @@ import { registerPageRefresh } from "../../common/lib/refresh";
 import type { ManifestEntry } from "../../common/types/offline";
 import Img from "../../common/components/Img";
 import Icon from "../../common/components/Icon";
-import Spinner, { ErrorBox } from "../../common/components/Spinner";
+import { ErrorBox } from "../../common/components/Spinner";
+import { VideoRowSkeleton } from "../components/VideoCard";
 import { formatBytes } from "../../common/lib/format";
 
 /**
@@ -236,9 +237,7 @@ export default function Offline() {
         {/* 模块二：下载完成（清单 ∩ 目录扫描） */}
         <section className="mt-5">
           <h2 className="text-sm font-medium text-ink-2">下载完成（{entries?.length ?? 0}）</h2>
-          {entries === null && !error && (
-            <Spinner label="扫描下载目录…" />
-          )}
+          {entries === null && !error && <VideoRowSkeleton rows={4} />}
           {entries !== null && (
             <div className="mt-2 flex flex-col gap-2">
               {entries.map((v) => (
