@@ -74,6 +74,24 @@ if (!manifest.includes("android:resizeableActivity")) {
 
 writeFileSync(manifestPath, manifest);
 
+/* ---------- 1.5 app/build.gradle.kts：compileSdk / targetSdk 提到 37 ---------- */
+// 模板默认 compileSdk 较低，AndroidManifest 里的 android:supportsSizeChanges
+// （API 34 才进 android.jar）在 AAPT 资源链接阶段报 "attribute not found"；
+// 本地已实测 37 可通过，CI 重新 init 后由本补丁拉齐。
+const appGradlePath = join(pkgDir, "app", "build.gradle.kts");
+let appGradle = readFileSync(appGradlePath, "utf8");
+const SDK_LEVEL = "37";
+if (
+  !appGradle.includes(`compileSdk = ${SDK_LEVEL}`) ||
+  !appGradle.includes(`targetSdk = ${SDK_LEVEL}`)
+) {
+  appGradle = appGradle
+    .replace(/compileSdk\s*=\s*\d+/, `compileSdk = ${SDK_LEVEL}`)
+    .replace(/targetSdk\s*=\s*\d+/, `targetSdk = ${SDK_LEVEL}`);
+  writeFileSync(appGradlePath, appGradle);
+  actions.push(`build.gradle.kts: compileSdk/targetSdk 提到 ${SDK_LEVEL}`);
+}
+
 /* ---------- 2. MainActivity.kt（整文件覆写，该文件本就由用户所有） ---------- */
 const MAIN_ACTIVITY = `package com.whf.youtube_desktop
 
