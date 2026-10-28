@@ -75,14 +75,16 @@ export async function checkForUpdate(kind: "exe" | "apk" = "exe"): Promise<Updat
   if (!isNewer(latest, current)) return null;
   const suffix = kind === "apk" ? ".apk" : "-setup.exe";
   const asset = rel.assets?.find((a) => a.name.endsWith(suffix));
-  if (!asset) throw new Error(`最新版本未提供${kind === "apk" ? " APK" : "安装包"}`);
+  if (!asset && kind !== "apk") throw new Error("最新版本未提供安装包");
+  // 移动端资产缺失（CI 尚未传完 APK）不报错：移动流程本就跳浏览器到 Release 页手动下载，
+  // 给出页面地址即可；size=0 时 UI 隐藏体积展示
   return {
     current,
     latest,
     notes: rel.body ?? "",
-    url: asset.browser_download_url,
-    filename: asset.name,
-    size: asset.size,
+    url: asset?.browser_download_url ?? rel.html_url ?? "https://github.com/WHF293/youtube-desktop/releases/latest",
+    filename: asset?.name ?? "apk",
+    size: asset?.size ?? 0,
     pageUrl: rel.html_url ?? "https://github.com/WHF293/youtube-desktop/releases/latest",
   };
 }

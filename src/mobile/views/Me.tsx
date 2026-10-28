@@ -261,7 +261,8 @@ export default function MeView() {
             <p className="text-[14px] font-bold text-ink">
               发现新版本 v{updateState.latest}
               <span className="ml-2 text-[11px] font-normal text-ink-3">
-                当前 v{updateState.current} · {(updateState.size / 1024 / 1024).toFixed(1)} MB
+                当前 v{updateState.current}
+                {updateState.size > 0 ? ` · ${(updateState.size / 1024 / 1024).toFixed(1)} MB` : ""}
               </span>
             </p>
             <p className="mt-2 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-xl bg-flat p-2.5 text-[11.5px] leading-relaxed text-ink-2">
