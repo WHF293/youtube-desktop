@@ -886,6 +886,18 @@ pub fn run() {
             // 主窗口创建：Windows 桌面按代理配置建 WebView（tauri.conf.json 不声明窗口）；
             // Android 窗口由 tauri.android.conf.json 声明创建（见 build_main_window 注释）
             build_main_window(app)?;
+
+            // Android：清理上次应用内更新下载的 APK 安装包（cache/apk/）。
+            // 系统安装器弹出后拿不到安装结果回调，统一在下次启动时删除——
+            // 安装成功包已无用；安装失败用户重新下载即可，不留残留占空间
+            #[cfg(not(windows))]
+            {
+                use tauri::Manager;
+                let apk_dir = app.path().cache_dir().ok().map(|d| d.join("apk"));
+                if let Some(dir) = apk_dir {
+                    let _ = std::fs::remove_dir_all(dir);
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
