@@ -20,6 +20,7 @@ import WatchLaterView from "./views/WatchLater";
 import MeView from "./views/Me";
 import OfflineView from "./views/Offline";
 import OfflineWatchView from "./views/OfflineWatch";
+import ChannelView from "./views/Channel";
 
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用） */
 const TAB_PATHS = new Set(["/", "/subscriptions", "/watchlater", "/me"]);
@@ -119,9 +120,13 @@ export default function MobileApp() {
   }, [location.pathname, navigate]);
 
   // 顶部 NavBar（对照 UI 稿 A0/A2/A4/A5）：Tab 页标题栏 + 二级页离线返回栏。
-  // 观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 离线观看（播放器全宽）不渲染
+  // 观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 频道页（自带返回栏，标题随频道加载）/
+  // 离线观看（播放器全宽）不渲染
   const navBar =
-    !immersive && pathname !== "/search" && !pathname.startsWith("/offline/watch/") ? (
+    !immersive &&
+    pathname !== "/search" &&
+    !pathname.startsWith("/channel/") &&
+    !pathname.startsWith("/offline/watch/") ? (
       <MobileNavBar
         title={
           pathname.startsWith("/offline") ? (
@@ -197,6 +202,7 @@ export default function MobileApp() {
             <Route path="/home" element={<Navigate to="/" replace />} />
             <Route path="/subscriptions" element={<SubscriptionsView />} />
             <Route path="/watch/:videoId" element={<WatchView />} />
+            <Route path="/channel/:channelId" element={<ChannelView />} />
             <Route path="/search" element={<SearchView />} />
             <Route path="/history" element={<HistoryView />} />
             <Route path="/watchlater" element={<WatchLaterView />} />

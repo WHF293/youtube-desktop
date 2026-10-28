@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { usePlayer } from "../../common/stores/player";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
@@ -161,23 +161,29 @@ export default function WatchView() {
         </p>
       </div>
 
-      {/* 频道行：头像 + 订阅按钮（两步确认） */}
+      {/* 频道行：头像 + 订阅按钮（两步确认）；头像/频道名点击进博主主页 */}
       <div className="flex items-center gap-2.5 border-b border-line bg-surface px-3.5 py-2.5">
-        {channel?.snippet?.thumbnails ? (
-          <Img
-            src={bestThumb(channel.snippet)}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-full bg-flat object-cover"
-          />
-        ) : (
-          <AvatarBadge name={video.snippet.channelTitle} size={40} />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-bold text-ink">
-            {video.snippet.channelTitle}
-          </p>
-          {v && <p className="text-[11px] text-ink-2">{formatCount(v)}位订阅者</p>}
-        </div>
+        <Link
+          to={`/channel/${channelId}`}
+          className="flex min-w-0 flex-1 items-center gap-2.5 active:opacity-70"
+          aria-label={`前往 ${video.snippet.channelTitle} 主页`}
+        >
+          {channel?.snippet?.thumbnails ? (
+            <Img
+              src={bestThumb(channel.snippet)}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-full bg-flat object-cover"
+            />
+          ) : (
+            <AvatarBadge name={video.snippet.channelTitle} size={40} />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13.5px] font-bold text-ink">
+              {video.snippet.channelTitle}
+            </p>
+            {v && <p className="text-[11px] text-ink-2">{formatCount(v)}位订阅者</p>}
+          </div>
+        </Link>
         <button
           type="button"
           onClick={toggleSubscribe}

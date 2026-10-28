@@ -44,7 +44,9 @@ export function FeedCard({ video }: { video: VideoItem }) {
         )}
       </Link>
       <div className="flex gap-2.5 px-3.5 pb-2.5 pt-2.5">
-        <AvatarBadge name={video.snippet.channelTitle} />
+        <Link to={`/channel/${video.snippet.channelId}`} aria-label={`进入 ${video.snippet.channelTitle} 主页`} className="shrink-0">
+          <AvatarBadge name={video.snippet.channelTitle} />
+        </Link>
         <Link to={`/watch/${id}`} className="min-w-0 flex-1">
           <p className="clamp-2 text-[14px] font-bold leading-[1.4] text-ink">{title}</p>
           <p className="mt-1 text-[11.5px] text-ink-2">

@@ -35,11 +35,16 @@ export default function SubscriptionsView() {
 
   return (
     <div className="m-page">
-      {/* 博主横滑岛（桌面右栏博主岛的移动形态；M3 接频道页跳转） */}
+      {/* 博主横滑岛（桌面右栏博主岛的移动形态）；点击进博主主页 */}
       {channels.length > 0 && (
         <div className="flex gap-3.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-3">
           {channels.map((c) => (
-            <div key={c.id} className="flex w-15 flex-col items-center gap-1.5">
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => navigate(`/channel/${c.id}`)}
+              className="flex w-15 shrink-0 flex-col items-center gap-1.5"
+            >
               {c.thumb ? (
                 <Img
                   src={c.thumb}
@@ -52,7 +57,7 @@ export default function SubscriptionsView() {
               <span className="w-15 truncate text-center text-[10.5px] text-ink-2">
                 {c.title}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       )}
