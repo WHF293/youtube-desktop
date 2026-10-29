@@ -340,8 +340,9 @@ export function installDevMock() {
     error: "",
     nextPageToken: null,
     loadingMore: false,
-    loadPopular: async () => {
-      useVideos.setState({ status: "ready", items: MOCK_FEED, error: "", nextPageToken: null });
+    loadPopular: async (categoryId?: string) => {
+      // 与真实 store 对齐：同步 category（分类 chips 高亮 / 左右滑切换依赖它）
+      useVideos.setState({ category: categoryId, status: "ready", items: MOCK_FEED, error: "", nextPageToken: null });
     },
     loadMorePopular: async () => {},
   });

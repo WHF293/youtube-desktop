@@ -31,20 +31,13 @@ export default function SubscriptionsView() {
     ...groups.map((g) => ({ key: g.id, name: g.name })),
   ];
   // 列表左右滑切换分组（与 chips 同序；首尾边界不循环，见 useSwipeSwitch）。
-  // 切换带过渡：先滑入骨架屏 240ms，动画结束才切分组发真实请求
+  // swiper 式：拖拽跟手 + 两侧骨架屏随动，松手过阈值滑入相邻骨架屏、动画结束才发
+  // 真实请求，不够回弹
   const chipIndex = Math.max(0, chipOptions.findIndex((g) => g.key === chip));
-  const [swipeAnim, setSwipeAnim] = useState<"next" | "prev" | null>(null);
-  const swipeRef = useSwipeSwitch<HTMLDivElement>({
+  const { ref: swipeRef, phase: swipePhase, containerStyle } = useSwipeSwitch<HTMLDivElement>({
     count: chipOptions.length,
     index: chipIndex,
-    onChange: (next) => {
-      if (swipeAnim !== null) return;
-      setSwipeAnim(next > chipIndex ? "next" : "prev");
-      window.setTimeout(() => {
-        setChip(chipOptions[next].key);
-        setSwipeAnim(null);
-      }, 240);
-    },
+    onChange: (next) => setChip(chipOptions[next].key),
   });
   // 头像联动：顶部博主岛只显示当前选中分组下的博主（全部 = 全部；未分组 = 无分组）
   const shownChannels =
@@ -189,40 +182,48 @@ export default function SubscriptionsView() {
         </div>
       </div>
 
-      {/* 更新流：列表区左右滑切换分组（手势只绑此处，不碰顶部横滑岛/chips） */}
-      <div ref={swipeRef}>
-      {swipeAnim !== null ? (
-        /* 切换过渡：骨架屏从滑动方向滑入，动画结束才切分组发真实请求 */
-        <div className={swipeAnim === "next" ? "m-swipe-next" : "m-swipe-prev"}>
-          <RowSkeleton />
-        </div>
-      ) : failed.length > 0 && (
-        <p className="bg-flat px-3.5 py-2 text-[11px] text-ink-3">
-          {failed.length} 个频道更新拉取失败：{failed.slice(0, 3).join("、")}
-          {failed.length > 3 ? " 等" : ""}
-        </p>
-      )}
+      {/* 更新流：列表区左右滑切换分组（手势只绑此处，不碰顶部横滑岛/chips）。
+          swiper 式容器：pan-y + overflow-x-clip，拖拽/过渡期间挂载两侧骨架屏面板 */}
+      <div ref={swipeRef} className="relative overflow-x-clip" style={{ touchAction: "pan-y" }}>
+        <div style={containerStyle}>
+          {swipePhase !== null && chipIndex > 0 && (
+            <div className="absolute inset-y-0 right-full w-full">
+              <RowSkeleton />
+            </div>
+          )}
+          {swipePhase !== null && chipIndex < chipOptions.length - 1 && (
+            <div className="absolute inset-y-0 left-full w-full">
+              <RowSkeleton />
+            </div>
+          )}
 
-      {swipeAnim === null &&
-        (status === "loading" || status === "idle" ? (
-          /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
-          <RowSkeleton />
-        ) : status === "error" ? (
-          <ErrorState desc={error} onRetry={() => void load()} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            illust="▤"
-            title={chip === "all" ? "还没有订阅博主" : "分组内暂无更新"}
-            desc={chip === "all" ? "在观看页点「添加订阅」，或从桌面端导入订阅" : "这个分组下的博主还没有新视频"}
-            action={chip === "all" ? { label: "⌕ 去搜索", onClick: () => navigate("/search") } : undefined}
-          />
-        ) : (
-          <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
-            {items.map((v, i) => (
-              <RowCard key={videoIdOf(v) ?? i} video={v} />
-            ))}
-          </div>
-        ))}
+          {failed.length > 0 && (
+            <p className="bg-flat px-3.5 py-2 text-[11px] text-ink-3">
+              {failed.length} 个频道更新拉取失败：{failed.slice(0, 3).join("、")}
+              {failed.length > 3 ? " 等" : ""}
+            </p>
+          )}
+
+          {status === "loading" || status === "idle" ? (
+            /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
+            <RowSkeleton />
+          ) : status === "error" ? (
+            <ErrorState desc={error} onRetry={() => void load()} />
+          ) : items.length === 0 ? (
+            <EmptyState
+              illust="▤"
+              title={chip === "all" ? "还没有订阅博主" : "分组内暂无更新"}
+              desc={chip === "all" ? "在观看页点「添加订阅」，或从桌面端导入订阅" : "这个分组下的博主还没有新视频"}
+              action={chip === "all" ? { label: "⌕ 去搜索", onClick: () => navigate("/search") } : undefined}
+            />
+          ) : (
+            <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
+              {items.map((v, i) => (
+                <RowCard key={videoIdOf(v) ?? i} video={v} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       </div>
       {/* 回到顶部固钉（TabBar 上方 20px，平滑滚动） */}

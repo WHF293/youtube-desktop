@@ -46,20 +46,13 @@ export default function HomeView() {
 
   // 列表区左右滑切换分类（与 TAB_OPTIONS 同序；首尾边界不循环，见 useSwipeSwitch；
   // 手势只绑 chips 下方内容区，不与 chips 条横向滚动冲突；垂直滑动占优时不触发，
-  // 与触顶下拉刷新共存）。切换带过渡：先滑入骨架屏 240ms，动画结束才发真实请求
+  // 与触顶下拉刷新共存）。swiper 式：拖拽跟手 + 两侧骨架屏随动，松手过阈值滑入
+  // 相邻骨架屏、动画结束才发真实请求，不够回弹
   const swipeIndex = Math.max(0, TAB_OPTIONS.findIndex((o) => (category ?? "") === o.value));
-  const [swipeAnim, setSwipeAnim] = useState<"next" | "prev" | null>(null);
-  const swipeRef = useSwipeSwitch<HTMLDivElement>({
+  const { ref: swipeRef, phase: swipePhase, containerStyle } = useSwipeSwitch<HTMLDivElement>({
     count: TAB_OPTIONS.length,
     index: swipeIndex,
-    onChange: (next) => {
-      if (swipeAnim !== null) return;
-      setSwipeAnim(next > swipeIndex ? "next" : "prev");
-      window.setTimeout(() => {
-        pickCategory(TAB_OPTIONS[next].value || undefined);
-        setSwipeAnim(null);
-      }, 240);
-    },
+    onChange: (next) => pickCategory(TAB_OPTIONS[next].value || undefined),
   });
 
   // 触底加载（提前 600px 预取）：桌面端 IntersectionObserver 在 WebView2 实测不触发，
@@ -162,34 +155,43 @@ export default function HomeView() {
         ))}
       </div>
 
-      <div ref={swipeRef}>
-        {swipeAnim !== null ? (
-          /* 切换过渡：骨架屏从滑动方向滑入，动画结束才切数据源发真实请求 */
-          <div className={swipeAnim === "next" ? "m-swipe-next" : "m-swipe-prev"}>
+      {/* swiper 式切换容器：pan-y 让纵向滚动走原生；overflow-x-clip 裁掉两侧
+          骨架屏（不产生滚动容器，不影响触底加载），拖拽/过渡期间才挂载两侧面板 */}
+      <div ref={swipeRef} className="relative overflow-x-clip" style={{ touchAction: "pan-y" }}>
+        <div style={containerStyle}>
+          {swipePhase !== null && swipeIndex > 0 && (
+            <div className="absolute inset-y-0 right-full w-full">
+              <FeedSkeleton />
+            </div>
+          )}
+          {swipePhase !== null && swipeIndex < TAB_OPTIONS.length - 1 && (
+            <div className="absolute inset-y-0 left-full w-full">
+              <FeedSkeleton />
+            </div>
+          )}
+          {status === "loading" || status === "idle" ? (
+            /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
             <FeedSkeleton />
-          </div>
-        ) : status === "loading" || status === "idle" ? (
-        /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
-        <FeedSkeleton />
-      ) : status === "error" ? (
-        <ErrorState desc={error} onRetry={() => void loadPopular(category)} />
-      ) : (
-        <>
-          {/* 小米断点（UI 稿 A0/A1/A2）：<600 单列全宽；600–840 两列；≥840 三列 */}
-          <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-2.5 tablet:p-2.5 wide:grid-cols-3">
-            {items.map((v, i) => (
-              <FeedCard key={videoIdOf(v) ?? i} video={v} />
-            ))}
-          </div>
-          {items.length === 0 && (
-            <EmptyState illust="⌕" title="该分类下没有视频" desc="换个分类逛逛吧" />
+          ) : status === "error" ? (
+            <ErrorState desc={error} onRetry={() => void loadPopular(category)} />
+          ) : (
+            <>
+              {/* 小米断点（UI 稿 A0/A1/A2）：<600 单列全宽；600–840 两列；≥840 三列 */}
+              <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-2.5 tablet:p-2.5 wide:grid-cols-3">
+                {items.map((v, i) => (
+                  <FeedCard key={videoIdOf(v) ?? i} video={v} />
+                ))}
+              </div>
+              {items.length === 0 && (
+                <EmptyState illust="⌕" title="该分类下没有视频" desc="换个分类逛逛吧" />
+              )}
+              {loadingMore && <FeedSkeleton rows={2} />}
+              {!nextPageToken && items.length > 0 && (
+                <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
+              )}
+            </>
           )}
-          {loadingMore && <FeedSkeleton rows={2} />}
-          {!nextPageToken && items.length > 0 && (
-            <p className="py-6 text-center text-xs text-ink-3">没有更多了</p>
-          )}
-        </>
-      )}
+        </div>
       </div>
       </div>
       {/* 回到顶部固钉（TabBar 上方 20px，平滑滚动） */}
