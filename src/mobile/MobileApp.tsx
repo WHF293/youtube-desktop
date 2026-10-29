@@ -7,6 +7,7 @@ import { useSettings, REGIONS } from "../common/stores/settings";
 import { useHistory } from "../common/stores/history";
 import { refreshChannelsMeta } from "../common/stores/subsFeed";
 import { initDownloads, useDownloads } from "../common/stores/downloads";
+import { useVideoFullscreen } from "../common/stores/videoFullscreen";
 import GlassTabBar from "./components/GlassTabBar";
 import NavigationRail from "./components/NavigationRail";
 import MobileNavBar from "./components/MobileNavBar";
@@ -123,6 +124,11 @@ export default function MobileApp() {
         ).onBackPressed;
         if (typeof onBackPressed !== "function") return;
         unlisten = await onBackPressed.call(win, () => {
+          // 播放器全屏态：返回键先退全屏（原生桥还原竖屏），不走路由后退
+          if (useVideoFullscreen.getState().active) {
+            useVideoFullscreen.getState().setActive(false);
+            return false;
+          }
           if (TAB_PATHS.has(location.pathname)) return true;
           navigate(-1);
           return false;

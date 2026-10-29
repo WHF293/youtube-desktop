@@ -5,6 +5,7 @@ import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration, videoIdOf } from "../../common/lib/format";
 import PlayerSkeleton from "../../common/components/PlayerSkeleton";
+import Icon from "../../common/components/Icon";
 import { RowSkeleton } from "../components/VideoCards";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard } from "../components/VideoCards";
@@ -14,6 +15,7 @@ import { FavGroupSheet } from "./History";
 import { getVideoFormats, type QualityOption } from "../../common/lib/extract";
 import { useFavorites } from "../../common/stores/favorites";
 import { useDownloads } from "../../common/stores/downloads";
+import { useVideoFullscreen } from "../../common/stores/videoFullscreen";
 import { isTauri } from "@tauri-apps/api/core";
 
 /** 移动端观看页：沉浸式无 TabBar。iframe 播放 + 标题 + 频道行（订阅两步确认）+
@@ -57,6 +59,9 @@ export default function WatchView() {
   const [dlError, setDlError] = useState("");
   const [dlPicked, setDlPicked] = useState<QualityOption | null>(null);
   const enqueue = useDownloads((s) => s.enqueue);
+  // 播放器全屏态（自绘按钮接管：Android WebView 里 iframe 播放器自带的全屏按钮无效）
+  const fsActive = useVideoFullscreen((s) => s.active);
+  const setFsActive = useVideoFullscreen((s) => s.setActive);
 
   useEffect(() => {
     void load(videoId);
@@ -64,6 +69,34 @@ export default function WatchView() {
       window.clearTimeout(confirmTimer.current);
     };
   }, [videoId, load]);
+
+  // 全屏态 ↔ 原生桥：进入时强制横屏 + 沉浸系统栏，退出/离开页面时还原。
+  // pad 已是横屏时强制横屏为 no-op，效果就是单纯铺满全屏。
+  // 桥由 patch-android.mjs 注入，桌面/浏览器开发环境缺失时静默跳过（仅 CSS 铺满）。
+  useEffect(() => {
+    const bridge = (
+      window as unknown as {
+        AndroidBridge?: {
+          enterVideoFullscreen?: () => void;
+          exitVideoFullscreen?: () => void;
+        };
+      }
+    ).AndroidBridge;
+    if (typeof bridge?.exitVideoFullscreen !== "function") return;
+    if (fsActive) bridge.enterVideoFullscreen?.();
+    // cleanup 覆盖两种退出路径：切换 fsActive false、组件卸载（路由跳转/杀页面）
+    return () => bridge.exitVideoFullscreen?.();
+  }, [fsActive]);
+
+  // 全屏态 Esc 退出（pad 外接键盘场景）
+  useEffect(() => {
+    if (!fsActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFsActive(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fsActive, setFsActive]);
 
   if (status === "loading" || status === "idle") {
     return <PlayerSkeleton />;
@@ -147,8 +180,16 @@ export default function WatchView() {
       {/* 主列：播放器 + 标题 + 频道行 + 操作；wide 档为双栏左列（UI 稿 A3） */}
       <div className="wide:min-w-0 wide:flex-[1.6]">
       {/* 播放器：静态 iframe（IFrame API 在 WebView2 实测黑屏，桌面同款方案）；
-          Android WebView 无 --proxy-server 注入，挂代理用户画面可能加载不出（见开发方案 §6） */}
-      <div className="relative aspect-video bg-black wide:overflow-hidden wide:rounded-xl">
+          Android WebView 无 --proxy-server 注入，挂代理用户画面可能加载不出（见开发方案 §6）。
+          全屏态：容器固定铺满视口（z 高于 navbar/toast），iframe 不重挂载、播放不中断；
+          横竖屏由原生桥切换（AndroidBridge.enterVideoFullscreen），见上方 effect */}
+      <div
+        className={
+          fsActive
+            ? "fixed inset-0 z-[90] bg-black"
+            : "relative aspect-video bg-black wide:overflow-hidden wide:rounded-xl"
+        }
+      >
         <iframe
           className="h-full w-full"
           src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&cc_load_policy=1&cc_lang_pref=zh-Hans&hl=zh-CN`}
@@ -156,6 +197,15 @@ export default function WatchView() {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
         />
+        {/* 自绘全屏按钮：YouTube 播放器自带的那颗在 Android WebView 无效，盖在其常驻位上 */}
+        <button
+          type="button"
+          aria-label={fsActive ? "退出全屏" : "全屏播放"}
+          onClick={() => setFsActive(!fsActive)}
+          className="absolute bottom-2 right-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white active:bg-black/70"
+        >
+          <Icon name={fsActive ? "fullscreenExit" : "fullscreen"} size={20} />
+        </button>
       </div>
 
       {/* 标题与统计 */}

@@ -10,6 +10,9 @@
  *     真不可见在 onStop 暂停、onStart 成对恢复。
  *  3. 应用内更新链：REQUEST_INSTALL_PACKAGES 权限 + FileProvider（file_paths.xml 暴露
  *     内部缓存 apk/）+ MainActivity 的 AndroidBridge.installApk JS 桥弹系统安装界面。
+ *  4. 视频全屏桥：AndroidBridge.enterVideoFullscreen / exitVideoFullscreen ——
+ *     Android WebView 对 iframe 播放器的 Fullscreen API 不生效（自带全屏按钮无效），
+ *     前端自绘按钮 + CSS 铺满，经此桥强制横屏 + 沉浸系统栏（src/mobile/views/Watch.tsx 消费）。
  *
  * 用法：node scripts/patch-android.mjs（build:apk 已前置自动执行）；
  *      gen/android 缺失时先 `pnpm tauri android init` 再跑本脚本。
@@ -281,6 +284,31 @@ class MainActivity : TauriActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                     }
+                }
+            }
+
+            // 视频全屏桥：移动端观看页自绘全屏按钮调用。Android WebView 对 iframe
+            // 内嵌播放器的 Fullscreen API 不生效（YouTube 播放器自带全屏按钮点了
+            // 无反应，onShowCustomView 也不会触发），由前端 CSS 铺满 + 此桥切横竖屏：
+            // 进入强制横屏（已横屏为 no-op）+ 沉浸系统栏，退出还原
+            @JavascriptInterface
+            fun enterVideoFullscreen() {
+                runOnUiThread {
+                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    WindowInsetsControllerCompat(window, window.decorView).let { c ->
+                        c.hide(WindowInsetsCompat.Type.systemBars())
+                        c.systemBarsBehavior =
+                            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    }
+                }
+            }
+
+            @JavascriptInterface
+            fun exitVideoFullscreen() {
+                runOnUiThread {
+                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    WindowInsetsControllerCompat(window, window.decorView)
+                        .show(WindowInsetsCompat.Type.systemBars())
                 }
             }
         }, "AndroidBridge")
