@@ -466,6 +466,18 @@
 .m-rail {
   display: none;
 }
+/* 二级页（入口不在 TabBar：搜索/历史/收藏/订阅管理/离线/博主详情）：
+   手机档（<600px，tablet 断点以下）隐藏 TabBar 并收窄底部留白；
+   pad 竖屏（≥600px portrait，走手机单列样式）保持现状仍显示 —— 按宽度分流，
+   与 global.css tablet/wide「横屏才生效」的断点口径一致 */
+@media (max-width: 599.98px) {
+  .m-tabbar--secondary {
+    display: none;
+  }
+  .m-body--secondary {
+    padding-bottom: calc(12px + var(--m-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+}
 @media (min-width: 840px) and (orientation: landscape) {
   .m-root {
     flex-direction: row;

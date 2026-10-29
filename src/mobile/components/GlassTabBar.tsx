@@ -27,6 +27,8 @@ export interface GlassTabBarProps {
   active: string;
   /** 「我的」角标：离线下载队列进行中数量（>0 显示） */
   badge?: number;
+  /** 二级页（入口不在 TabBar）：手机档由 CSS 隐藏（pad 竖屏保持显示，见 mobile.css 媒体查询） */
+  secondary?: boolean;
   onSelect: (to: string) => void;
 }
 
@@ -34,7 +36,7 @@ export interface GlassTabBarProps {
  *  气泡支持跟手拖拽：pointerdown 在玻璃底座任意位置 → 越过 slop 进入拖拽（气泡关过渡、
  *  px 级跟手、缩至行程档）→ 松手吸附最近 tab 并跳转 + 回弹恢复（规格同
  *  whf-stock-board MobileTabBar）。位移小于 slop 视为普通点击，行为不变。 */
-export default function GlassTabBar({ active, badge = 0, onSelect }: GlassTabBarProps) {
+export default function GlassTabBar({ active, badge = 0, secondary, onSelect }: GlassTabBarProps) {
   const activeIndex = Math.max(
     0,
     TABS.findIndex((t) => t.to === active),
@@ -180,7 +182,7 @@ export default function GlassTabBar({ active, badge = 0, onSelect }: GlassTabBar
   return (
     <nav
       ref={navRef}
-      className="m-tabbar"
+      className={`m-tabbar${secondary ? " m-tabbar--secondary" : ""}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

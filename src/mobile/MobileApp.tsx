@@ -53,6 +53,9 @@ export default function MobileApp() {
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
   const pathname = location.pathname;
+  // 二级页（入口不在 TabBar：搜索/历史/收藏/订阅管理/离线/博主详情等）：
+  // 手机档隐藏 TabBar（pad 竖屏走手机样式但保持显示，由 mobile.css 媒体查询按宽度分流）
+  const secondary = !immersive && !TAB_PATHS.has(pathname);
 
   // 明暗模式：class 挂在 <html> 上（与桌面同款 theme store）
   useEffect(() => {
@@ -312,7 +315,11 @@ export default function MobileApp() {
       {!immersive && <NavigationRail active={activeTabOf(pathname)} badge={activeCount} />}
       <div className="m-main">
         {navBar}
-        <div id="m-scroll" className="m-body" style={immersive ? { paddingBottom: 12 } : undefined}>
+        <div
+          id="m-scroll"
+          className={`m-body${secondary ? " m-body--secondary" : ""}`}
+          style={immersive ? { paddingBottom: 12 } : undefined}
+        >
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/home" element={<Navigate to="/" replace />} />
@@ -335,6 +342,7 @@ export default function MobileApp() {
         <GlassTabBar
           active={activeTabOf(pathname)}
           badge={activeCount}
+          secondary={secondary}
           onSelect={(to) => navigate(to)}
         />
       )}
