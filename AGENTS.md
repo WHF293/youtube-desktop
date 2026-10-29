@@ -31,7 +31,7 @@ YouTube Desktop：Tauri v2 + React 19 + TypeScript + Zustand + Tailwind CSS v4 �
 
 ```bash
 # 1. 同步 bump 三处版本号（示例：0.2.2 → 0.2.3）
-#    手改 package.json / tauri.conf.json / Cargo.toml，然后：
+#    手改 package.json / tauri.conf.json / Cargo.toml（Cargo.lock 的 version 随下次构建自动同步，可一并提交），然后：
 pnpm build                       # 前端构建 + tsc 检查
 
 # 2. 提交并推送
@@ -39,22 +39,26 @@ git add -A
 git commit -m "release: vX.Y.Z <一句话变更摘要>"
 git push origin main
 
-# 3. 构建安装包（NSIS；bundle.targets 仅 ["nsis"]，不出 MSI）
-pnpm tauri build
-
-# 4. 打 tag 并发布 GitHub Release（上传安装包；APK 由 CI release.yml 自动构建上传）
+# 3. 打 tag 并推送 —— 这是发版的触发点：
+#    CI（release.yml）自动构建 Windows 安装包（nsis）+ Android APK（签名），
+#    并自动创建 GitHub Release 上传全部安装包，无需本地打包、无需 gh release create
 git tag vX.Y.Z
 git push origin vX.Y.Z
-gh release create vX.Y.Z \
-  "src-tauri/target/release/bundle/nsis/YouTube Desktop_X.Y.Z_x64-setup.exe" \
-  --title "vX.Y.Z <标题>" --notes "<release notes：按「新增/修复/说明」分节>"
+
+# 4. 盯 CI 并确认发版成功（两个 job 均 green + Release 资产齐全才算成功）
+gh run watch        # 或 gh run list --workflow=release.yml
+gh release view vX.Y.Z
 ```
 
-Release notes 要点：面向使用者的语言（不写内部实现细节）、分「新增/修复/说明」三节、涉及行为变化时写明迁移提示（如数据自愈、需重启等）。
+注意：本机直连 github.com 常不通，git push / gh 命令必要时走本地代理，如
+`git -c http.proxy=http://127.0.0.1:7897 push origin vX.Y.Z`、
+`HTTPS_PROXY=http://127.0.0.1:7897 gh run watch`。
 
-## 发版成功后清理本地构建缓存（硬性，王总 2026-10-27 指定）
+Release notes 要点：面向使用者的语言（不写内部实现细节）、分「新增/修复/说明」三节、涉及行为变化时写明迁移提示（如数据自愈、需重启等）。CI 的 release notes 生成较简略，发版确认后可手动 `gh release edit` 补充成三节格式。
 
-第 4 步确认成功（GitHub Release 创建完成、两个安装包上传成功）后，**必须**清理 `src-tauri/target/` 构建缓存：
+## 本地构建成功后清理构建缓存（硬性，王总 2026-10-27 指定）
+
+发版不走本地打包，但本地执行过 `pnpm tauri build`（或长期 `tauri dev`）并确认产物已产出/使用后，**必须**清理 `src-tauri/target/` 构建缓存：
 
 ```bash
 cd src-tauri && cargo clean
