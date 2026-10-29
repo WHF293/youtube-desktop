@@ -295,7 +295,40 @@ async fn download_update(
         }
     }
     file.flush().map_err(|e| e.to_string())?;
+    verify_update_download(&dest, downloaded, total, false)?;
     Ok(dest.to_string_lossy().to_string())
+}
+
+/// 下载完整性校验：断流截断的包绝不能进安装链（真机复现：截断 APK 送系统安装器
+/// 报「解析软件包时出现问题 packageInfo is null」）。content-length 已知时比对
+/// 实际落盘字节数；安装包分支再校验 ZIP 魔数（防代理/网关把错误页存成安装包）。
+/// 校验失败删除落盘文件，保证重试从头下载。
+fn verify_update_download(
+    dest: &std::path::Path,
+    downloaded: u64,
+    total: u64,
+    expect_apk: bool,
+) -> Result<(), String> {
+    if total > 0 && downloaded != total {
+        let _ = std::fs::remove_file(dest);
+        return Err(format!("下载不完整（{} / {} 字节），请重试", downloaded, total));
+    }
+    if expect_apk {
+        use std::io::Read;
+        let is_pk = std::fs::File::open(dest)
+            .ok()
+            .and_then(|mut f| {
+                let mut magic = [0u8; 2];
+                f.read_exact(&mut magic).ok()?;
+                Some(&magic == b"PK")
+            })
+            .unwrap_or(false);
+        if !is_pk {
+            let _ = std::fs::remove_file(dest);
+            return Err("下载内容不是有效的安装包（文件头校验失败），请重试".to_string());
+        }
+    }
+    Ok(())
 }
 
 /// 非 Windows（Android）：下载 APK 到应用内部缓存 apk/ 目录，返回路径交前端
@@ -341,6 +374,7 @@ async fn download_update(
         }
     }
     file.flush().map_err(|e| e.to_string())?;
+    verify_update_download(&dest, downloaded, total, true)?;
     Ok(dest.to_string_lossy().to_string())
 }
 
