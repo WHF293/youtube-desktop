@@ -268,6 +268,17 @@ export default function MeView() {
         {updateErr ? (
           <>
             <p className="mb-4 text-[13px] leading-relaxed text-ink-2">{updateErr}</p>
+            {/* 应用内下载走 Rust 直连（github.com release CDN），部分网络直连不通；
+                此时兜底跳系统浏览器经 Release 页下载（浏览器可走 VPN/代理） */}
+            {updateState && typeof updateState !== "string" && (
+              <button
+                type="button"
+                onClick={() => void openExternal(updateState.pageUrl)}
+                className="m-glass-btn mb-2 w-full justify-center"
+              >
+                到浏览器下载
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void checkUpdate()}
