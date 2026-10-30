@@ -12,9 +12,10 @@ import { EmptyState } from "../components/StateViews";
 import { HistoryCard } from "./History";
 
 /** 排序模式（模块级，跨页面保留）："time" = 自然排序（按添加时间）；
- *  "status" = 按观看状态分组（待看/看一半/看完，区块可展开收起） */
+ *  "status" = 按观看状态分组（待看/看一半/看完，区块可展开收起）。
+ *  默认 status：进入待看页先按观看状态分组展示（2026-10-30 王总指定） */
 type SortMode = "time" | "status";
-let lastSort: SortMode = "time";
+let lastSort: SortMode = "status";
 
 /** 状态角标配色（实色，叠在缩略图上可读；与 PC 端三态语义一致） */
 const STATUS_PILL: Record<WatchLaterStatus, string> = {

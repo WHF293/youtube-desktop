@@ -32,6 +32,8 @@ function GroupCard({
   open,
   onToggle,
   onRename,
+  onDelete,
+  confirming,
   children,
 }: {
   sectionKey: string;
@@ -41,6 +43,8 @@ function GroupCard({
   open: boolean;
   onToggle: () => void;
   onRename: () => void;
+  onDelete: () => void;
+  confirming: boolean;
   children: React.ReactNode;
 }) {
   const isCustom = groupId !== undefined;
@@ -54,7 +58,7 @@ function GroupCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`overflow-hidden rounded-2xl bg-surface shadow-island ${isDragging ? "opacity-30" : ""}`}
     >
-      {/* 区块头：拖拽把手（仅自定义分组）+ 展开/收起 + 计数 + 改名（仅自定义分组） */}
+      {/* 区块头：拖拽把手（仅自定义分组）+ 展开/收起 + 计数 + 改名/删除（仅自定义分组） */}
       <div className="flex items-center gap-1 px-2.5 py-2">
         {isCustom && (
           <button
@@ -91,6 +95,26 @@ function GroupCard({
             <Icon name="edit" size={13} />
           </button>
         )}
+        {/* 删除分组（两步确认，3 秒自动复位；组内博主自动移回默认分组） */}
+        {isCustom &&
+          (confirming ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="shrink-0 rounded-full px-2 py-1 text-[11px] font-bold text-red-500"
+            >
+              确认删除？
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label={`删除分组 ${name}`}
+              className="shrink-0 rounded-full p-1.5 text-ink-3 active:bg-flat"
+            >
+              <Icon name="close" size={13} />
+            </button>
+          ))}
       </div>
       {children}
     </div>
@@ -106,6 +130,7 @@ export default function ChannelManageView() {
   const removeChannel = useChannels((s) => s.remove);
   const moveChannel = useChannels((s) => s.moveChannel);
   const renameGroup = useChannels((s) => s.renameGroup);
+  const removeGroup = useChannels((s) => s.removeGroup);
   const addGroup = useChannels((s) => s.addGroup);
   const reorderGroups = useChannels((s) => s.reorderGroups);
   const [input, setInput] = useState("");
@@ -270,6 +295,17 @@ export default function ChannelManageView() {
                       setRenameFor(s.groupId!);
                       setRenameInput(s.name);
                     }}
+                    onDelete={() => {
+                      // 两步确认（confirmId 3 秒自动复位）：确认后删组，组内博主回默认分组
+                      if (confirmId === s.groupId) {
+                        removeGroup(s.groupId!);
+                        setConfirmId(null);
+                        setMsg({ ok: true, text: `已删除分组「${s.name}」，组内博主移回默认分组` });
+                      } else {
+                        setConfirmId(s.groupId!);
+                      }
+                    }}
+                    confirming={confirmId === s.groupId}
                   >
                     {/* 区块内博主：grid-rows 高度过渡（PC 右栏同款） */}
                     <div

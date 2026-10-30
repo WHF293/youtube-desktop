@@ -111,7 +111,7 @@ export function HistoryCard({ entry }: { entry: HistoryEntry }) {
   );
 }
 
-/** 收藏分组选择 sheet（收藏/换分组共用） */
+/** 收藏分组选择 sheet（收藏/换分组共用）：内联「+ 新建分组」，建好即选中 */
 export function FavGroupSheet({
   open,
   onClose,
@@ -127,6 +127,10 @@ export function FavGroupSheet({
 }) {
   // 收藏分组与博主分组是两套独立数据：这里必须用 useFavorites 的分组
   const groups = useFavorites((s) => s.groups);
+  const addGroup = useFavorites((s) => s.addGroup);
+  // 内联新建分组输入（展开后显示输入行，确认即建组并选中）
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
   return (
     <BottomSheet open={open} onClose={onClose} title={faved ? "换到分组" : "收藏到分组"}>
       <p className="mb-2 clamp-2 text-[11.5px] text-ink-3">{video.title}</p>
@@ -147,6 +151,41 @@ export function FavGroupSheet({
           {g.name}
         </button>
       ))}
+      {/* 新建分组：内联输入（参考博主管理页新建交互），确认后建组并直接选中 */}
+      {creating ? (
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) {
+                onPick(addGroup(newName));
+              }
+            }}
+            placeholder="分组名称"
+            maxLength={20}
+            autoFocus
+            className="min-w-0 flex-1 rounded-xl bg-flat px-3 py-2 text-[13px] text-ink outline-none placeholder:text-ink-3"
+          />
+          <button
+            type="button"
+            disabled={!newName.trim()}
+            onClick={() => onPick(addGroup(newName))}
+            className="shrink-0 rounded-full bg-accent px-4 py-2 text-[12.5px] font-bold text-white disabled:opacity-50"
+          >
+            创建
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="mt-1 w-full rounded-xl border border-dashed border-line px-3 py-2.5 text-[13px] font-semibold text-ink-2 active:bg-flat"
+        >
+          + 新建分组
+        </button>
+      )}
     </BottomSheet>
   );
 }

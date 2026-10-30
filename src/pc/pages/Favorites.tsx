@@ -7,12 +7,16 @@ import Img from "../../common/components/Img";
 import Icon from "../../common/components/Icon";
 import { formatRelativeDate } from "../../common/lib/format";
 
-/** 收藏页：按收藏分组展示收藏的视频，支持移动分组与删除（二次确认） */
+/** 收藏页：按收藏分组展示收藏的视频，支持移动分组与删除（二次确认）；
+ *  支持新建分组（此前只能删不能建，2026-10-30 王总反馈补上） */
 export default function Favorites() {
-  const { videos, groups, remove, setGroup, removeGroup } = useFavorites();
+  const { videos, groups, remove, setGroup, removeGroup, addGroup } = useFavorites();
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   // 标题关键字过滤（与待看页同款搜索框）
   const [q, setQ] = useState("");
+  // 新建分组：展开的内联输入行（参考博主管理页新建交互）
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
 
   const kw = q.trim().toLowerCase();
   const matched = (v: FavVideo) => !kw || v.title.toLowerCase().includes(kw);
@@ -103,6 +107,59 @@ export default function Favorites() {
         <h1 className="flex items-center gap-2 text-lg font-semibold text-ink">
           <Icon name="star" size={18} className="text-accent" />
           收藏（{videos.length}）
+          {/* 新建分组：内联展开输入行，确认即建组（建完在下方分组区块立即可见） */}
+          {videos.length > 0 &&
+            (creating ? (
+              <span className="ml-auto flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newName.trim()) {
+                      addGroup(newName);
+                      setNewName("");
+                      setCreating(false);
+                    }
+                  }}
+                  placeholder="分组名称"
+                  maxLength={20}
+                  autoFocus
+                  className="w-40 rounded-lg border border-line bg-app px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-3 focus:border-accent"
+                />
+                <button
+                  type="button"
+                  disabled={!newName.trim()}
+                  onClick={() => {
+                    addGroup(newName);
+                    setNewName("");
+                    setCreating(false);
+                  }}
+                  className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  创建
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreating(false);
+                    setNewName("");
+                  }}
+                  className="rounded p-0.5 text-ink-3 hover:text-ink"
+                  aria-label="取消新建分组"
+                >
+                  <Icon name="close" size={13} />
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="ml-auto rounded-lg px-2 py-1 text-xs font-medium text-ink-3 transition-colors hover:bg-flat hover:text-ink"
+              >
+                + 新建分组
+              </button>
+            ))}
         </h1>
 
         {videos.length > 0 && (
