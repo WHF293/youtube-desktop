@@ -44,12 +44,13 @@ export const useSubsFeed = create<SubsFeedState>()(
         hasMore: false,
         selectedGroups: null,
         setSelectedGroups: (selectedGroups) => set({ selectedGroups }),
-        loadMore: () =>
-          // 本地切片扩窗：同步操作无 loading 周期；越界时直接顶到全长（hasMore 随之变 false）
-          set((s) => {
-            const visible = Math.min(s.visible + SUBS_PAGE_SIZE, s.items.length);
-            return visible === s.visible ? null : { visible, hasMore: visible < s.items.length };
-          }),
+        loadMore: () => {
+          // 本地切片扩窗：同步操作无 loading 周期；已到全长时不再触发任何状态更新
+          const { visible, items } = get();
+          if (visible >= items.length) return;
+          const next = Math.min(visible + SUBS_PAGE_SIZE, items.length);
+          set({ visible: next, hasMore: next < items.length });
+        },
         load: async () => {
           const id = ++seq;
           const channels = useChannels.getState().channels;
