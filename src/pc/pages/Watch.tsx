@@ -101,7 +101,10 @@ export default function Watch() {
   // 下一个/上一个沿相关列表连续切换。hook 放 early return 前（Rules of Hooks）
   useVideoNavQueue("pc-watch-related", toNavEntries(player.related));
 
-  if (player.status === "loading") return <PlayerSkeleton />;
+  // 切换视频（上一个/下一个）时同步切骨架屏：URL 的 videoId 已变而 store 还停在
+  // 旧视频（load 在 effect 里才触发），这一帧若照常渲染，iframe key 变化会重挂载
+  // 并闪 YouTube 白底加载页——判定不一致直接出骨架屏，避免白屏（2026-10-30 王总反馈）
+  if (player.status === "loading" || player.videoId !== videoId) return <PlayerSkeleton />;
   if (player.status === "error" || !player.video) {
     return <ErrorBox message={player.error || "视频加载失败"} onRetry={() => void player.load(videoId)} />;
   }

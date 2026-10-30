@@ -28,6 +28,7 @@ export default function WatchView() {
   const related = usePlayer((s) => s.related);
   const relatedStatus = usePlayer((s) => s.relatedStatus);
   const status = usePlayer((s) => s.status);
+  const playerVideoId = usePlayer((s) => s.videoId);
   const error = usePlayer((s) => s.error);
   const load = usePlayer((s) => s.load);
 
@@ -131,7 +132,10 @@ export default function WatchView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fsActive]);
 
-  if (status === "loading" || status === "idle") {
+  // 切换视频（上一个/下一个）时同步切骨架屏：URL 的 videoId 已变而 store 还停在旧视频
+  // （load 在 effect 里才触发），这一帧若照常渲染，iframe key 变化会重挂载并闪
+  // YouTube 白底加载页——判定不一致直接出骨架屏，避免白屏（2026-10-30 王总反馈）
+  if (status === "loading" || status === "idle" || playerVideoId !== videoId) {
     return <PlayerSkeleton />;
   }
   if (status === "error" || !video) {
