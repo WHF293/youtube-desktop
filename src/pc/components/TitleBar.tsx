@@ -123,6 +123,8 @@ export default function TitleBar() {
 
   // 非首页导航栏标题：静态路由查表，动态路由（观看/频道/搜索等）按前缀解析
   const PAGE_TITLES: Record<string, string> = {
+    "/home": "推荐",
+    "/categories": "分类",
     "/subscriptions": "订阅",
     "/history": "观看记录",
     "/watchlater": "待看",

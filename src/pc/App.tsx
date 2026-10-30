@@ -5,6 +5,7 @@ import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import InfoPin from "../common/components/InfoPin";
 import Home from "./pages/Home";
+import Categories from "./pages/Categories";
 import Search from "./pages/Search";
 import Watch from "./pages/Watch";
 import Channel from "./pages/Channel";
@@ -30,8 +31,10 @@ export default function App() {
   const theme = useTheme((s) => s.theme);
   const videosStatus = useVideos((s) => s.status);
   const loadPopular = useVideos((s) => s.loadPopular);
+  const popularRegionCode = useSettings((s) => s.popularRegionCode);
   const regionCode = useSettings((s) => s.regionCode);
   const location = useLocation();
+  const prevPopularRegion = useRef(popularRegionCode);
   const prevRegion = useRef(regionCode);
 
   // 明暗模式：class 挂在 <html> 上
@@ -39,14 +42,21 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // 地区变化：正处在首页时立刻刷新「推荐」（地区频道组）与「新闻」分类（搜索地区化）；
+  // 推荐地区变化：正处在推荐页时立刻刷新推荐流（地区频道组）
+  useEffect(() => {
+    if (prevPopularRegion.current === popularRegionCode) return;
+    prevPopularRegion.current = popularRegionCode;
+    if (location.pathname === "/home") void loadPopular(undefined, true);
+  }, [popularRegionCode, location.pathname, loadPopular]);
+
+  // 分类地区变化：正处在分类页且当前是「新闻」分类时刷新（search 端点地区化）；
   // 其余分类为全球精选频道组，与地区无关不刷新
   useEffect(() => {
     if (prevRegion.current === regionCode) return;
     prevRegion.current = regionCode;
-    if (location.pathname === "/home") {
+    if (location.pathname === "/categories") {
       const { category } = useVideos.getState();
-      if (!category || category === NEWS_CATEGORY_ID) void loadPopular(category, true);
+      if (category === NEWS_CATEGORY_ID) void loadPopular(category, true);
     }
   }, [regionCode, location.pathname, loadPopular]);
 
@@ -113,9 +123,10 @@ export default function App() {
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface shadow-island">
           <div id="main-scroll" className="min-h-0 flex-1 overflow-y-auto" key={location.pathname}>
             <Routes>
-            {/* 默认页 = 订阅（打开软件直接进订阅流，2026-10-30 王总指定）；首页迁至 /home */}
+            {/* 默认页 = 订阅（打开软件直接进订阅流，2026-10-30 王总指定）；推荐/分类各自独立路由 */}
             <Route path="/" element={<Navigate to="/subscriptions" replace />} />
             <Route path="/home" element={<Home />} />
+            <Route path="/categories" element={<Categories />} />
             <Route path="/trending" element={<Navigate to="/home" replace />} />
             <Route path="/search" element={<Search />} />
             <Route path="/watch/:videoId" element={<Watch />} />

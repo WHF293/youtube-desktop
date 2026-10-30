@@ -679,7 +679,9 @@ export async function ftPopularPage(
 ): Promise<{ items: VideoItem[]; nextPageToken: string | null }> {
   const page = pageToken ? parseInt(pageToken, 10) || 0 : 0;
   const perPage = 24;
-  const { regionCode } = useSettings.getState();
+  // 推荐分支用「推荐地区」（popularRegionCode）；分类分支为全球组与地区无关，
+  // 新闻分类走 search 端点跟随 ftContext 的 gl（= 分类地区 regionCode）
+  const { popularRegionCode } = useSettings.getState();
 
   if (categoryId) {
     // 分类模式：内容有限，拉完即止
@@ -690,7 +692,7 @@ export async function ftPopularPage(
   }
 
   // 全部模式：地区组在前（本地区内容优先），全球分类组在后兜底，两段各自按时间排序后拼接
-  const regionChannels = FT_REGION_GROUPS[regionCode] ?? [];
+  const regionChannels = FT_REGION_GROUPS[popularRegionCode] ?? [];
   const [regionVideos, globalVideos] = await Promise.all([
     regionChannels.length ? fetchChannelsRSS(regionChannels) : Promise.resolve([] as VideoItem[]),
     fetchChannelsRSS(Object.values(FT_HOME_GROUPS).flat()),

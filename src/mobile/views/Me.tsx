@@ -169,6 +169,12 @@ export default function MeView() {
       {/* 内容库菜单 */}
       <div className="mx-3.5 mt-2.5 overflow-hidden rounded-2xl bg-surface shadow-island">
         <MenuItem icon="star" title="收藏夹" desc={`${favCount} 个视频`} onClick={() => navigate("/favorites")} />
+        <MenuItem
+          icon="watchLater"
+          title="待看"
+          desc={`${wlCount} 个视频`}
+          onClick={() => navigate("/watchlater")}
+        />
         <MenuItem icon="subscriptions" title="历史记录" desc="保留最近 7 天" onClick={() => navigate("/history")} />
         <MenuItem
           icon="download"

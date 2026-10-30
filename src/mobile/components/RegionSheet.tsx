@@ -1,26 +1,49 @@
 import BottomSheet from "./BottomSheet";
 import { REGIONS, useSettings } from "../../common/stores/settings";
 import { useVideos } from "../../common/stores/videos";
+import { NEWS_CATEGORY_ID } from "../../common/lib/youtube";
 
-/** 地区设置 sheet（首页 navbar 入口与「我的」页共用）：
- *  热门地区单选，切换后首页推荐立即按新地区重拉（仅当首页正处在 popular 模式） */
-export default function RegionSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const regionCode = useSettings((s) => s.regionCode);
+/** 地区设置 sheet（推荐页/分类页 navbar 共用）：scope 决定读写推荐地区还是分类地区。
+ *  热门地区单选；推荐地区切换后推荐流立即重拉，分类地区仅影响新闻分类与搜索（InnerTube gl） */
+export default function RegionSheet({
+  open,
+  onClose,
+  scope,
+}: {
+  open: boolean;
+  onClose: () => void;
+  scope: "popular" | "category";
+}) {
+  const popularRegionCode = useSettings((s) => s.popularRegionCode);
+  const categoryRegionCode = useSettings((s) => s.regionCode);
+  const setPopularRegionCode = useSettings((s) => s.setPopularRegionCode);
   const setRegionCode = useSettings((s) => s.setRegionCode);
+
+  const regionCode = scope === "popular" ? popularRegionCode : categoryRegionCode;
 
   const pickRegion = (code: string) => {
     if (code !== regionCode) {
-      setRegionCode(code);
-      const v = useVideos.getState();
-      if (v.mode === "popular") void v.loadPopular(v.category);
+      if (scope === "popular") {
+        setPopularRegionCode(code);
+        // 推荐地区变化：popular 模式下立即 force 重拉推荐流（地区频道组换血）
+        const v = useVideos.getState();
+        if (v.mode === "popular" && !v.category) void v.loadPopular(undefined, true);
+      } else {
+        setRegionCode(code);
+        // 分类地区变化：仅新闻分类跟随 gl，正看着新闻才刷新
+        const v = useVideos.getState();
+        if (v.mode === "popular" && v.category === NEWS_CATEGORY_ID) void v.loadPopular(v.category, true);
+      }
     }
     onClose();
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="地区设置">
+    <BottomSheet open={open} onClose={onClose} title={scope === "popular" ? "推荐地区" : "分类地区"}>
       <p className="mb-3 text-[11.5px] leading-relaxed text-ink-3">
-        影响首页推荐与搜索的地区偏好（InnerTube gl）。不含中国大陆（实测搜索返回空结果）。
+        {scope === "popular"
+          ? "影响推荐页的地区频道组内容，与分类地区独立设置。不含中国大陆（实测搜索返回空结果）。"
+          : "影响分类页「新闻」分类与搜索结果的地区偏好（InnerTube gl）。不含中国大陆（实测搜索返回空结果）。"}
       </p>
       <div className="mb-2 grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
         {REGIONS.map(([code, label]) => (

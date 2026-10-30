@@ -55,7 +55,9 @@ export interface ChannelsExport {
   groups: ChannelGroup[];
 }
 
-/** 构建导出 JSON 文本（Groups 页导出/复制共用） */
+/** 构建导出 JSON 文本（Groups 页导出/复制共用）。
+ *  单行紧凑输出（无缩进/空格/换行）：手机剪贴板对单条内容有长度限制会截断 JSON，
+ *  导入端 JSON.parse 对单行无要求，压掉空白减小体积绕开限制。 */
 export function buildChannelsExport(channels: SubChannel[], groups: ChannelGroup[]): string {
   const payload: ChannelsExport = {
     app: "youtube-desktop",
@@ -64,7 +66,7 @@ export function buildChannelsExport(channels: SubChannel[], groups: ChannelGroup
     channels,
     groups,
   };
-  return JSON.stringify(payload, null, 2);
+  return JSON.stringify(payload);
 }
 
 const newGroupId = () => `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;

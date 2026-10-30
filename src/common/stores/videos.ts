@@ -87,8 +87,8 @@ export const useVideos = create<VideosState>()((set, get) => {
     // loadingMore 必须一并重置：切分类打断上一次触底加载时，卡住的 true 会让后续触底永久失效
     set({ mode: "popular", query: "", category, status: "loading", error: "", nextPageToken: null, loadingMore: false });
     try {
-      const { regionCode } = useSettings.getState();
-      const r = await ytApi.mostPopularPage(24, regionCode, undefined, category);
+      // 地区影响在数据层内部（ftPopularPage 读 popularRegionCode / ftNewsPage 走 gl），无需传参
+      const r = await ytApi.mostPopularPage(24, undefined, undefined, category);
       if (id !== seq) return; // 过期响应
       set({ items: r.items, status: "ready", nextPageToken: r.nextPageToken });
       popularCache.set(popularKey(category), { items: r.items, nextPageToken: r.nextPageToken });
@@ -151,8 +151,7 @@ export const useVideos = create<VideosState>()((set, get) => {
       if (loadingMore || !nextPageToken) return;
       set({ loadingMore: true });
       try {
-        const { regionCode } = useSettings.getState();
-        const r = await ytApi.mostPopularPage(24, regionCode, nextPageToken, category);
+        const r = await ytApi.mostPopularPage(24, undefined, nextPageToken, category);
         const current = get();
         if (current.mode !== "popular" || current.category !== category) {
           // 期间切换了列表/分类：loadingMore 必须复位，否则触底加载永久卡死；

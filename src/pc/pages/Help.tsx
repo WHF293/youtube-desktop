@@ -97,11 +97,12 @@ export default function Help() {
 
       <Section title="地区与语言">
         <Step>
-          侧栏底部「<b>地区</b>」：切换首页「推荐」（地区频道组）与「新闻」分类（按地区搜索）的内容地区，
-          并影响搜索结果的地区倾向，选择即生效。
+          「<b>推荐</b>」与「<b>分类</b>」页地区各自独立设置：<b>推荐地区</b>在推荐页页头（移动端在推荐页
+          navbar）切换地区频道组内容；<b>分类地区</b>在分类页页头（移动端在分类页 navbar）切换，
+          影响「新闻」分类（按地区搜索）与搜索结果的地区倾向，选择即生效。
         </Step>
         <Step>
-          设置页「搜索内容语言」：多选后搜索会按各语言分别请求并交错合并结果。
+          设置页「搜索内容语言」：单选后搜索会按该语言请求并本地化结果。
         </Step>
       </Section>
 
@@ -131,14 +132,14 @@ export default function Help() {
 
       <Section title="网络要求提示">
         <Step>
-          首页/订阅内容来自博主与频道组的 RSS 聚合；搜索、评论、相关视频与「新闻」分类走 InnerTube 接口。
+          推荐/分类/订阅内容来自博主与频道组的 RSS 聚合；搜索、评论、相关视频与「新闻」分类走 InnerTube 接口。
           若某天数据异常，多半是 YouTube 调整了接口，保持应用更新即可。
         </Step>
       </Section>
 
       <p className="mt-8 text-xs text-ink-3">
         更多细节见项目文档 .ai/开发方案/ 目录。返回
-        <Link to="/home" className="mx-1 text-accent underline">首页</Link>。
+        <Link to="/home" className="mx-1 text-accent underline">推荐</Link>。
       </p>
     </div>
   );

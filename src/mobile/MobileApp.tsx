@@ -16,6 +16,7 @@ import RegionSheet from "./components/RegionSheet";
 import BottomSheet from "./components/BottomSheet";
 import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
+import CategoriesView from "./views/Categories";
 import SubscriptionsView from "./views/Subscriptions";
 import WatchView from "./views/Watch";
 import SearchView from "./views/Search";
@@ -30,14 +31,20 @@ import PlaylistView from "./views/Playlist";
 import ChannelManageView from "./views/ChannelManage";
 
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用）。
- *  根路径 "/" 重定向到 /subscriptions（打开软件默认进订阅，2026-10-30 王总指定），首页迁至 /home */
-const TAB_PATHS = new Set(["/home", "/subscriptions", "/watchlater", "/me"]);
+ *  根路径 "/" 重定向到 /subscriptions（打开软件默认进订阅，2026-10-30 王总指定），
+ *  推荐/分类拆分独立路由，待看降为「我的」下的二级入口（2026-10-31） */
+const TAB_PATHS = new Set(["/home", "/subscriptions", "/categories", "/me"]);
 
-/** TabBar 高亮映射：/search、/offline、/subscriptions/manage 归属位（首页 / 我的 / 订阅） */
+/** TabBar 高亮映射：/search、/offline、/watchlater、/subscriptions/manage 归属位（首页 / 我的 / 订阅） */
 function activeTabOf(pathname: string): string {
   if (TAB_PATHS.has(pathname)) return pathname;
   if (pathname.startsWith("/subscriptions")) return "/subscriptions";
-  if (pathname.startsWith("/search") || pathname === "/history" || pathname === "/favorites")
+  if (
+    pathname.startsWith("/search") ||
+    pathname === "/history" ||
+    pathname === "/favorites" ||
+    pathname === "/watchlater"
+  )
     return "/me";
   if (pathname.startsWith("/offline")) return "/me";
   return "/home";
@@ -47,13 +54,16 @@ export default function MobileApp() {
   const theme = useTheme((s) => s.theme);
   const navigate = useNavigate();
   const location = useLocation();
-  const [regionOpen, setRegionOpen] = useState(false);
+  const [popularRegionOpen, setPopularRegionOpen] = useState(false);
+  const [categoryRegionOpen, setCategoryRegionOpen] = useState(false);
   // 历史全部清除确认 sheet（历史页 navbar 右上角入口）
   const [histClearOpen, setHistClearOpen] = useState(false);
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
-  // 当前地区名（首页 navbar 地区 icon 边上显示，弹层修改后实时联动）
-  const regionCode = useSettings((s) => s.regionCode);
-  const regionName = REGIONS.find(([code]) => code === regionCode)?.[1] ?? regionCode;
+  // 当前地区名（推荐/分类页 navbar 地区 icon 边上显示，弹层修改后实时联动）
+  const popularRegionCode = useSettings((s) => s.popularRegionCode);
+  const categoryRegionCode = useSettings((s) => s.regionCode);
+  const popularRegionName = REGIONS.find(([code]) => code === popularRegionCode)?.[1] ?? popularRegionCode;
+  const categoryRegionName = REGIONS.find(([code]) => code === categoryRegionCode)?.[1] ?? categoryRegionCode;
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
   const pathname = location.pathname;
@@ -161,6 +171,8 @@ export default function MobileApp() {
             <span>离线下载</span>
           ) : pathname === "/subscriptions/manage" ? (
             <span>订阅管理</span>
+          ) : pathname === "/categories" ? (
+            <span>分类</span>
           ) : pathname === "/subscriptions" ? (
             <span>订阅</span>
           ) : pathname === "/history" ? (
@@ -187,10 +199,12 @@ export default function MobileApp() {
           )
         }
         left={
-          // 二级页（离线下载 / 历史 / 订阅管理 / 视频详情 / 播放列表详情）带返回箭头；根 Tab 页无
+          // 二级页（离线下载 / 历史 / 待看 / 订阅管理 / 视频详情 / 播放列表详情）带返回箭头；根 Tab 页无。
+          // 待看已从 TabBar 降为「我的」下的二级入口（2026-10-31），同样归二级页
           pathname.startsWith("/offline") ||
           pathname === "/history" ||
           pathname === "/favorites" ||
+          pathname === "/watchlater" ||
           pathname.startsWith("/watch/") ||
           pathname.startsWith("/playlist/") ||
           pathname.startsWith("/subscriptions/") ? (
@@ -241,42 +255,50 @@ export default function MobileApp() {
             >
               <Icon name="close" size={19} />
             </button>
-          ) : pathname === "/home" || pathname === "/me" ? (
+          ) : pathname === "/home" ? (
             <>
-              {pathname === "/home" ? (
-                <>
-                  {/* 地区在左、搜索在右（2026-10-30 王总指定互换） */}
-                  <button
-                    type="button"
-                    aria-label="地区设置"
-                    onClick={() => setRegionOpen(true)}
-                    className="m-nav__icon flex-row items-center gap-1"
-                  >
-                    <span className="max-w-[52px] truncate text-[11px] font-semibold text-ink-2">
-                      {regionName}
-                    </span>
-                    <Icon name="language" size={19} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="搜索"
-                    onClick={() => navigate("/search")}
-                    className="m-nav__icon"
-                  >
-                    <Icon name="search" size={19} />
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  aria-label={theme === "dark" ? "切换亮色模式" : "切换暗色模式"}
-                  onClick={() => useTheme.getState().toggle()}
-                  className="m-nav__icon"
-                >
-                  <Icon name={theme === "dark" ? "sun" : "moon"} size={19} />
-                </button>
-              )}
+              {/* 地区在左、搜索在右（2026-10-30 王总指定互换）；推荐地区独立设置 */}
+              <button
+                type="button"
+                aria-label="推荐地区设置"
+                onClick={() => setPopularRegionOpen(true)}
+                className="m-nav__icon flex-row items-center gap-1"
+              >
+                <span className="max-w-[52px] truncate text-[11px] font-semibold text-ink-2">
+                  {popularRegionName}
+                </span>
+                <Icon name="language" size={19} />
+              </button>
+              <button
+                type="button"
+                aria-label="搜索"
+                onClick={() => navigate("/search")}
+                className="m-nav__icon"
+              >
+                <Icon name="search" size={19} />
+              </button>
             </>
+          ) : pathname === "/categories" ? (
+            <button
+              type="button"
+              aria-label="分类地区设置"
+              onClick={() => setCategoryRegionOpen(true)}
+              className="m-nav__icon flex-row items-center gap-1"
+            >
+              <span className="max-w-[52px] truncate text-[11px] font-semibold text-ink-2">
+                {categoryRegionName}
+              </span>
+              <Icon name="language" size={19} />
+            </button>
+          ) : pathname === "/me" ? (
+            <button
+              type="button"
+              aria-label={theme === "dark" ? "切换亮色模式" : "切换暗色模式"}
+              onClick={() => useTheme.getState().toggle()}
+              className="m-nav__icon"
+            >
+              <Icon name={theme === "dark" ? "sun" : "moon"} size={19} />
+            </button>
           ) : undefined
         }
       />
@@ -284,8 +306,9 @@ export default function MobileApp() {
 
   return (
     <div className="m-root">
-      {/* 地区设置 sheet（首页 navbar 地球图标唤起） */}
-      <RegionSheet open={regionOpen} onClose={() => setRegionOpen(false)} />
+      {/* 地区设置 sheet（推荐/分类页 navbar 地球图标分别唤起，scope 独立） */}
+      <RegionSheet open={popularRegionOpen} onClose={() => setPopularRegionOpen(false)} scope="popular" />
+      <RegionSheet open={categoryRegionOpen} onClose={() => setCategoryRegionOpen(false)} scope="category" />
 
       {/* 历史全部清除二次确认（历史页 navbar 右上角） */}
       <BottomSheet open={histClearOpen} onClose={() => setHistClearOpen(false)} title="全部清除">
@@ -322,9 +345,10 @@ export default function MobileApp() {
           style={immersive ? { paddingBottom: 12 } : undefined}
         >
           <Routes>
-            {/* 根路径默认进订阅页（打开软件默认 tab，2026-10-30 王总指定）；首页迁至 /home */}
+            {/* 根路径默认进订阅页（打开软件默认 tab，2026-10-30 王总指定）；推荐/分类各自独立路由 */}
             <Route path="/" element={<Navigate to="/subscriptions" replace />} />
             <Route path="/home" element={<HomeView />} />
+            <Route path="/categories" element={<CategoriesView />} />
             <Route path="/subscriptions" element={<SubscriptionsView />} />
             <Route path="/subscriptions/manage" element={<ChannelManageView />} />
             <Route path="/watch/:videoId" element={<WatchView />} />
