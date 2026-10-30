@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useVideos } from "../../common/stores/videos";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { VideoRow } from "../components/VideoCard";
 import { ErrorBox } from "../../common/components/Spinner";
 import { VideoRowSkeleton } from "../components/VideoCard";
@@ -14,6 +15,9 @@ export default function Search() {
   useEffect(() => {
     if (q && (mode !== "search" || query !== q)) void loadSearch(q);
   }, [q, mode, query, loadSearch]);
+
+  // 注册视频导航队列：详情页「上一个/下一个」按本列表顺序切换
+  useVideoNavQueue("pc-search", toNavEntries(items));
 
   if (!q) {
     return <p className="p-6 text-sm text-ink-2">在顶部搜索框输入关键词开始搜索。</p>;

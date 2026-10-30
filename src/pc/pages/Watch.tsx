@@ -1,11 +1,12 @@
 import Img from "../../common/components/Img";
-import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { usePlayer } from "../../common/stores/player";
 import { useFavorites } from "../../common/stores/favorites";
 import { useHistory } from "../../common/stores/history";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
+import { useVideoNavQueue, toNavEntries, getVideoNavNeighbors } from "../../common/stores/videoNav";
 import DownloadModal from "../components/DownloadModal";
 import ConfirmDialog from "../../common/components/ConfirmDialog";
 import { VideoRow } from "../components/VideoCard";
@@ -96,6 +97,10 @@ export default function Watch() {
     });
   }, [playerVideo, videoId]);
 
+  // 注册「相关视频」队列（hook 须在 early return 前）：在详情页点相关视频后，
+  // 下一个/上一个沿相关列表连续切换。hook 放 early return 前（Rules of Hooks）
+  useVideoNavQueue("pc-watch-related", toNavEntries(player.related));
+
   if (player.status === "loading") return <PlayerSkeleton />;
   if (player.status === "error" || !player.video) {
     return <ErrorBox message={player.error || "视频加载失败"} onRetry={() => void player.load(videoId)} />;
@@ -157,6 +162,9 @@ export default function Watch() {
         </p>
 
         <h1 className="mt-3 text-xl font-semibold leading-7 text-ink">{video.snippet.title}</h1>
+
+        {/* 上一个/下一个：沿来源列表（首页/搜索/博主页/订阅/待看/收藏/历史/播放列表/相关视频）顺序切换 */}
+        <VideoNavSwitch videoId={videoId} />
 
         {/* 频道行 + 统计 */}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -377,6 +385,44 @@ export default function Watch() {
           onClose={() => setDownloadOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** 上一个/下一个切换条：从来源列表队列（videoNav 注册表）取相邻视频，点击原地换视频。
+ *  当前视频不在任何队列（如刷新详情页直链）时整条不渲染 */
+function VideoNavSwitch({ videoId }: { videoId: string }) {
+  const navigate = useNavigate();
+  // 同步纯查询，videoId 变化即重算
+  const nav = useMemo(() => getVideoNavNeighbors(videoId), [videoId]);
+  if (!nav.prev && !nav.next) return null;
+  return (
+    <div className="mt-2 flex items-center gap-2 text-sm">
+      <button
+        type="button"
+        disabled={!nav.prev}
+        onClick={() => nav.prev && navigate(`/watch/${nav.prev.id}`)}
+        title={nav.prev?.title}
+        aria-label="播放上一个视频"
+        className="inline-flex items-center gap-1.5 rounded-full glass-btn px-3 py-1.5 text-ink disabled:opacity-40"
+      >
+        <Icon name="arrowLeft" size={14} />
+        上一个
+      </button>
+      <span className="text-xs text-ink-3">
+        {nav.pos} / {nav.total}
+      </span>
+      <button
+        type="button"
+        disabled={!nav.next}
+        onClick={() => nav.next && navigate(`/watch/${nav.next.id}`)}
+        title={nav.next?.title}
+        aria-label="播放下一个视频"
+        className="inline-flex items-center gap-1.5 rounded-full glass-btn px-3 py-1.5 text-ink disabled:opacity-40"
+      >
+        下一个
+        <Icon name="chevronRight" size={14} />
+      </button>
     </div>
   );
 }

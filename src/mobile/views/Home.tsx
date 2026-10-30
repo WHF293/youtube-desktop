@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useVideos } from "../../common/stores/videos";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import ScrollTopFab from "../../common/components/ScrollTopFab";
 import RefreshFab from "../../common/components/RefreshFab";
 import { FeedCard, FeedSkeleton } from "../components/VideoCards";import { EmptyState, ErrorState } from "../components/StateViews";
@@ -39,6 +40,9 @@ export default function HomeView() {
   useEffect(() => {
     if (status === "idle" || useVideos.getState().mode !== "popular") void loadPopular(category);
   }, [status, loadPopular, category]);
+
+  // 注册视频导航队列：详情页「上一个/下一个」按当前分类列表顺序切换
+  useVideoNavQueue("m-home", toNavEntries(items));
 
   const pickCategory = (catId?: string) => {
     if (catId === category) return;

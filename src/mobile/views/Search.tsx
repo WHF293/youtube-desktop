@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ytApi } from "../../common/lib/youtube";
 import { useSearchHistory } from "../../common/stores/searchHistory";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import type { VideoItem } from "../../common/types/youtube";
 import { RowSkeleton } from "../components/VideoCards";
 import Icon from "../../common/components/Icon";
@@ -22,6 +23,9 @@ export default function SearchView() {
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const history = useSearchHistory();
+
+  // 注册视频导航队列：详情页「上一个/下一个」按搜索结果顺序切换
+  useVideoNavQueue("m-search", toNavEntries(items));
 
   // 进入页面自动聚焦拉起软键盘（UI 稿 A3）
   useEffect(() => {

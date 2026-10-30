@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useVideoNavQueue } from "../../common/stores/videoNav";
 import {
   useWatchLater,
   WATCH_LATER_STATUS,
@@ -33,6 +34,9 @@ const STATUS_DOT: Record<WatchLaterStatus, string> = {
  *  navbar 漏斗图标切排序：自然排序（添加时间） / 按观看状态分组（可展开收起） */
 export default function WatchLaterView() {
   const { entries, remove, setStatus } = useWatchLater();
+
+  // 注册视频导航队列：详情页「上一个/下一个」按待看列表顺序切换
+  useVideoNavQueue("m-watchlater", entries.map((e) => ({ id: e.videoId, title: e.title })));
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [statusFor, setStatusFor] = useState<string | null>(null);

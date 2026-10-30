@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { usePlaylist } from "../../common/stores/playlist";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { RowCard, RowSkeleton } from "../components/VideoCards";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import { videoIdOf } from "../../common/lib/format";
@@ -12,6 +13,9 @@ export default function PlaylistView() {
   const { playlistId = "" } = useParams();
   const { items, status, error, nextPageToken, loadingMore, load, loadMore } = usePlaylist();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // 注册视频导航队列：详情页「上一个/下一个」按播放列表顺序切换
+  useVideoNavQueue(`m-playlist-${playlistId}`, toNavEntries(items));
 
   useEffect(() => {
     if (playlistId) void load(playlistId);

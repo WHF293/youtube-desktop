@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { usePlaylist } from "../../common/stores/playlist";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { VideoCard, VideoGridSkeleton } from "../components/VideoCard";
 import { ErrorBox } from "../../common/components/Spinner";
 
@@ -16,6 +17,9 @@ export default function Playlist() {
     if (playlistId) void load(playlistId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlistId]);
+
+  // 注册视频导航队列：详情页「上一个/下一个」按播放列表顺序切换
+  useVideoNavQueue(`pc-playlist-${playlistId}`, toNavEntries(items));
 
   useEffect(() => {
     const el = sentinelRef.current;

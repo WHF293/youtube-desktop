@@ -2,6 +2,7 @@ import Img from "../../common/components/Img";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSubsFeed } from "../../common/stores/subsFeed";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { useChannels, type SubChannel } from "../../common/stores/channels";
 import { registerPageRefresh } from "../../common/lib/refresh";
 import { VideoRow, VideoRowSkeleton } from "../components/VideoCard";
@@ -137,6 +138,9 @@ function FreeTubeFeed() {
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
   // 触底加载：左岛视频流滚动容器（本页自己的滚动元素，不是 #main-scroll）
   const listRef = useRef<HTMLDivElement>(null);
+
+  // 注册视频导航队列（注册全量 items：点「下一个」可直接翻到尚未触底渲染的条目）
+  useVideoNavQueue("pc-subs", toNavEntries(items));
 
   useEffect(() => {
     // idle 正常首载；「ready 但 items 空」且本地有频道 = 上次加载异常中断的残留态，重载一次自愈

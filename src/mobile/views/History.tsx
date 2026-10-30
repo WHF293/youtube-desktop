@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useHistory, type HistoryEntry } from "../../common/stores/history";
+import { useVideoNavQueue } from "../../common/stores/videoNav";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { useFavorites } from "../../common/stores/favorites";
 import Img from "../../common/components/Img";
@@ -205,6 +206,9 @@ function dayLabel(watchedAt: number): string {
 /** 移动端历史页：按日分组（sticky 吸顶）+ 行内快捷收藏/待看 */
 export default function HistoryView() {
   const { entries, status, error } = useHistory();
+
+  // 注册视频导航队列：详情页「上一个/下一个」按历史（最近观看顺序）切换
+  useVideoNavQueue("m-history", entries.map((e) => ({ id: e.videoId, title: e.title })));
 
   const groupsByDay: Array<{ label: string; items: HistoryEntry[] }> = [];
   for (const e of entries) {

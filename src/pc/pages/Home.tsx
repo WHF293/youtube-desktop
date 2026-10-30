@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useVideos } from "../../common/stores/videos";
 import { registerPageRefresh } from "../../common/lib/refresh";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import GlassChipGroup from "../../common/components/GlassChipGroup";
 import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { VideoGrid } from "../components/VideoCard";
@@ -42,6 +43,9 @@ export default function Home() {
     // 否则列表错乱且触底加载在 mode 不匹配下失效
     if (status === "idle" || useVideos.getState().mode !== "popular") void loadPopular(category);
   }, [status, loadPopular, category]);
+
+  // 注册视频导航队列：详情页「上一个/下一个」按本列表顺序切换
+  useVideoNavQueue("pc-home", toNavEntries(items));
 
   // 右下角刷新固钉：保留当前分类刷新（首页路径 /home，根路径已重定向到订阅页）
   useEffect(

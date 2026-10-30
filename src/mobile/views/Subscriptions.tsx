@@ -5,6 +5,7 @@ import RefreshFab from "../../common/components/RefreshFab";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { useSubsFeed } from "../../common/stores/subsFeed";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { useChannels } from "../../common/stores/channels";
 import Img from "../../common/components/Img";
 import { AvatarBadge, RowCard, RowSkeleton } from "../components/VideoCards";
@@ -21,6 +22,9 @@ export default function SubscriptionsView() {
     useSubsFeed();
   const channels = useChannels((s) => s.channels);
   const groups = useChannels((s) => s.groups);
+
+  // 注册视频导航队列（全量 items：点「下一个」可翻到尚未触底渲染的条目）
+  useVideoNavQueue("m-subs", toNavEntries(items));
   // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）。
   // 初始值优先恢复持久化的分组筛选（subsFeed store partialize 已落盘，杀进程重开
   // 仍保留——2026-10-30 王总指定「选分组 a 杀死重开还是 a」；PC 多选勾选时取第一个

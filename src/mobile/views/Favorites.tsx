@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useVideoNavQueue } from "../../common/stores/videoNav";
 import { useFavorites, type FavVideo } from "../../common/stores/favorites";
 import { HistoryCard, FavGroupSheet } from "./History";
 import BottomSheet from "../components/BottomSheet";
@@ -8,6 +9,9 @@ import { EmptyState } from "../components/StateViews";
  *  分组角标换分组。Navbar 由 MobileApp 渲染（返回箭头），本页只管内容 */
 export default function FavoritesView() {
   const { videos, groups, remove, setGroup, removeGroup } = useFavorites();
+
+  // 注册视频导航队列：详情页「上一个/下一个」按收藏列表（分组顺序）切换
+  useVideoNavQueue("m-favs", videos.map((v) => ({ id: v.videoId, title: v.title })));
   const [q, setQ] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useChannel } from "../../common/stores/channel";
+import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { bestThumb, formatCount } from "../../common/lib/format";
 import Img from "../../common/components/Img";
 import { RowSkeleton } from "../components/VideoCards";
@@ -21,6 +22,9 @@ export default function ChannelView() {
     void channel.load(channelId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
+
+  // 注册视频导航队列：详情页「上一个/下一个」按本频道视频列表顺序切换
+  useVideoNavQueue(`m-channel-${channelId}`, toNavEntries(channel.videos));
 
   const { detail, videos, playlists, tab, status, playlistsStatus, error } = channel;
 

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { usePlayer } from "../../common/stores/player";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
+import { useVideoNavQueue, toNavEntries, getVideoNavNeighbors } from "../../common/stores/videoNav";
 import { bestThumb, formatCount, formatRelativeDate, formatViews, parseDuration, videoIdOf } from "../../common/lib/format";
 import PlayerSkeleton from "../../common/components/PlayerSkeleton";
 import Icon from "../../common/components/Icon";
@@ -69,6 +70,11 @@ export default function WatchView() {
       window.clearTimeout(confirmTimer.current);
     };
   }, [videoId, load]);
+
+  // 注册「相关视频」队列（空列表内部自动跳过）+ 计算上一个/下一个：
+  // 从来源列表（首页/搜索/博主页/订阅/待看/收藏/历史/播放列表/相关视频）队列按序切换
+  useVideoNavQueue("m-watch-related", toNavEntries(related));
+  const nav = useMemo(() => getVideoNavNeighbors(videoId), [videoId]);
 
   // 全屏态 ↔ 原生桥：进入时强制横屏 + 沉浸系统栏，退出/离开页面时还原。
   // pad 已是横屏时强制横屏为 no-op，效果就是单纯铺满全屏。
@@ -286,8 +292,35 @@ export default function WatchView() {
         </button>
       </div>
 
-      {/* 操作气泡组：待看 / 收藏（分组 sheet）/ 下载（清晰度 sheet） */}
+      {/* 操作气泡组：上一个/下一个（沿来源列表顺序）+ 待看 / 收藏（分组 sheet）/ 下载（清晰度 sheet） */}
       <div className="flex gap-2 overflow-x-auto border-b border-line bg-surface px-3.5 py-2.5">
+        {(nav.prev || nav.next) && (
+          <>
+            <button
+              type="button"
+              disabled={!nav.prev}
+              onClick={() => nav.prev && navigate(`/watch/${nav.prev.id}`)}
+              title={nav.prev?.title}
+              aria-label="播放上一个视频"
+              className="m-glass-btn shrink-0 disabled:opacity-40"
+            >
+              <span aria-hidden="true">‹</span> 上一个
+            </button>
+            <span className="m-glass-btn pointer-events-none shrink-0 !border-transparent !bg-transparent text-[11px] text-ink-3">
+              {nav.pos}/{nav.total}
+            </span>
+            <button
+              type="button"
+              disabled={!nav.next}
+              onClick={() => nav.next && navigate(`/watch/${nav.next.id}`)}
+              title={nav.next?.title}
+              aria-label="播放下一个视频"
+              className="m-glass-btn shrink-0 disabled:opacity-40"
+            >
+              下一个 <span aria-hidden="true">›</span>
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={toggleWatchLater}
