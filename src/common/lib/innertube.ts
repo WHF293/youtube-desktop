@@ -474,11 +474,11 @@ function videoFromPlaylistVideoRenderer(r: AnyRec): VideoItem | undefined {
 }
 
 /** 播放列表详情：browse VL<playlistId>，新旧双结构容错（playlistVideoRenderer /
- *  lockupViewModel 并存漂移），解析失败跳过该条目。返回列表标题与视频项 */
+ *  lockupViewModel 并存漂移），解析失败跳过该条目。返回列表标题、博主名与视频项 */
 export async function ftPlaylistVideos(
   playlistId: string,
   pageToken?: string,
-): Promise<{ title: string; items: VideoItem[]; nextPageToken: string | null }> {
+): Promise<{ title: string; channelTitle: string; items: VideoItem[]; nextPageToken: string | null }> {
   const data = await innertubePost<AnyRec>(
     "browse",
     pageToken ? { continuation: pageToken } : { browseId: `VL${playlistId}` },
@@ -499,7 +499,10 @@ export async function ftPlaylistVideos(
       if (v) items.push(v);
     }
   }
-  return { title, items, nextPageToken: gridPageToken(data) };
+  // 博主名：列表头 ownerText（旧结构）兜底第一条视频的 byline（移动端 navbar 文案用）
+  const channelTitle: string =
+    header?.ownerText?.runs?.at(0)?.text ?? items[0]?.snippet.channelTitle ?? "";
+  return { title, channelTitle, items, nextPageToken: gridPageToken(data) };
 }
 
 /* ---------- RSS（订阅 / 首页热门聚合） ---------- */

@@ -1,17 +1,16 @@
 import { useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { usePlaylist } from "../../common/stores/playlist";
 import { RowCard, RowSkeleton } from "../components/VideoCards";
-import MobileNavBar from "../components/MobileNavBar";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import { videoIdOf } from "../../common/lib/format";
 
 /** 移动端播放列表详情页（/playlist/:playlistId，博主页播放列表点入）：
- *  navbar 标题 = 列表标题；视频行卡列表，触底经 InnerTube continuation 翻页 */
+ *  顶栏由 MobileApp 统一渲染（文案「博主名-列表名」+ 返回）；视频行卡列表，
+ *  触底经 InnerTube continuation 翻页 */
 export default function PlaylistView() {
   const { playlistId = "" } = useParams();
-  const navigate = useNavigate();
-  const { title, items, status, error, nextPageToken, loadingMore, load, loadMore } = usePlaylist();
+  const { items, status, error, nextPageToken, loadingMore, load, loadMore } = usePlaylist();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -35,20 +34,6 @@ export default function PlaylistView() {
 
   return (
     <div className="m-page">
-      <MobileNavBar
-        className="m-nav--sticky"
-        title={<span className="truncate">{title || "播放列表"}</span>}
-        left={
-          <button
-            type="button"
-            aria-label="返回"
-            onClick={() => navigate(-1)}
-            className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-full text-ink-2"
-          >
-            ‹
-          </button>
-        }
-      />
       {status === "loading" || status === "idle" ? (
         <RowSkeleton rows={6} />
       ) : status === "error" ? (

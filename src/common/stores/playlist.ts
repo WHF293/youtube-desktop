@@ -4,10 +4,12 @@ import { errorMessage, type Status } from "./videos";
 import type { VideoItem } from "../types/youtube";
 
 /** 播放列表详情（PC /playlist/:playlistId 与移动端同页共用）：
- *  标题 + 视频列表 + InnerTube continuation 翻页（触底加载下一批） */
+ *  标题/博主名 + 视频列表 + InnerTube continuation 翻页（触底加载下一批） */
 interface PlaylistState {
   playlistId: string | null;
   title: string;
+  /** 列表所属博主名（移动端 navbar 文案「博主名-列表名」用） */
+  channelTitle: string;
   items: VideoItem[];
   status: Status;
   error: string;
@@ -23,6 +25,7 @@ export const usePlaylist = create<PlaylistState>()((set, get) => {
   return {
     playlistId: null,
     title: "",
+    channelTitle: "",
     items: [],
     status: "idle",
     error: "",
@@ -33,6 +36,7 @@ export const usePlaylist = create<PlaylistState>()((set, get) => {
       set({
         playlistId,
         title: "",
+        channelTitle: "",
         items: [],
         status: "loading",
         error: "",
@@ -40,9 +44,9 @@ export const usePlaylist = create<PlaylistState>()((set, get) => {
         loadingMore: false,
       });
       try {
-        const { title, items, nextPageToken } = await ytApi.playlistVideosPage(playlistId);
+        const { title, channelTitle, items, nextPageToken } = await ytApi.playlistVideosPage(playlistId);
         if (id !== seq) return;
-        set({ title, items, nextPageToken, status: "ready" });
+        set({ title, channelTitle, items, nextPageToken, status: "ready" });
       } catch (e) {
         if (id !== seq) return;
         set({ status: "error", error: errorMessage(e) });

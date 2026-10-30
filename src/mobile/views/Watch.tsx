@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { usePlayer } from "../../common/stores/player";
 import { useChannels } from "../../common/stores/channels";
 import { useWatchLater } from "../../common/stores/watchLater";
@@ -97,6 +97,33 @@ export default function WatchView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [fsActive, setFsActive]);
+
+  // 返回键先退全屏（mobile / pad 竖屏全屏播放时按返回，先回非全屏而非退出详情页，
+  // 2026-10-30 王总指定）。原理：Android WebView 返回 = history 后退，而
+  // @tauri-apps/api 2.x 无 onBackPressed API（此前 MobileApp 里的注册从未生效）。
+  // 进全屏时经 router 压一条同路径守卫条目；返回触发 popstate 时路由弹回守卫前的
+  // 条目（同路径、组件不重挂载、iframe 播放不中断），window 监听器只退全屏；
+  // 按钮/Esc 退全屏在 cleanup 里把守卫条目弹掉，避免之后按一次返回没反应。
+  const navigate = useNavigate();
+  const { pathname: watchPath, search: watchSearch } = useLocation();
+  useEffect(() => {
+    if (!fsActive) return;
+    navigate(`${watchPath}${watchSearch}`, { state: { fsGuard: true } });
+    const onPop = () => {
+      // 返回键：守卫条目已被消费（路由回到守卫前的同路径条目），这里只退全屏
+      useVideoFullscreen.getState().setActive(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // 守卫未被返回键消费（按钮/Esc 退全屏路径）时弹掉；已被消费（当前条目不是
+      // 守卫，如全屏中点相关视频 push 跳走后的卸载）则跳过，残留由 MobileApp 兜底跳过
+      const st = window.history.state as { usr?: { fsGuard?: boolean } } | null;
+      if (st?.usr?.fsGuard) navigate(-1);
+    };
+    // navigate 引用稳定（react-router v6），fsActive 是唯一开关
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fsActive]);
 
   if (status === "loading" || status === "idle") {
     return <PlayerSkeleton />;

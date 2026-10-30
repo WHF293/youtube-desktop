@@ -459,7 +459,7 @@ export function installDevMock() {
     playlistVideosPage: (
       playlistId: string,
       token?: string,
-    ) => Promise<{ title: string; items: VideoItem[]; nextPageToken: string | null }>;
+    ) => Promise<{ title: string; channelTitle: string; items: VideoItem[]; nextPageToken: string | null }>;
   };
   ytApiPatch.channel = async (channelId) => mockChannel(channelId);
   ytApiPatch.channelVideos = async (channelId) => {
@@ -494,6 +494,7 @@ export function installDevMock() {
     const start = token ? 8 : 0;
     return {
       title: `${CHANNELS[i]} · 系列合集 ${k + 1}`,
+      channelTitle: CHANNELS[i],
       items: FEED.slice(start, start + 8).map((_, n) => mockVideo(i + n, `mockPlVid${playlistId}-${start + n}`)),
       nextPageToken: token ? null : "mockPlPage2",
     };

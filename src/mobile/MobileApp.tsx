@@ -8,6 +8,7 @@ import { useHistory } from "../common/stores/history";
 import { refreshChannelsMeta } from "../common/stores/subsFeed";
 import { initDownloads, useDownloads } from "../common/stores/downloads";
 import { useVideoFullscreen } from "../common/stores/videoFullscreen";
+import { usePlaylist } from "../common/stores/playlist";
 import GlassTabBar from "./components/GlassTabBar";
 import NavigationRail from "./components/NavigationRail";
 import MobileNavBar from "./components/MobileNavBar";
@@ -56,6 +57,9 @@ export default function MobileApp() {
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
   const pathname = location.pathname;
+  // 播放列表详情顶栏文案（博主名-列表名，2026-10-30 王总指定；数据来自 playlist store）
+  const plTitle = usePlaylist((s) => s.title);
+  const plChannelTitle = usePlaylist((s) => s.channelTitle);
   // 二级页（入口不在 TabBar：搜索/历史/收藏/订阅管理/离线/博主详情等）：
   // 手机档隐藏 TabBar（pad 竖屏走手机样式但保持显示，由 mobile.css 媒体查询按宽度分流）
   const secondary = !immersive && !TAB_PATHS.has(pathname);
@@ -109,38 +113,19 @@ export default function MobileApp() {
     };
   }, []);
 
-  // Android 系统返回手势/返回键桥接：二级页 = 路由后退（拦截默认退出）；
-  // 根 Tab 页放行默认行为（交还系统，通常是最小化/退出）。
-  // API 经运行时探测（try/catch + typeof），桌面/旧内核静默跳过。【待真机验证】
+  // Android 返回键 = WebView history 后退（@tauri-apps/api 2.x 无 onBackPressed API，
+  // 此前经运行时探测注册的实现从未生效，2026-10-30 实测全屏返回直接退页后废弃）。
+  // 「全屏先退全屏」的守卫在 WatchView 内实现（history 守卫条目 + popstate 监听）；
+  // 这里只做兜底：全屏已退出但仍停在守卫条目上（如全屏中点相关视频 push 跳走）时，
+  // popstate 自动再退一层跳过守卫条目，避免「按一次返回没反应」。
   useEffect(() => {
-    if (!isTauri()) return;
-    let unlisten: (() => void) | undefined;
-    void (async () => {
-      try {
-        const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-        const win = getCurrentWebviewWindow();
-        const onBackPressed = (
-          win as unknown as {
-            onBackPressed?: (handler: () => boolean) => Promise<() => void>;
-          }
-        ).onBackPressed;
-        if (typeof onBackPressed !== "function") return;
-        unlisten = await onBackPressed.call(win, () => {
-          // 播放器全屏态：返回键先退全屏（原生桥还原竖屏），不走路由后退
-          if (useVideoFullscreen.getState().active) {
-            useVideoFullscreen.getState().setActive(false);
-            return false;
-          }
-          if (TAB_PATHS.has(location.pathname)) return true;
-          navigate(-1);
-          return false;
-        });
-      } catch {
-        // 桌面端 / 旧版 API 无此能力，忽略
-      }
-    })();
-    return () => unlisten?.();
-  }, [location.pathname, navigate]);
+    const onPop = () => {
+      const st = window.history.state as { usr?: { fsGuard?: boolean } } | null;
+      if (st?.usr?.fsGuard && !useVideoFullscreen.getState().active) navigate(-1);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [navigate]);
 
   // 滚动位置记忆：scroll 事件持续把当前页 scrollTop 写进 ref，路由切换时恢复——
   // 首页等列表页返回不再回到顶部（配合去掉路由 key，列表不重挂载不重载）。
@@ -186,6 +171,11 @@ export default function MobileApp() {
             <span>待看</span>
           ) : pathname === "/me" ? (
             <span>我的</span>
+          ) : pathname.startsWith("/playlist/") ? (
+            /* 播放列表详情：博主名-列表名（王总 2026-10-30 指定），数据来自 playlist store */
+            <span className="truncate">
+              {plChannelTitle && plTitle ? `${plChannelTitle}-${plTitle}` : plTitle || "播放列表"}
+            </span>
           ) : pathname.startsWith("/watch/") ? (
             <span>视频详情</span>
           ) : (
@@ -197,11 +187,12 @@ export default function MobileApp() {
           )
         }
         left={
-          // 二级页（离线下载 / 历史 / 订阅管理 / 视频详情）带返回箭头；根 Tab 页无
+          // 二级页（离线下载 / 历史 / 订阅管理 / 视频详情 / 播放列表详情）带返回箭头；根 Tab 页无
           pathname.startsWith("/offline") ||
           pathname === "/history" ||
           pathname === "/favorites" ||
           pathname.startsWith("/watch/") ||
+          pathname.startsWith("/playlist/") ||
           pathname.startsWith("/subscriptions/") ? (
             <button
               type="button"
