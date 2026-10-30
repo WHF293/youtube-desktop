@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ScrollTopFab from "../../common/components/ScrollTopFab";
+import RefreshFab from "../../common/components/RefreshFab";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import useSwipeSwitch from "../hooks/useSwipeSwitch";
 import { useSubsFeed } from "../../common/stores/subsFeed";
@@ -20,8 +21,16 @@ export default function SubscriptionsView() {
     useSubsFeed();
   const channels = useChannels((s) => s.channels);
   const groups = useChannels((s) => s.groups);
-  // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）；跨页面保留
-  const [chip, setChipState] = useState(lastChip);
+  // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）。
+  // 初始值优先恢复持久化的分组筛选（subsFeed store partialize 已落盘，杀进程重开
+  // 仍保留——2026-10-30 王总指定「选分组 a 杀死重开还是 a」；PC 多选勾选时取第一个
+  // key；key 已被删组失效则回退）；lastChip 仅兜底同进程内切页返回
+  const [chip, setChipState] = useState(() => {
+    const sel = useSubsFeed.getState().selectedGroups;
+    if (sel && sel.length > 0 && (sel[0] === "ungrouped" || groups.some((g) => g.id === sel[0])))
+      return sel[0];
+    return lastChip;
+  });
   const setChip = (k: string) => {
     lastChip = k;
     setChipState(k);
@@ -81,55 +90,6 @@ export default function SubscriptionsView() {
   }, [chip]);
 
 
-  // 触顶下拉刷新（首页同款）：列表滚动到顶部继续下拉才重拉订阅流；
-  // 切页返回不触发刷新（见上方 chip effect 的首挂载跳过）
-  const PULL_TRIGGER_PX = 70;
-  const PULL_MAX_PX = 110;
-  const PULL_DAMP = 0.45;
-  const [pull, setPull] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
-  const touchY = useRef<number | null>(null);
-  const atTop = useRef(false);
-  useEffect(() => {
-    const scroller = document.getElementById("m-scroll");
-    if (!scroller) return;
-    const onStart = (e: TouchEvent) => {
-      touchY.current = e.touches[0]?.clientY ?? null;
-      atTop.current = scroller.scrollTop <= 0;
-    };
-    const onMove = (e: TouchEvent) => {
-      if (touchY.current === null || !atTop.current || refreshing) return;
-      const dy = (e.touches[0]?.clientY ?? 0) - touchY.current;
-      setPull(dy > 0 ? Math.min(dy * PULL_DAMP, PULL_MAX_PX) : 0);
-    };
-    const onEnd = () => {
-      touchY.current = null;
-      setPull((p) => {
-        if (p >= PULL_TRIGGER_PX && !refreshing) {
-          setRefreshing(true);
-          void load().finally(() => {
-            setRefreshing(false);
-            setPull(0);
-          });
-          return PULL_TRIGGER_PX;
-        }
-        return 0;
-      });
-    };
-    scroller.addEventListener("touchstart", onStart, { passive: true });
-    scroller.addEventListener("touchmove", onMove, { passive: true });
-    scroller.addEventListener("touchend", onEnd);
-    scroller.addEventListener("touchcancel", onEnd);
-    return () => {
-      scroller.removeEventListener("touchstart", onStart);
-      scroller.removeEventListener("touchmove", onMove);
-      scroller.removeEventListener("touchend", onEnd);
-      scroller.removeEventListener("touchcancel", onEnd);
-    };
-  }, [refreshing, load]);
-
-  const refreshHint = refreshing ? "刷新中…" : pull >= PULL_TRIGGER_PX ? "松手刷新" : "下拉刷新";
-
   // 触底加载下一批（提前 600px 预取）：滚动容器是 #m-scroll（首页同款 scroll 方案，
   // IntersectionObserver 在 WebView2 实测不触发）。分页是本地切片扩窗——RSS 逐频道聚合
   // 无服务端 continuation，loadMore 同步执行、无网络请求，不会重复请求或死循环
@@ -149,22 +109,6 @@ export default function SubscriptionsView() {
 
   return (
     <div className="m-page relative">
-      {/* 触顶下拉刷新指示条 */}
-      {(pull > 0 || refreshing) && (
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-end justify-center overflow-hidden bg-transparent text-[11.5px] text-ink-2"
-          style={{ height: refreshing ? 44 : pull, transition: refreshing ? "height .18s" : undefined }}
-        >
-          <span className="pb-2">{refreshHint}</span>
-        </div>
-      )}
-      <div
-        style={
-          pull > 0 || refreshing
-            ? { transform: `translateY(${refreshing ? 44 : pull}px)`, transition: refreshing ? "transform .18s" : undefined }
-            : undefined
-        }
-      >
       {/* 固定头：博主横滑岛（桌面右栏博主岛的移动形态；点击进博主主页）+ 分组 chips，
           sticky 常驻不随列表滚动（首页 m-chips 同款做法） */}
       <div className="sticky top-0 z-10 bg-surface">
@@ -243,7 +187,7 @@ export default function SubscriptionsView() {
             /* 加载期沿用骨架屏（骨架即 loading，不再闪一帧 Spinner） */
             <RowSkeleton />
           ) : status === "error" ? (
-            <ErrorState desc={error} onRetry={() => void load()} />
+            <ErrorState desc={error} onRetry={() => void load(true)} />
           ) : items.length === 0 ? (
             <EmptyState
               illust="▤"
@@ -264,8 +208,8 @@ export default function SubscriptionsView() {
           )}
         </div>
       </div>
-      </div>
-      {/* 回到顶部固钉（TabBar 上方 20px，平滑滚动） */}
+      {/* 刷新固钉（回顶固钉上方 10px，取代下拉刷新手势）：force 清分组缓存重拉 */}
+      <RefreshFab className="m-fab-top m-fab-refresh" onRefresh={() => load(true)} />
       <ScrollTopFab targetId="m-scroll" className="m-fab-top" />
     </div>
   );

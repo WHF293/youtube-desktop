@@ -277,6 +277,17 @@
   }
 }
 
+/* === 刷新固钉：复用 .m-fab-top 玻璃外观，只改纵向位置——
+       回到顶部固钉（bottom 92px + 高 42px）上方 10px；取代原触顶下拉刷新手势 === */
+.m-fab-refresh {
+  bottom: calc(144px + var(--m-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+@media (min-width: 840px) and (orientation: landscape) {
+  .m-fab-refresh {
+    bottom: 76px;
+  }
+}
+
 /* === Bottom Sheet === */
 .m-sheet-mask {
   position: fixed;
