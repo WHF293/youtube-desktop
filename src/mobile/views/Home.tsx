@@ -18,7 +18,7 @@ const CATEGORIES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 const TAB_OPTIONS = [
-  { value: "", label: "全部" },
+  { value: "", label: "推荐" },
   ...CATEGORIES.map(([id, label]) => ({ value: id, label })),
 ] as const;
 

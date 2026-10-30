@@ -526,7 +526,7 @@ export const FT_HOME_GROUPS: Record<string, string[]> = {
   "19": ["UC0Ize0RLIbGdH5x4wI45G-A", "UCyEd6QBSgat5kkC6svyjudA"], // Drew Binsky / Mark Wiens
 };
 
-/** 地区频道组：首页「全部」与热门页按地区展示当地头部频道（RSS 聚合）。
+/** 地区频道组：首页「推荐」与热门页按地区展示当地头部频道（RSS 聚合）。
  *  全部频道 ID 已于 2026-10-26 经搜索反查 + RSS 逐一验证 */
 export const FT_REGION_GROUPS: Record<string, string[]> = {
   US: ["UCX6OQ3DkcsbYNE6H8uQQuVA", "UCBJycsmduvYEL83R_U4JriQ", "UC6c1z7bA__85CIWZ_jpCK-Q"], // MrBeast / Marques Brownlee / ESPN FC

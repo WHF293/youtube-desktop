@@ -19,7 +19,7 @@ const NAV_ITEMS = [
 const BOTTOM_ITEMS = [{ to: "/settings", label: "设置", icon: "settings" }];
 
 /** 侧栏地区入口的 hover 说明 */
-const REGION_TIP = "切换首页「全部/新闻」的内容地区与搜索结果的地区倾向（InnerTube context.gl），选择即生效。";
+const REGION_TIP = "切换首页「推荐/新闻」的内容地区与搜索结果的地区倾向（InnerTube context.gl），选择即生效。";
 
 /** 地区选择浮层（滑动玻璃气泡选中态；独立组件 = 每次打开重新量取气泡几何） */
 function RegionMenu({
