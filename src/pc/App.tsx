@@ -46,7 +46,7 @@ export default function App() {
     prevRegion.current = regionCode;
     if (location.pathname === "/home") {
       const { category } = useVideos.getState();
-      if (!category || category === NEWS_CATEGORY_ID) void loadPopular(category);
+      if (!category || category === NEWS_CATEGORY_ID) void loadPopular(category, true);
     }
   }, [regionCode, location.pathname, loadPopular]);
 

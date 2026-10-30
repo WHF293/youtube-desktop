@@ -146,7 +146,7 @@ function FreeTubeFeed() {
   }, [status, items.length, channels.length, load]);
 
   // 右下角刷新固钉：重新拉取订阅流（load 内部会重置分页游标）
-  useEffect(() => registerPageRefresh("/subscriptions", () => void load()), [load]);
+  useEffect(() => registerPageRefresh("/subscriptions", () => void load(true)), [load]);
 
   // 触底加载下一批（提前 600px 预取）：scroll 事件方案（IntersectionObserver 在 WebView2
   // 实测不触发，见首页同款注释）。分页是本地切片扩窗（RSS 聚合无服务端翻页），

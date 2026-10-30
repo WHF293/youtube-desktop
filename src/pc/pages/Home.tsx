@@ -48,7 +48,8 @@ export default function Home() {
     () =>
       registerPageRefresh("/home", () => {
         const { category: cat } = useVideos.getState();
-        void useVideos.getState().loadPopular(cat);
+        // 刷新固钉 = force：清分类缓存重拉（普通切换走缓存直接渲染）
+        void useVideos.getState().loadPopular(cat, true);
       }),
     [],
   );
@@ -96,7 +97,7 @@ export default function Home() {
       {status === "loading" || status === "idle" ? (
         <VideoGridSkeleton rows={12} />
       ) : status === "error" ? (
-        <ErrorBox message={error} onRetry={() => void loadPopular(category)} />
+        <ErrorBox message={error} onRetry={() => void loadPopular(category, true)} />
       ) : (
         <>
           {items.length === 0 ? (
