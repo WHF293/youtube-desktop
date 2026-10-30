@@ -234,6 +234,16 @@
     0 3px 12px rgb(0 0 0 / 0.3);
 }
 
+/* 玻璃 icon 圆钮：纯图标不配文字（观看页操作气泡组 icon 化，2026-10-30 王总指定），
+   固定正圆 + 居中，窄屏不挤压变形 */
+.m-glass-icon-btn {
+  width: 40px;
+  min-height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  justify-content: center;
+}
+
 /* === 回到顶部固钉：悬浮在玻璃 TabBar 上方约 20px，玻璃圆钮 === */
 .m-fab-top {
   position: fixed;

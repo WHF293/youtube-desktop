@@ -292,56 +292,60 @@ export default function WatchView() {
         </button>
       </div>
 
-      {/* 操作气泡组：上一个/下一个（沿来源列表顺序）+ 待看 / 收藏（分组 sheet）/ 下载（清晰度 sheet） */}
-      <div className="flex gap-2 overflow-x-auto border-b border-line bg-surface px-3.5 py-2.5">
+      {/* 操作气泡组：纯 icon 圆钮（2026-10-30 王总指定去文字防变形）——
+          上一个/下一个（沿来源列表顺序，悬停 title 带视频标题）+ 待看 / 收藏（分组 sheet）/ 下载（清晰度 sheet） */}
+      <div className="flex items-center gap-2.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-2.5">
         {(nav.prev || nav.next) && (
           <>
             <button
               type="button"
               disabled={!nav.prev}
               onClick={() => nav.prev && navigate(`/watch/${nav.prev.id}`)}
-              title={nav.prev?.title}
+              title={nav.prev ? `上一个：${nav.prev.title}` : undefined}
               aria-label="播放上一个视频"
-              className="m-glass-btn shrink-0 disabled:opacity-40"
+              className="m-glass-btn m-glass-icon-btn disabled:opacity-40"
             >
-              <span aria-hidden="true">‹</span> 上一个
+              <Icon name="arrowLeft" size={17} />
             </button>
-            <span className="m-glass-btn pointer-events-none shrink-0 !border-transparent !bg-transparent text-[11px] text-ink-3">
-              {nav.pos}/{nav.total}
-            </span>
             <button
               type="button"
               disabled={!nav.next}
               onClick={() => nav.next && navigate(`/watch/${nav.next.id}`)}
-              title={nav.next?.title}
+              title={nav.next ? `下一个：${nav.next.title}` : undefined}
               aria-label="播放下一个视频"
-              className="m-glass-btn shrink-0 disabled:opacity-40"
+              className="m-glass-btn m-glass-icon-btn disabled:opacity-40"
             >
-              下一个 <span aria-hidden="true">›</span>
+              <Icon name="chevronRight" size={17} />
             </button>
           </>
         )}
         <button
           type="button"
           onClick={toggleWatchLater}
-          className={`m-glass-btn ${inWl ? "!text-accent" : ""}`}
+          aria-label={inWl ? (confirming ? "再点一次确认移出待看" : "移出待看") : "加入待看"}
+          title={inWl ? (confirming ? "再点一次确认移出" : "已在待看，点击移除") : "加入待看"}
+          className={`m-glass-btn m-glass-icon-btn ${
+            inWl ? (confirming ? "!text-red-500" : "!text-accent") : ""
+          }`}
         >
-          {inWl ? (confirming ? "确认移出？" : "✓ 已在待看") : "◷ 待看"}
+          <Icon name="watchLater" size={17} />
         </button>
         <button
           type="button"
           onClick={() => setFavOpen(true)}
-          className={`m-glass-btn ${faved ? "!text-accent" : ""}`}
+          aria-label={faved ? "管理收藏" : "收藏"}
+          className={`m-glass-btn m-glass-icon-btn ${faved ? "!text-accent" : ""}`}
         >
-          {faved ? "★ 已收藏" : "★ 收藏"}
+          <Icon name={faved ? "star" : "starBorder"} size={17} />
         </button>
         <button
           type="button"
           disabled={!isTauri()}
           onClick={openDownloadSheet}
-          className={`m-glass-btn ${!isTauri() ? "opacity-40" : ""}`}
+          aria-label={dlLoading ? "正在提取下载地址" : "下载视频"}
+          className={`m-glass-btn m-glass-icon-btn ${!isTauri() ? "opacity-40" : ""} ${dlLoading ? "animate-pulse" : ""}`}
         >
-          {dlLoading ? "⭳ 提取中…" : "⭳ 下载"}
+          <Icon name="download" size={17} />
         </button>
       </div>
 
