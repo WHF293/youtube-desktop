@@ -253,14 +253,7 @@ export default function MobileApp() {
             <>
               {pathname === "/home" ? (
                 <>
-                  <button
-                    type="button"
-                    aria-label="搜索"
-                    onClick={() => navigate("/search")}
-                    className="m-nav__icon"
-                  >
-                    <Icon name="search" size={19} />
-                  </button>
+                  {/* 地区在左、搜索在右（2026-10-30 王总指定互换） */}
                   <button
                     type="button"
                     aria-label="地区设置"
@@ -271,6 +264,14 @@ export default function MobileApp() {
                       {regionName}
                     </span>
                     <Icon name="language" size={19} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="搜索"
+                    onClick={() => navigate("/search")}
+                    className="m-nav__icon"
+                  >
+                    <Icon name="search" size={19} />
                   </button>
                 </>
               ) : (
