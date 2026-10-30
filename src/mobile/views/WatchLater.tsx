@@ -106,7 +106,8 @@ export default function WatchLaterView() {
   };
 
   return (
-    <div className="m-page">
+    // pb-4：列表底部留白，不贴屏底/TabBar（2026-10-30 王总指定）
+    <div className="m-page pb-4">
       {/* 搜索行：吸顶（navbar 由 MobileApp 渲染在滚动区外，top 即 0），按标题关键字过滤 */}
       <div className="sticky top-0 z-10 border-b border-line bg-surface px-3.5 py-2">
         <input
