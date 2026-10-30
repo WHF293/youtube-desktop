@@ -16,7 +16,8 @@ let lastChip = "all";
  *  + 订阅更新流（分组筛选复用桌面 selectedGroups 逻辑；列表左右滑切换分组） */
 export default function SubscriptionsView() {
   const navigate = useNavigate();
-  const { items, failed, status, error, selectedGroups, setSelectedGroups, load } = useSubsFeed();
+  const { items, failed, status, error, selectedGroups, setSelectedGroups, load, visible, hasMore, loadMore } =
+    useSubsFeed();
   const channels = useChannels((s) => s.channels);
   const groups = useChannels((s) => s.groups);
   // 本地单选 chips 态："all" = 全部；其余为分组 key（含 "ungrouped"）；跨页面保留
@@ -118,6 +119,23 @@ export default function SubscriptionsView() {
 
   const refreshHint = refreshing ? "刷新中…" : pull >= PULL_TRIGGER_PX ? "松手刷新" : "下拉刷新";
 
+  // 触底加载下一批（提前 600px 预取）：滚动容器是 #m-scroll（首页同款 scroll 方案，
+  // IntersectionObserver 在 WebView2 实测不触发）。分页是本地切片扩窗——RSS 逐频道聚合
+  // 无服务端 continuation，loadMore 同步执行、无网络请求，不会重复请求或死循环
+  useEffect(() => {
+    if (status !== "ready") return;
+    const scroller = document.getElementById("m-scroll");
+    if (!scroller) return;
+    const check = () => {
+      if (hasMore && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 600) {
+        loadMore();
+      }
+    };
+    check(); // 挂载/扩窗后立即查一次：首屏未填满时也能续载
+    scroller.addEventListener("scroll", check, { passive: true });
+    return () => scroller.removeEventListener("scroll", check);
+  }, [status, visible, hasMore, loadMore]);
+
   return (
     <div className="m-page relative">
       {/* 触顶下拉刷新指示条 */}
@@ -218,10 +236,14 @@ export default function SubscriptionsView() {
             />
           ) : (
             <div className="flex flex-col tablet:grid tablet:grid-cols-2 tablet:gap-x-2.5">
-              {items.map((v, i) => (
+              {/* 触底分页：只渲染可见窗口（数据层一次聚合，前端切片扩窗） */}
+              {items.slice(0, visible).map((v, i) => (
                 <RowCard key={videoIdOf(v) ?? i} video={v} />
               ))}
             </div>
+          )}
+          {items.length > 0 && !hasMore && (
+            <p className="py-6 text-center text-xs text-ink-3">到底了 · 共 {items.length} 条更新</p>
           )}
         </div>
       </div>

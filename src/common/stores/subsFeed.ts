@@ -5,6 +5,10 @@ import { errorMessage, type Status } from "./videos";
 import { useChannels, titleLooksBroken } from "./channels";
 import type { VideoItem } from "../types/youtube";
 
+/** 触底分页批大小：RSS 逐频道聚合无 continuation token（服务端无法翻页），
+ *  分页采用前端切片——items 一次拿全，触底时只扩大可见窗口（本地操作，无网络请求） */
+export const SUBS_PAGE_SIZE = 30;
+
 /** FreeTube 模式订阅流：本地频道列表的 RSS 聚合（无登录态）。
  *  加载顺带自愈本地坏数据：头像缺失 + 标题损坏（历史版本 CSV 导入错位的产物）
  *  用 ftChannel 的远端正确数据覆盖并持久化。
@@ -15,10 +19,16 @@ interface SubsFeedState {
   failed: string[];
   status: Status;
   error: string;
+  /** 触底分页：当前可见条数（UI 按 items.slice(0, visible) 渲染） */
+  visible: number;
+  /** 是否还有未展示的条目（visible < items.length） */
+  hasMore: boolean;
   /** 分组筛选：勾选的分组 key（"ungrouped" = 默认分组 / 分组 id）；null = 全部勾选 */
   selectedGroups: string[] | null;
   setSelectedGroups: (keys: string[] | null) => void;
   load: () => Promise<void>;
+  /** 触底加载下一批（本地切片扩窗，不发起网络请求，天然无重复请求） */
+  loadMore: () => void;
 }
 
 export const useSubsFeed = create<SubsFeedState>()(
@@ -30,13 +40,21 @@ export const useSubsFeed = create<SubsFeedState>()(
         failed: [],
         status: "idle",
         error: "",
+        visible: SUBS_PAGE_SIZE,
+        hasMore: false,
         selectedGroups: null,
         setSelectedGroups: (selectedGroups) => set({ selectedGroups }),
+        loadMore: () =>
+          // 本地切片扩窗：同步操作无 loading 周期；越界时直接顶到全长（hasMore 随之变 false）
+          set((s) => {
+            const visible = Math.min(s.visible + SUBS_PAGE_SIZE, s.items.length);
+            return visible === s.visible ? null : { visible, hasMore: visible < s.items.length };
+          }),
         load: async () => {
           const id = ++seq;
           const channels = useChannels.getState().channels;
           if (channels.length === 0) {
-            set({ items: [], failed: [], status: "ready", error: "" });
+            set({ items: [], failed: [], status: "ready", error: "", visible: SUBS_PAGE_SIZE, hasMore: false });
             return;
           }
           // 分组筛选：null = 全部；否则只保留勾选分组（含默认分组 key "ungrouped"）内的博主
@@ -47,7 +65,7 @@ export const useSubsFeed = create<SubsFeedState>()(
               ? channels
               : channels.filter((c) => selectedSet.has(c.groupId ?? "ungrouped"));
           if (target.length === 0) {
-            set({ items: [], failed: [], status: "ready", error: "" });
+            set({ items: [], failed: [], status: "ready", error: "", visible: SUBS_PAGE_SIZE, hasMore: false });
             return;
           }
           set({ status: "loading", error: "" });
@@ -55,11 +73,14 @@ export const useSubsFeed = create<SubsFeedState>()(
             const { videos, failedIds } = await ftSubscriptionsFeed(target.map((c) => c.id));
             if (id !== seq) return;
             const titleOf = (cid: string) => target.find((c) => c.id === cid)?.title ?? cid;
+            // 每次整页重拉（刷新 / 切分组）都重置分页游标：可见窗口回到第一批
             set({
               items: videos,
               failed: failedIds.map(titleOf),
               status: "ready",
               error: "",
+              visible: SUBS_PAGE_SIZE,
+              hasMore: videos.length > SUBS_PAGE_SIZE,
             });
           } catch (e) {
             if (id !== seq) return;

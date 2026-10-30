@@ -1,5 +1,5 @@
 import Img from "../../common/components/Img";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels, type SubChannel } from "../../common/stores/channels";
@@ -128,13 +128,15 @@ function FilterModal({ onClose }: { onClose: () => void }) {
 
 /** 左侧订阅流岛 + 右栏博主分组岛 */
 function FreeTubeFeed() {
-  const { items, failed, status, error, load, selectedGroups } = useSubsFeed();
+  const { items, failed, status, error, load, visible, hasMore, loadMore, selectedGroups } = useSubsFeed();
   const { channels, groups } = useChannels();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   // 分组区块展开状态（默认全开）
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
+  // 触底加载：左岛视频流滚动容器（本页自己的滚动元素，不是 #main-scroll）
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // idle 正常首载；「ready 但 items 空」且本地有频道 = 上次加载异常中断的残留态，重载一次自愈
@@ -143,8 +145,29 @@ function FreeTubeFeed() {
     }
   }, [status, items.length, channels.length, load]);
 
-  // 右下角刷新固钉：重新拉取订阅流
+  // 右下角刷新固钉：重新拉取订阅流（load 内部会重置分页游标）
   useEffect(() => registerPageRefresh("/subscriptions", () => void load()), [load]);
+
+  // 触底加载下一批（提前 600px 预取）：scroll 事件方案（IntersectionObserver 在 WebView2
+  // 实测不触发，见首页同款注释）。分页是本地切片扩窗（RSS 聚合无服务端翻页），
+  // loadMore 同步执行、无网络请求，不会重复请求；hasMore=false 后条件恒不满足，无死循环
+  useEffect(() => {
+    if (status !== "ready") return;
+    const sc = listRef.current;
+    if (!sc) return;
+    const check = () => {
+      if (hasMore && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 600) {
+        loadMore();
+      }
+    };
+    check(); // 挂载/扩窗后立即查一次：首屏未填满时也能续载
+    sc.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      sc.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, [status, visible, hasMore, loadMore]);
 
   const groupName = (id?: string) => groups.find((g) => g.id === id)?.name;
 
@@ -184,16 +207,20 @@ function FreeTubeFeed() {
             </p>
           )}
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2 pt-0">
+        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-2 pt-0">
           {status === "loading" || status === "idle" ? (
             <VideoRowSkeleton rows={6} />
           ) : status === "error" ? (
             <ErrorBox message={error} onRetry={() => void load()} />
           ) : (
             <>
-              {items.map((v) => (
+              {/* 触底分页：只渲染可见窗口（数据层一次聚合，前端切片扩窗） */}
+              {items.slice(0, visible).map((v) => (
                 <VideoRow key={v.etag} video={v} />
               ))}
+              {items.length > 0 && !hasMore && (
+                <p className="py-4 text-center text-xs text-ink-3">到底了 · 共 {items.length} 条更新</p>
+              )}
               {items.length === 0 &&
                 (failed.length > 0 ? (
                   <div className="mx-2 my-6 rounded-lg border border-line bg-app p-5 text-sm text-ink">
