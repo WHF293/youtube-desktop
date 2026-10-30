@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { EmptyState, ErrorState } from "../components/StateViews";
@@ -40,13 +40,24 @@ export default function SubscriptionsView() {
     index: chipIndex,
     onChange: (next) => setChip(chipOptions[next].key),
   });
-  // 头像联动：顶部博主岛只显示当前选中分组下的博主（全部 = 全部；未分组 = 无分组）
-  const shownChannels =
+  // 头像联动：顶部博主岛只显示当前选中分组下的博主。
+  // 「全部」按分组顺序展平：默认分组在前（组内原顺序），自定义分组按排序跟随
+  //（groups 数组顺序，管理页拖拽排序后即时联动），分组之间用竖线分隔
+  const shownSections =
     chip === "all"
-      ? channels
-      : chip === "ungrouped"
-        ? channels.filter((c) => !c.groupId)
-        : channels.filter((c) => c.groupId === chip);
+      ? [
+          { key: "ungrouped", list: channels.filter((c) => !c.groupId) },
+          ...groups.map((g) => ({ key: g.id, list: channels.filter((c) => c.groupId === g.id) })),
+        ].filter((s) => s.list.length > 0)
+      : [
+          {
+            key: chip,
+            list:
+              chip === "ungrouped"
+                ? channels.filter((c) => !c.groupId)
+                : channels.filter((c) => c.groupId === chip),
+          },
+        ];
 
   useEffect(() => {
     if (status === "idle") void load();
@@ -157,28 +168,34 @@ export default function SubscriptionsView() {
       {/* 固定头：博主横滑岛（桌面右栏博主岛的移动形态；点击进博主主页）+ 分组 chips，
           sticky 常驻不随列表滚动（首页 m-chips 同款做法） */}
       <div className="sticky top-0 z-10 bg-surface">
-        {shownChannels.length > 0 && (
+        {shownSections.length > 0 && (
           <div className="flex gap-3.5 overflow-x-auto border-b border-line bg-surface px-3.5 py-3">
-            {shownChannels.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => navigate(`/channel/${c.id}`)}
-                className="flex w-15 shrink-0 flex-col items-center gap-1.5"
-              >
-                {c.thumb ? (
-                  <Img
-                    src={c.thumb}
-                    alt=""
-                    className="h-13 w-13 shrink-0 rounded-full bg-flat object-cover"
-                  />
-                ) : (
-                  <AvatarBadge name={c.title} size={52} />
-                )}
-                <span className="w-15 truncate text-center text-[10.5px] text-ink-2">
-                  {c.title}
-                </span>
-              </button>
+            {shownSections.map((s, si) => (
+              <Fragment key={s.key}>
+                {/* 相邻分组之间的竖线分隔（ink-3 弱化色，深浅色都可见但不抢眼） */}
+                {si > 0 && <span aria-hidden="true" className="h-13 w-px shrink-0 self-center bg-ink-3/40" />}
+                {s.list.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => navigate(`/channel/${c.id}`)}
+                    className="flex w-15 shrink-0 flex-col items-center gap-1.5"
+                  >
+                    {c.thumb ? (
+                      <Img
+                        src={c.thumb}
+                        alt=""
+                        className="h-13 w-13 shrink-0 rounded-full bg-flat object-cover"
+                      />
+                    ) : (
+                      <AvatarBadge name={c.title} size={52} />
+                    )}
+                    <span className="w-15 truncate text-center text-[10.5px] text-ink-2">
+                      {c.title}
+                    </span>
+                  </button>
+                ))}
+              </Fragment>
             ))}
           </div>
         )}

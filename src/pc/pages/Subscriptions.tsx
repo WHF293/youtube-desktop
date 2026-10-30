@@ -1,5 +1,5 @@
 import Img from "../../common/components/Img";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSubsFeed } from "../../common/stores/subsFeed";
 import { useChannels, type SubChannel } from "../../common/stores/channels";
@@ -303,27 +303,37 @@ function FreeTubeFeed() {
         </header>
 
         {collapsed ? (
-          /* 收起态：头像一列（内部滚动），hover 显示「名称 · 分组」 */
+          /* 收起态：头像一列（内部滚动），hover 显示「名称 · 分组」。
+              顺序 = 分组顺序（默认分组在前，自定义分组按排序跟随），分组之间用弱化分隔线 */
           <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto py-2">
-            {channels.map((c) => {
-              const gn = groupName(c.groupId);
-              return (
-                <Link
-                  key={c.id}
-                  to={`/channel/${c.id}`}
-                  title={gn ? `${c.title} · ${gn}` : c.title}
-                  className="rounded-full p-0.5 transition-colors hover:bg-flat"
-                >
-                  {c.thumb ? (
-                    <Img src={c.thumb} alt="" className="h-9 w-9 rounded-full bg-flat object-cover" />
-                  ) : (
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-flat text-sm font-medium text-ink-2">
-                      {c.title.slice(0, 1)}
-                    </span>
+            {sections
+              .filter((s) => s.list.length > 0)
+              .map((s, si) => (
+                <Fragment key={s.key}>
+                  {si > 0 && (
+                    <div aria-hidden="true" className="my-1 h-px w-8 shrink-0 bg-ink-3/40" />
                   )}
-                </Link>
-              );
-            })}
+                  {s.list.map((c) => {
+                    const gn = groupName(c.groupId);
+                    return (
+                      <Link
+                        key={c.id}
+                        to={`/channel/${c.id}`}
+                        title={gn ? `${c.title} · ${gn}` : c.title}
+                        className="rounded-full p-0.5 transition-colors hover:bg-flat"
+                      >
+                        {c.thumb ? (
+                          <Img src={c.thumb} alt="" className="h-9 w-9 rounded-full bg-flat object-cover" />
+                        ) : (
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-flat text-sm font-medium text-ink-2">
+                            {c.title.slice(0, 1)}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </Fragment>
+              ))}
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-1">

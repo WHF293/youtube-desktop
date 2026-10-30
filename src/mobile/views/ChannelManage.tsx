@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   useChannels,
   type SubChannel,
 } from "../../common/stores/channels";
@@ -12,6 +22,81 @@ import Icon from "../../common/components/Icon";
 import BottomSheet from "../components/BottomSheet";
 import { EmptyState } from "../components/StateViews";
 
+/** 分组卡片（dnd-kit 可排序：仅自定义分组可拖，默认分组固定第一不可拖；
+ *  拖拽把手是区块头左侧 grip 图标，不占用展开/收起的点击区域） */
+function GroupCard({
+  sectionKey,
+  name,
+  count,
+  groupId,
+  open,
+  onToggle,
+  onRename,
+  children,
+}: {
+  sectionKey: string;
+  name: string;
+  count: number;
+  groupId?: string;
+  open: boolean;
+  onToggle: () => void;
+  onRename: () => void;
+  children: React.ReactNode;
+}) {
+  const isCustom = groupId !== undefined;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: sectionKey,
+    disabled: !isCustom,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`overflow-hidden rounded-2xl bg-surface shadow-island ${isDragging ? "opacity-30" : ""}`}
+    >
+      {/* 区块头：拖拽把手（仅自定义分组）+ 展开/收起 + 计数 + 改名（仅自定义分组） */}
+      <div className="flex items-center gap-1 px-2.5 py-2">
+        {isCustom && (
+          <button
+            type="button"
+            aria-label={`拖拽调整分组 ${name} 的顺序`}
+            className="shrink-0 cursor-grab touch-none rounded p-0.5 text-ink-3 active:bg-flat"
+            {...attributes}
+            {...listeners}
+          >
+            <Icon name="grip" size={13} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left"
+        >
+          <Icon
+            name="chevronRight"
+            size={12}
+            className={`shrink-0 text-ink-3 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          />
+          <span className="truncate text-[12.5px] font-semibold text-ink-2">{name}</span>
+          <span className="shrink-0 text-[11.5px] text-ink-3">（{count}）</span>
+        </button>
+        {isCustom && (
+          <button
+            type="button"
+            onClick={onRename}
+            aria-label={`重命名分组 ${name}`}
+            className="shrink-0 rounded-full p-1.5 text-ink-3 active:bg-flat"
+          >
+            <Icon name="edit" size={13} />
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /** 移动端订阅博主管理页（订阅页 navbar「管理」入口）：
  *  添加频道 / 改分组 / 删除（二次确认 3 秒复位）。导入导出 JSON 在「我的」页订阅管理 sheet */
 export default function ChannelManageView() {
@@ -22,6 +107,7 @@ export default function ChannelManageView() {
   const moveChannel = useChannels((s) => s.moveChannel);
   const renameGroup = useChannels((s) => s.renameGroup);
   const addGroup = useChannels((s) => s.addGroup);
+  const reorderGroups = useChannels((s) => s.reorderGroups);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -94,6 +180,18 @@ export default function ChannelManageView() {
     })),
   ].filter((s) => s.groupId !== undefined || s.list.length > 0);
 
+  // 分组卡片拖拽排序（dnd-kit，pointer 传感器 distance 约束区分点击与拖拽）。
+  // 默认分组固定第一：任一端是 "ungrouped" 都不处理（与 PC Groups 页的判定一致）
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const onGroupDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    if (activeId === "ungrouped" || overId === "ungrouped") return;
+    reorderGroups(activeId, overId);
+  };
+
   /** 博主条目（改分组 / 删除）；头像+名称点击进博主主页 */
   const channelRow = (c: SubChannel, first: boolean) => (
     <div key={c.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${first ? "" : "border-t border-line"}`}>
@@ -147,66 +245,53 @@ export default function ChannelManageView() {
       {msg && <p className={`mx-3.5 mt-3 text-[11.5px] ${msg.ok ? "text-ink-2" : "text-red-500"}`}>{msg.text}</p>}
 
       {/* 博主列表：每个分组一个圆角卡片（分组名 + 博主列表整体包裹），分组之间留间隔。
-          交互不变：区块可展开/收起，自定义分组支持改名 */}
-      <div className="mx-3.5 mt-2.5 mb-4 flex flex-col gap-3">
-        {channels.length === 0 ? (
-          <div className="overflow-hidden rounded-2xl bg-surface shadow-island">
-            <EmptyState illust="▤" title="还没有订阅博主" desc="点右上角 + 添加，或在观看页点「添加订阅」" />
-          </div>
-        ) : (
-          sections.map((s) => {
-            const open = !closedSections[s.key];
-            return (
-              <div key={s.key} className="overflow-hidden rounded-2xl bg-surface shadow-island">
-                {/* 区块头：展开/收起 + 计数 + 改名（仅自定义分组） */}
-                <div className="flex items-center gap-1 px-2.5 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setClosedSections((m) => ({ ...m, [s.key]: !m[s.key] }))}
-                    aria-expanded={open}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left"
-                  >
-                    <Icon
-                      name="chevronRight"
-                      size={12}
-                      className={`shrink-0 text-ink-3 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
-                    />
-                    <span className="truncate text-[12.5px] font-semibold text-ink-2">{s.name}</span>
-                    <span className="shrink-0 text-[11.5px] text-ink-3">（{s.list.length}）</span>
-                  </button>
-                  {s.groupId !== undefined && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRenameFor(s.groupId!);
-                        setRenameInput(s.name);
-                      }}
-                      aria-label={`重命名分组 ${s.name}`}
-                      className="shrink-0 rounded-full p-1.5 text-ink-3 active:bg-flat"
-                    >
-                      <Icon name="edit" size={13} />
-                    </button>
-                  )}
-                </div>
-                {/* 区块内博主：grid-rows 高度过渡（PC 右栏同款） */}
-                <div
-                  className={`grid transition-[grid-template-rows] duration-200 ease-in-out ${
-                    open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                  }`}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    {s.list.length > 0 ? (
-                      s.list.map((c, i) => channelRow(c, i === 0))
-                    ) : (
-                      <p className="px-3.5 pb-2.5 text-[11.5px] text-ink-3">空分组 · 在列表中点博主分组名移入</p>
-                    )}
-                  </div>
-                </div>
+          自定义分组卡片可拖拽排序（dnd-kit），默认分组固定第一不可拖；
+          分组顺序变化后订阅页头像顺序即时联动（订阅页消费 groups 数组顺序） */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onGroupDragEnd}>
+        <SortableContext items={sections.map((s) => s.key)} strategy={verticalListSortingStrategy}>
+          <div className="mx-3.5 mt-2.5 mb-4 flex flex-col gap-3">
+            {channels.length === 0 ? (
+              <div className="overflow-hidden rounded-2xl bg-surface shadow-island">
+                <EmptyState illust="▤" title="还没有订阅博主" desc="点右上角 + 添加，或在观看页点「添加订阅」" />
               </div>
-            );
-          })
-        )}
-      </div>
+            ) : (
+              sections.map((s) => {
+                const open = !closedSections[s.key];
+                return (
+                  <GroupCard
+                    key={s.key}
+                    sectionKey={s.key}
+                    name={s.name}
+                    count={s.list.length}
+                    groupId={s.groupId}
+                    open={open}
+                    onToggle={() => setClosedSections((m) => ({ ...m, [s.key]: !m[s.key] }))}
+                    onRename={() => {
+                      setRenameFor(s.groupId!);
+                      setRenameInput(s.name);
+                    }}
+                  >
+                    {/* 区块内博主：grid-rows 高度过渡（PC 右栏同款） */}
+                    <div
+                      className={`grid transition-[grid-template-rows] duration-200 ease-in-out ${
+                        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                      }`}
+                    >
+                      <div className="min-h-0 overflow-hidden">
+                        {s.list.length > 0 ? (
+                          s.list.map((c, i) => channelRow(c, i === 0))
+                        ) : (
+                          <p className="px-3.5 pb-2.5 text-[11.5px] text-ink-3">空分组 · 在列表中点博主分组名移入</p>
+                        )}
+                      </div>
+                    </div>
+                  </GroupCard>
+                );
+              })
+            )}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* 分组选择 sheet */}
       <BottomSheet open={pickFor !== null} onClose={() => setPickFor(null)} title={`「${pickFor?.title ?? ""}」分组`}>
