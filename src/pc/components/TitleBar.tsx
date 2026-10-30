@@ -117,8 +117,9 @@ export default function TitleBar() {
   const canControlWindow = isTauri();
   const appWindow = canControlWindow ? getCurrentWindow() : null;
 
-  // 首页保留品牌位（标题左对齐、无设置入口）；其余页面：左侧返回 + 标题居中 + 设置入口
-  const isHome = location.pathname === "/";
+  // 首页保留品牌位（标题左对齐、无设置入口）；其余页面：左侧返回 + 标题居中 + 设置入口。
+  // 首页路径为 /home（根路径 "/" 重定向到订阅页，2026-10-30 默认页调整）
+  const isHome = location.pathname === "/home";
 
   // 非首页导航栏标题：静态路由查表，动态路由（观看/频道/搜索等）按前缀解析
   const PAGE_TITLES: Record<string, string> = {
@@ -199,7 +200,7 @@ export default function TitleBar() {
           <>
             <button
               type="button"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/home")}
               aria-label="回到首页"
               className="flex min-w-0 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-flat"
             >

@@ -27,8 +27,9 @@ import OfflineWatchView from "./views/OfflineWatch";
 import ChannelView from "./views/Channel";
 import ChannelManageView from "./views/ChannelManage";
 
-/** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用） */
-const TAB_PATHS = new Set(["/", "/subscriptions", "/watchlater", "/me"]);
+/** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用）。
+ *  根路径 "/" 重定向到 /subscriptions（打开软件默认进订阅，2026-10-30 王总指定），首页迁至 /home */
+const TAB_PATHS = new Set(["/home", "/subscriptions", "/watchlater", "/me"]);
 
 /** TabBar 高亮映射：/search、/offline、/subscriptions/manage 归属位（首页 / 我的 / 订阅） */
 function activeTabOf(pathname: string): string {
@@ -37,7 +38,7 @@ function activeTabOf(pathname: string): string {
   if (pathname.startsWith("/search") || pathname === "/history" || pathname === "/favorites")
     return "/me";
   if (pathname.startsWith("/offline")) return "/me";
-  return "/";
+  return "/home";
 }
 
 export default function MobileApp() {
@@ -187,6 +188,7 @@ export default function MobileApp() {
           ) : pathname.startsWith("/watch/") ? (
             <span>视频详情</span>
           ) : (
+            /* 首页（/home）显示品牌位；根路径 "/" 已重定向到订阅页 */
             <span className="flex items-center gap-1.5">
               <YouTubeLogo size={22} />
               YouTube Desktop
@@ -247,9 +249,9 @@ export default function MobileApp() {
             >
               <Icon name="close" size={19} />
             </button>
-          ) : pathname === "/" || pathname === "/me" ? (
+          ) : pathname === "/home" || pathname === "/me" ? (
             <>
-              {pathname === "/" ? (
+              {pathname === "/home" ? (
                 <>
                   <button
                     type="button"
@@ -327,8 +329,9 @@ export default function MobileApp() {
           style={immersive ? { paddingBottom: 12 } : undefined}
         >
           <Routes>
-            <Route path="/" element={<HomeView />} />
-            <Route path="/home" element={<Navigate to="/" replace />} />
+            {/* 根路径默认进订阅页（打开软件默认 tab，2026-10-30 王总指定）；首页迁至 /home */}
+            <Route path="/" element={<Navigate to="/subscriptions" replace />} />
+            <Route path="/home" element={<HomeView />} />
             <Route path="/subscriptions" element={<SubscriptionsView />} />
             <Route path="/subscriptions/manage" element={<ChannelManageView />} />
             <Route path="/watch/:videoId" element={<WatchView />} />
@@ -340,7 +343,7 @@ export default function MobileApp() {
             <Route path="/me" element={<MeView />} />
             <Route path="/offline" element={<OfflineView />} />
             <Route path="/offline/watch/:videoId" element={<OfflineWatchView />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/subscriptions" replace />} />
           </Routes>
         </div>
       </div>

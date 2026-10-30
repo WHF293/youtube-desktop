@@ -38,12 +38,12 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // 地区变化：正处在首页时立刻刷新「全部」（地区频道组）与「新闻」分类（搜索地区化）；
+  // 地区变化：正处在首页时立刻刷新「推荐」（地区频道组）与「新闻」分类（搜索地区化）；
   // 其余分类为全球精选频道组，与地区无关不刷新
   useEffect(() => {
     if (prevRegion.current === regionCode) return;
     prevRegion.current = regionCode;
-    if (location.pathname === "/") {
+    if (location.pathname === "/home") {
       const { category } = useVideos.getState();
       if (!category || category === NEWS_CATEGORY_ID) void loadPopular(category);
     }
@@ -112,9 +112,10 @@ export default function App() {
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-surface shadow-island">
           <div id="main-scroll" className="min-h-0 flex-1 overflow-y-auto" key={location.pathname}>
             <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/home" element={<Navigate to="/" replace />} />
-            <Route path="/trending" element={<Navigate to="/" replace />} />
+            {/* 默认页 = 订阅（打开软件直接进订阅流，2026-10-30 王总指定）；首页迁至 /home */}
+            <Route path="/" element={<Navigate to="/subscriptions" replace />} />
+            <Route path="/home" element={<Home />} />
+            <Route path="/trending" element={<Navigate to="/home" replace />} />
             <Route path="/search" element={<Search />} />
             <Route path="/watch/:videoId" element={<Watch />} />
             <Route path="/channel/:channelId" element={<Channel />} />
@@ -127,7 +128,7 @@ export default function App() {
             <Route path="/offline/watch/:videoId" element={<OfflineWatch />} />
             <Route path="/help" element={<Help />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/subscriptions" replace />} />
             </Routes>
           </div>
         </main>

@@ -138,7 +138,7 @@ export default function Help() {
 
       <p className="mt-8 text-xs text-ink-3">
         更多细节见项目文档 .ai/开发方案/ 目录。返回
-        <Link to="/" className="mx-1 text-accent underline">首页</Link>。
+        <Link to="/home" className="mx-1 text-accent underline">首页</Link>。
       </p>
     </div>
   );

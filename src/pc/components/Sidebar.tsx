@@ -6,7 +6,8 @@ import { useSettings, REGIONS } from "../../common/stores/settings";
 import { thumbPhaseCls, thumbStyle, useSlidingThumb } from "../../common/lib/useSlidingThumb";
 
 const NAV_ITEMS = [
-  { to: "/", label: "首页", icon: "home", end: true },
+  // 首页在 /home（根路径 "/" 重定向到订阅页 = 打开软件的默认页）
+  { to: "/home", label: "首页", icon: "home", end: true },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions", end: false },
   { to: "/history", label: "历史", icon: "history", end: false },
   { to: "/watchlater", label: "待看", icon: "watchLater", end: false },

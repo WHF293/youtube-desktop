@@ -43,10 +43,10 @@ export default function Home() {
     if (status === "idle" || useVideos.getState().mode !== "popular") void loadPopular(category);
   }, [status, loadPopular, category]);
 
-  // 右下角刷新固钉：保留当前分类刷新
+  // 右下角刷新固钉：保留当前分类刷新（首页路径 /home，根路径已重定向到订阅页）
   useEffect(
     () =>
-      registerPageRefresh("/", () => {
+      registerPageRefresh("/home", () => {
         const { category: cat } = useVideos.getState();
         void useVideos.getState().loadPopular(cat);
       }),
