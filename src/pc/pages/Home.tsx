@@ -64,11 +64,8 @@ export default function Home() {
 
   return (
     <div>
-      {/* 页头：标题 + 推荐地区（sticky，与分类页页头同构） */}
-      <div className="sticky top-0 z-10 flex items-center bg-app px-4 py-3">
-        <h1 className="text-base font-semibold text-ink">推荐</h1>
-        <RegionPicker scope="popular" />
-      </div>
+      {/* 推荐地区悬浮固钉（右上角，icon-only，不随内容滚动） */}
+      <RegionPicker scope="popular" variant="fab" />
 
       {status === "loading" || status === "idle" ? (
         <VideoGridSkeleton rows={12} />

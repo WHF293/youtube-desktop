@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useVideos } from "../../common/stores/videos";
 import { registerPageRefresh } from "../../common/lib/refresh";
 import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
-import GlassChipGroup from "../../common/components/GlassChipGroup";
 import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { VideoGrid } from "../components/VideoCard";
 import { ErrorBox } from "../../common/components/Spinner";
@@ -99,17 +98,25 @@ export default function Categories() {
   // tab 栏常驻不随加载状态卸载（避免切换分类时按钮组闪烁），只有下方内容区切换加载态
   return (
     <div>
-      {/* 页头：分类 tab + 分类地区（sticky） */}
+      {/* 页头：分类独立胶囊按钮（一颗一颗，主题色选中切分）+ 分类地区（sticky） */}
       <div className="sticky top-0 z-10 bg-app px-4 py-3">
         <div className="flex items-center gap-3">
-          <h1 className="shrink-0 text-base font-semibold text-ink">分类</h1>
-          <GlassChipGroup
-            options={CATEGORY_OPTIONS}
-            value={selected}
-            onChange={pickCategory}
-            wrap={false}
-            className="min-w-0 flex-1 overflow-x-auto"
-          />
+          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto">
+            {CATEGORY_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => pickCategory(o.value)}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors ${
+                  selected === o.value
+                    ? "bg-accent font-medium text-white"
+                    : "bg-flat text-ink-2 hover:text-ink"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           <RegionPicker scope="category" />
         </div>
       </div>
