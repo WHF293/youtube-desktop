@@ -489,7 +489,9 @@
     flex-shrink: 0;
     gap: 2px;
     width: 76px;
-    padding: 14px 0 16px;
+    /* 顶部安全区：rail 最上方的 logo 在 pad/自由窗口下会与系统状态栏重叠，
+       补与 navbar 一致的 --m-inset-top（原生层注入）+ env() 兜底。【待真机验证】 */
+    padding: calc(14px + var(--m-inset-top, env(safe-area-inset-top, 0px))) 0 16px;
     background: var(--app-surface);
     border-right: 1px solid var(--app-line);
     overflow-y: auto;
