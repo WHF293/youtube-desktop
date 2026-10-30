@@ -40,7 +40,8 @@ interface VideosState {
   /** 下一页 token；null 表示没有更多了（search 多语言时为聚合标记） */
   nextPageToken: string | null;
   loadingMore: boolean;
-  loadPopular: (categoryId?: string) => Promise<void>;
+  /** force = 跳过分类缓存强制重拉（刷新固钉 / 重试 / 地区切换） */
+  loadPopular: (categoryId?: string, force?: boolean) => Promise<void>;
   loadMorePopular: () => Promise<void>;
   loadSearch: (q: string) => Promise<void>;
   loadMoreSearch: () => Promise<void>;
@@ -49,6 +50,12 @@ interface VideosState {
 /** 首页推荐（mostPopular）与搜索结果共用一个集合，mode 区分来源 */
 export const useVideos = create<VideosState>()((set, get) => {
   let seq = 0;
+
+  // 分类数据缓存（内存，不持久化）：切过的分类再次进入直接渲染缓存，不发请求；
+  // 只有显式刷新（loadPopular force / 固钉 / 重试 / 地区切换）才清掉对应缓存重拉
+  //（2026-10-30 王总指定「切换过的分类直接渲染，点刷新才清缓存」）
+  const popularCache = new Map<string, { items: VideoItem[]; nextPageToken: string | null }>();
+  const popularKey = (category?: string) => category ?? "";
 
   // search 多语言分页状态（closure 内部用，不进 store）
   let searchLangs: string[] = [];
@@ -59,7 +66,24 @@ export const useVideos = create<VideosState>()((set, get) => {
     return l.length > 0 ? l : ["en"];
   };
 
-  const runPopular = async (id: number, category?: string) => {
+  const runPopular = async (id: number, category?: string, force = false) => {
+    // 缓存命中：直接渲染，不进 loading 周期（切换即时显示）
+    if (!force) {
+      const hit = popularCache.get(popularKey(category));
+      if (hit) {
+        set({
+          mode: "popular",
+          query: "",
+          category,
+          items: hit.items,
+          status: "ready",
+          error: "",
+          nextPageToken: hit.nextPageToken,
+          loadingMore: false,
+        });
+        return;
+      }
+    }
     // loadingMore 必须一并重置：切分类打断上一次触底加载时，卡住的 true 会让后续触底永久失效
     set({ mode: "popular", query: "", category, status: "loading", error: "", nextPageToken: null, loadingMore: false });
     try {
@@ -67,6 +91,7 @@ export const useVideos = create<VideosState>()((set, get) => {
       const r = await ytApi.mostPopularPage(24, regionCode, undefined, category);
       if (id !== seq) return; // 过期响应
       set({ items: r.items, status: "ready", nextPageToken: r.nextPageToken });
+      popularCache.set(popularKey(category), { items: r.items, nextPageToken: r.nextPageToken });
     } catch (e) {
       if (id !== seq) return;
       set({ items: [], status: "error", error: errorMessage(e), nextPageToken: null });
@@ -111,10 +136,10 @@ export const useVideos = create<VideosState>()((set, get) => {
     nextPageToken: null,
     loadingMore: false,
 
-    loadPopular: (categoryId?: string) => {
-      const id = ++seq;
-      return runPopular(id, categoryId);
-    },
+  loadPopular: (categoryId?: string, force = false) => {
+    const id = ++seq;
+    return runPopular(id, categoryId, force);
+  },
 
     loadSearch: (q: string) => {
       const id = ++seq;
@@ -147,6 +172,11 @@ export const useVideos = create<VideosState>()((set, get) => {
           items: [...current.items, ...fresh],
           nextPageToken: r.nextPageToken,
           loadingMore: false,
+        });
+        // 触底翻页结果同步进分类缓存：切走再切回仍是已加载的完整列表
+        popularCache.set(popularKey(category), {
+          items: [...current.items, ...fresh],
+          nextPageToken: r.nextPageToken,
         });
       } catch {
         // 加载更多失败不打断现有列表，token 保留以便重试

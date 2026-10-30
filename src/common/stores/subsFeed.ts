@@ -26,7 +26,8 @@ interface SubsFeedState {
   /** 分组筛选：勾选的分组 key（"ungrouped" = 默认分组 / 分组 id）；null = 全部勾选 */
   selectedGroups: string[] | null;
   setSelectedGroups: (keys: string[] | null) => void;
-  load: () => Promise<void>;
+  /** force = 跳过分组缓存强制重拉（刷新固钉 / 重试；普通切换走缓存直接渲染） */
+  load: (force?: boolean) => Promise<void>;
   /** 触底加载下一批（本地切片扩窗，不发起网络请求，天然无重复请求） */
   loadMore: () => void;
 }
@@ -35,6 +36,11 @@ export const useSubsFeed = create<SubsFeedState>()(
   persist(
     (set, get) => {
       let seq = 0;
+      // 分组数据缓存（内存，不持久化）：key = 勾选分组集合；切过的分组再次进入
+      // 直接渲染缓存不发请求，只有显式刷新（force：刷新固钉）才清掉重拉
+      //（2026-10-30 王总指定「切换过的分组直接渲染，点刷新才清缓存」）
+      const groupCache = new Map<string, { videos: VideoItem[]; failedIds: string[] }>();
+      const cacheKey = (sel: string[] | null) => (sel ? [...sel].sort().join(",") : "all");
       return {
         items: [],
         failed: [],
@@ -51,15 +57,31 @@ export const useSubsFeed = create<SubsFeedState>()(
           const next = Math.min(visible + SUBS_PAGE_SIZE, items.length);
           set({ visible: next, hasMore: next < items.length });
         },
-        load: async () => {
+        load: async (force = false) => {
           const id = ++seq;
           const channels = useChannels.getState().channels;
+          const sel = get().selectedGroups;
+          // 缓存命中：直接渲染，不进 loading 周期（分组切换即时显示）
+          const key = cacheKey(sel);
+          if (!force) {
+            const hit = groupCache.get(key);
+            if (hit) {
+              set({
+                items: hit.videos,
+                failed: hit.failedIds,
+                status: "ready",
+                error: "",
+                visible: SUBS_PAGE_SIZE,
+                hasMore: hit.videos.length > SUBS_PAGE_SIZE,
+              });
+              return;
+            }
+          }
           if (channels.length === 0) {
             set({ items: [], failed: [], status: "ready", error: "", visible: SUBS_PAGE_SIZE, hasMore: false });
             return;
           }
           // 分组筛选：null = 全部；否则只保留勾选分组（含默认分组 key "ungrouped"）内的博主
-          const sel = get().selectedGroups;
           const selectedSet = sel ? new Set(sel) : null;
           const target =
             selectedSet === null
@@ -83,6 +105,7 @@ export const useSubsFeed = create<SubsFeedState>()(
               visible: SUBS_PAGE_SIZE,
               hasMore: videos.length > SUBS_PAGE_SIZE,
             });
+            groupCache.set(key, { videos, failedIds });
           } catch (e) {
             if (id !== seq) return;
             set({ status: "error", error: errorMessage(e) });
