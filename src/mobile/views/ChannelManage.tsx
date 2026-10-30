@@ -146,15 +146,18 @@ export default function ChannelManageView() {
       {/* 操作结果提示（添加频道/新建分组） */}
       {msg && <p className={`mx-3.5 mt-3 text-[11.5px] ${msg.ok ? "text-ink-2" : "text-red-500"}`}>{msg.text}</p>}
 
-      {/* 博主列表：按分组分区块展示，区块可展开/收起，自定义分组支持改名 */}
-      <div className="mx-3.5 mt-2.5 mb-4 overflow-hidden rounded-2xl bg-surface shadow-island">
+      {/* 博主列表：每个分组一个圆角卡片（分组名 + 博主列表整体包裹），分组之间留间隔。
+          交互不变：区块可展开/收起，自定义分组支持改名 */}
+      <div className="mx-3.5 mt-2.5 mb-4 flex flex-col gap-3">
         {channels.length === 0 ? (
-          <EmptyState illust="▤" title="还没有订阅博主" desc="点右上角 + 添加，或在观看页点「添加订阅」" />
+          <div className="overflow-hidden rounded-2xl bg-surface shadow-island">
+            <EmptyState illust="▤" title="还没有订阅博主" desc="点右上角 + 添加，或在观看页点「添加订阅」" />
+          </div>
         ) : (
-          sections.map((s, si) => {
+          sections.map((s) => {
             const open = !closedSections[s.key];
             return (
-              <div key={s.key} className={si > 0 ? "border-t border-line" : ""}>
+              <div key={s.key} className="overflow-hidden rounded-2xl bg-surface shadow-island">
                 {/* 区块头：展开/收起 + 计数 + 改名（仅自定义分组） */}
                 <div className="flex items-center gap-1 px-2.5 py-2">
                   <button
