@@ -130,6 +130,7 @@ export default function ChannelView() {
                 <button
                   key={p.id}
                   type="button"
+                  onClick={() => navigate(`/playlist/${p.id}`)}
                   className="flex gap-2.5 border-b border-line bg-surface px-3.5 py-2.5 text-left active:bg-flat"
                 >
                   <Img

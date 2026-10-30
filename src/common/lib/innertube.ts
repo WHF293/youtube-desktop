@@ -419,6 +419,17 @@ export async function ftChannelPlaylists(channelId: string): Promise<PlaylistIte
     const playlistId: string | undefined =
       vm.rendererContext?.commandContext?.onTap?.innertubeCommand?.watchEndpoint?.playlistId ?? vm.contentId;
     if (!playlistId) continue;
+    // 缩略图与视频数：与 videoFromLockup 同款提取（sources 取最大尺寸项）；
+    // 视频数藏在 metadata rows 文本里（如「228 个视频」「228 videos」），容错匹配
+    const srcList = collect<AnyRec>(vm.contentImage, "sources").at(-1) as { url?: string }[] | undefined;
+    const thumb = normalizeThumb(srcList?.at(-1)?.url);
+    const parts: AnyRec[] =
+      vm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.flatMap(
+        (row: AnyRec) => row.metadataParts ?? [],
+      ) ?? [];
+    const countText = parts
+      .map((p) => p.text?.content as string | undefined)
+      .find((t) => t && /\d/.test(t) && /视频|video|動画/i.test(t));
     out.push({
       id: playlistId,
       snippet: {
@@ -427,12 +438,68 @@ export async function ftChannelPlaylists(channelId: string): Promise<PlaylistIte
         publishedAt: "",
         channelId,
         channelTitle: "",
-        thumbnails: {},
+        thumbnails: thumb ? { medium: { url: thumb }, high: { url: thumb } } : {},
       },
-      contentDetails: { itemCount: 0 },
+      contentDetails: { itemCount: countText ? parseInt(countText.replace(/\D/g, ""), 10) || 0 : 0 },
     });
   }
   return out;
+}
+
+/** playlistVideoRenderer（旧结构）→ VideoItem：字段以 runs/simpleText 为主 */
+function videoFromPlaylistVideoRenderer(r: AnyRec): VideoItem | undefined {
+  const id = (r.videoId ?? r.playlistId) as string | undefined;
+  if (!id) return undefined;
+  const title = runsText(r.title) || runsText(r.titleText) || "";
+  return {
+    kind: "youtube#searchResult",
+    etag: id,
+    id,
+    snippet: {
+      publishedAt: "",
+      channelId: (r.shortBylineText?.runs?.at(0)?.navigationEndpoint?.browseEndpoint?.browseId ?? "") as string,
+      channelTitle: runsText(r.shortBylineText) || runsText(r.ownerText) || "",
+      title,
+      description: "",
+      thumbnails: normalizeThumb(r.thumbnail?.thumbnails?.at(-1)?.url as string | undefined)
+        ? {
+            medium: { url: r.thumbnail.thumbnails.at(-1).url },
+            high: { url: r.thumbnail.thumbnails.at(-1).url },
+          }
+        : {},
+    },
+    statistics: { viewCount: parseCountLoose(r.viewCountText?.simpleText) },
+    contentDetails: { duration: clockToIso(r.lengthText?.simpleText) ?? "" },
+  };
+}
+
+/** 播放列表详情：browse VL<playlistId>，新旧双结构容错（playlistVideoRenderer /
+ *  lockupViewModel 并存漂移），解析失败跳过该条目。返回列表标题与视频项 */
+export async function ftPlaylistVideos(
+  playlistId: string,
+  pageToken?: string,
+): Promise<{ title: string; items: VideoItem[]; nextPageToken: string | null }> {
+  const data = await innertubePost<AnyRec>(
+    "browse",
+    pageToken ? { continuation: pageToken } : { browseId: `VL${playlistId}` },
+  );
+  // 标题：playlistHeaderRenderer（旧）/ pageHeaderRenderer（新）容错
+  const header = collect<AnyRec>(data, "playlistHeaderRenderer")[0];
+  const title: string =
+    header?.title?.simpleText ?? header?.title?.runs?.at(0)?.text ?? collect<AnyRec>(data, "pageHeaderViewModel")[0]?.title?.dynamicTextViewModel?.text?.content ?? "";
+  const items: VideoItem[] = [];
+  for (const r of collect<AnyRec>(data, "playlistVideoRenderer")) {
+    const v = videoFromPlaylistVideoRenderer(r);
+    if (v) items.push(v);
+  }
+  if (items.length === 0) {
+    for (const vm of collect<AnyRec>(data, "lockupViewModel")) {
+      if (vm.contentType !== "LOCKUP_CONTENT_TYPE_VIDEO") continue;
+      const v = videoFromLockup(vm);
+      if (v) items.push(v);
+    }
+  }
+  return { title, items, nextPageToken: gridPageToken(data) };
 }
 
 /* ---------- RSS（订阅 / 首页热门聚合） ---------- */

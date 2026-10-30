@@ -25,6 +25,7 @@ import MeView from "./views/Me";
 import OfflineView from "./views/Offline";
 import OfflineWatchView from "./views/OfflineWatch";
 import ChannelView from "./views/Channel";
+import PlaylistView from "./views/Playlist";
 import ChannelManageView from "./views/ChannelManage";
 
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用）。
@@ -337,6 +338,7 @@ export default function MobileApp() {
             <Route path="/subscriptions/manage" element={<ChannelManageView />} />
             <Route path="/watch/:videoId" element={<WatchView />} />
             <Route path="/channel/:channelId" element={<ChannelView />} />
+            <Route path="/playlist/:playlistId" element={<PlaylistView />} />
             <Route path="/search" element={<SearchView />} />
             <Route path="/history" element={<HistoryView />} />
             <Route path="/favorites" element={<FavoritesView />} />

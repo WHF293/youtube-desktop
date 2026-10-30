@@ -456,6 +456,10 @@ export function installDevMock() {
     channel: (channelId: string) => Promise<ChannelItem | undefined>;
     channelVideos: (channelId: string, max?: number) => Promise<VideoItem[]>;
     channelPlaylists: (channelId: string, max?: number) => Promise<PlaylistItem[]>;
+    playlistVideosPage: (
+      playlistId: string,
+      token?: string,
+    ) => Promise<{ title: string; items: VideoItem[]; nextPageToken: string | null }>;
   };
   ytApiPatch.channel = async (channelId) => mockChannel(channelId);
   ytApiPatch.channelVideos = async (channelId) => {
@@ -481,5 +485,17 @@ export function installDevMock() {
         contentDetails: { itemCount: 14 - k * 4 },
       },
     }));
+  };
+  // 播放列表详情：mockPl<i>-<k> → 标题回显 + 第一页 8 条（token 翻第二页后到底）
+  ytApiPatch.playlistVideosPage = async (playlistId, token) => {
+    const m = /^mockPl(\d+)-(\d+)$/.exec(playlistId);
+    const i = m ? Number(m[1]) % CHANNELS.length : 0;
+    const k = m ? Number(m[2]) : 0;
+    const start = token ? 8 : 0;
+    return {
+      title: `${CHANNELS[i]} · 系列合集 ${k + 1}`,
+      items: FEED.slice(start, start + 8).map((_, n) => mockVideo(i + n, `mockPlVid${playlistId}-${start + n}`)),
+      nextPageToken: token ? null : "mockPlPage2",
+    };
   };
 }

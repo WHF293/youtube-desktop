@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Watch from "./pages/Watch";
 import Channel from "./pages/Channel";
+import Playlist from "./pages/Playlist";
 import Subscriptions from "./pages/Subscriptions";
 import Groups from "./pages/Groups";
 import Favorites from "./pages/Favorites";
@@ -119,6 +120,7 @@ export default function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/watch/:videoId" element={<Watch />} />
             <Route path="/channel/:channelId" element={<Channel />} />
+            <Route path="/playlist/:playlistId" element={<Playlist />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/groups" element={<Groups />} />
             <Route path="/favorites" element={<Favorites />} />

@@ -1,10 +1,10 @@
 import Img from "../../common/components/Img";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useChannel } from "../../common/stores/channel";
 import { VideoCard, VideoGridSkeleton, VideoRowSkeleton } from "../components/VideoCard";
 import { ErrorBox } from "../../common/components/Spinner";
-import { bestThumb, formatCount, formatDate } from "../../common/lib/format";
+import { bestThumb, formatCount } from "../../common/lib/format";
 
 /** 频道页：头图 + 频道信息 + 「视频 / 播放列表」两个 tab */
 export default function Channel() {
@@ -111,18 +111,29 @@ export default function Channel() {
           )}
           <div className="space-y-2">
             {playlists.map((p) => (
-              <div key={p.id} className="rounded-lg p-2 hover:bg-flat">
-                <p className="text-sm font-medium text-ink">
-                  {p.snippet.title}
-                  <span className="ml-2 text-xs text-ink-3">
-                    {p.contentDetails?.itemCount ?? p.snippet.contentDetails?.itemCount ?? "?"} 个视频 ·{" "}
-                    {formatDate(p.snippet.publishedAt)}
+              /* 点入播放列表详情页（列表标题 + 视频网格） */
+              <Link
+                key={p.id}
+                to={`/playlist/${p.id}`}
+                className="flex gap-3 rounded-lg p-2 transition-colors hover:bg-flat"
+              >
+                <Img
+                  src={p.snippet.thumbnails.medium?.url ?? ""}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-video w-[168px] shrink-0 rounded-lg bg-flat object-cover"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-ink">{p.snippet.title}</span>
+                  <span className="mt-1 block text-xs text-ink-3">
+                    播放列表
+                    {p.contentDetails?.itemCount ? ` · ${p.contentDetails.itemCount} 个视频` : ""}
                   </span>
-                </p>
-                {p.snippet.description && (
-                  <p className="clamp-2 mt-1 text-xs text-ink-3">{p.snippet.description}</p>
-                )}
-              </div>
+                  {p.snippet.description && (
+                    <span className="clamp-2 mt-1 block text-xs text-ink-3">{p.snippet.description}</span>
+                  )}
+                </span>
+              </Link>
             ))}
           </div>
         </div>

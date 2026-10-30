@@ -62,6 +62,14 @@ export const ytApi = {
     return ft.ftChannelPlaylists(channelId);
   },
 
+  /** 播放列表详情（分页）：返回列表标题与视频项 */
+  async playlistVideosPage(
+    playlistId: string,
+    pageToken?: string,
+  ): Promise<{ title: string; items: VideoItem[]; nextPageToken: string | null }> {
+    return ft.ftPlaylistVideos(playlistId, pageToken);
+  },
+
   async commentThreads(videoId: string, _maxResults = 20): Promise<CommentThreadItem[]> {
     return ft.ftComments(videoId);
   },
