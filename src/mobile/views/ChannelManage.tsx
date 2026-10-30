@@ -25,7 +25,7 @@ export default function ChannelManageView() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  // 添加频道弹层（navbar 加号唤起）/ 新建分组弹层（右下角固钉唤起）
+  // 添加频道弹层（navbar 加号唤起）/ 新建分组弹层（添加频道弹层内的次级动作唤起）
   const [addOpen, setAddOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -229,18 +229,9 @@ export default function ChannelManageView() {
         </div>
       </BottomSheet>
 
-      {/* 新建分组固钉：悬浮在 TabBar 上方（m-body 底部已让位 76px + 安全区），大屏无 TabBar 也不碍事 */}
-      <button
-        type="button"
-        aria-label="新建分组"
-        onClick={() => setGroupOpen(true)}
-        className="fixed right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-island active:opacity-80"
-        style={{ bottom: "calc(84px + env(safe-area-inset-bottom, 0px))" }}
-      >
-        <Icon name="library" size={20} />
-      </button>
-
-      {/* 添加频道弹层（navbar 加号唤起） */}
+      {/* 添加频道弹层（navbar 加号唤起）。
+          navbar 加号是本页唯一的悬浮入口（右下角「新建分组」固钉已于 2026-10-30 删除，
+          功能与其重复）：加号进本弹层，「新建分组」作为次级动作放在弹层底部 */}
       <BottomSheet open={addOpen} onClose={() => setAddOpen(false)} title="添加频道">
         <input
           type="text"
@@ -264,6 +255,17 @@ export default function ChannelManageView() {
           className="mt-2 w-full rounded-full bg-accent py-2 text-[13px] font-bold text-white disabled:opacity-50"
         >
           {busy ? "解析中…" : "确认添加"}
+        </button>
+        {/* 次级动作：新建分组（原固钉入口，入口收进本弹层后功能不丢） */}
+        <button
+          type="button"
+          onClick={() => {
+            setAddOpen(false);
+            setGroupOpen(true);
+          }}
+          className="mt-2 w-full rounded-full py-2 text-[13px] font-semibold text-ink-2 active:bg-flat"
+        >
+          + 新建分组
         </button>
       </BottomSheet>
 
