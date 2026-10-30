@@ -24,7 +24,7 @@ export default function RegionPicker({
   const label = REGIONS.find(([code]) => code === region)?.[1] ?? region;
 
   return (
-    <div className={variant === "fab" ? "fixed right-6 top-4 z-50" : "relative ml-auto shrink-0"}>
+    <div className={variant === "fab" ? "fixed right-6 top-16 z-50" : "relative ml-auto shrink-0"}>
       <button
         ref={btnRef}
         type="button"
