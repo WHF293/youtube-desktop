@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../stores/settings";
 import type {
   ChannelItem,
+  ChannelSearchResult,
   CommentThreadItem,
   PlaylistItem,
   VideoItem,
@@ -234,6 +235,92 @@ export async function ftSearchPage(
     for (const vm of collect<AnyRec>(data, "lockupViewModel")) {
       const v = videoFromLockup(vm);
       if (v) items.push(v);
+    }
+  }
+  return { items, nextPageToken: pageTokenOf(data, "CONTINUATION_REQUEST_TYPE_SEARCH") };
+}
+
+/* ---------- 频道搜索（Type=Channel 过滤：订阅页「搜索博主直接添加订阅」） ---------- */
+
+/** search 端点的 Type=Channel 过滤参数（protobuf，FreeTube 同款常量） */
+const CHANNEL_SEARCH_PARAMS = "EgIQAg%3D%3D";
+
+/** channelRenderer → ChannelSearchResult（搜索响应的旧版频道卡片结构） */
+function channelFromSearchRenderer(r: AnyRec): ChannelSearchResult | undefined {
+  const id = (r.channelId ?? r.navigationEndpoint?.browseEndpoint?.browseId) as string | undefined;
+  if (!id || !/^UC[\w-]{22}$/.test(id)) return undefined;
+  const thumb = normalizeThumb(r.avatar?.thumbnails?.at(-1)?.url as string | undefined);
+  // InnerTube 已知怪癖：subscriberCountText / videoCountText 两字段互换且可能混入
+  // @handle（2026-11 实测：两字段可能为 "@handle" + "5.25亿位订阅者"，也可能
+  // "2680万位订阅者" + "@handle"），不能按字段名取——两个文本里哪个含
+  // 「订阅/subscriber」取哪个，都没有（如只剩视频数）就宁可不放订阅数
+  const subText = runsText(r.subscriberCountText) ?? "";
+  const vidText = runsText(r.videoCountText) ?? "";
+  const subscribers = parseCountLoose(
+    /位订阅者|subscribers/i.test(subText)
+      ? subText
+      : /位订阅者|subscribers/i.test(vidText)
+        ? vidText
+        : undefined,
+  );
+  return {
+    id,
+    title: runsText(r.title) ?? "",
+    thumb: thumb ?? "",
+    subscribers,
+    description: runsText(r.descriptionSnippet) ?? "",
+  };
+}
+
+/** lockupViewModel（LOCKUP_CONTENT_TYPE_CHANNEL，新版搜索结构）→ ChannelSearchResult */
+function channelFromLockup(vm: AnyRec): ChannelSearchResult | undefined {
+  if (vm.contentType !== "LOCKUP_CONTENT_TYPE_CHANNEL") return undefined;
+  const id = vm.contentId as string | undefined;
+  if (!id || !/^UC[\w-]{22}$/.test(id)) return undefined;
+  const meta = vm.metadata?.lockupMetadataViewModel;
+  const parts: AnyRec[] = meta?.metadata?.contentMetadataViewModel?.metadataRows?.flatMap(
+    (row: AnyRec) => row.metadataParts ?? [],
+  ) ?? [];
+  const subText = parts
+    .map((p) => p.text?.content as string | undefined)
+    .find((t) => t && /位订阅者|subscribers/i.test(t));
+  // collect 命中 "sources" 时 push 的是整个数组，取最大尺寸项需再进一层（同 videoFromLockup）
+  const srcList = collect<AnyRec>(vm.contentImage, "sources").at(-1) as { url?: string }[] | undefined;
+  return {
+    id,
+    title: meta?.title?.content ?? "",
+    thumb: normalizeThumb(srcList?.at(-1)?.url) ?? "",
+    subscribers: subText ? parseCountLoose(subText) : undefined,
+    description: "",
+  };
+}
+
+/** 频道搜索（search + Type=Channel 过滤，只返回博主不返回视频）；翻页续 token 同 ftSearchPage */
+export async function ftSearchChannels(
+  q: string,
+  pageToken?: string,
+): Promise<{ items: ChannelSearchResult[]; nextPageToken: string | null }> {
+  const data = await innertubePost<AnyRec>(
+    "search",
+    pageToken ? { continuation: pageToken } : { query: q, params: CHANNEL_SEARCH_PARAMS },
+  );
+  const items: ChannelSearchResult[] = [];
+  const seen = new Set<string>();
+  for (const cr of collect<AnyRec>(data, "channelRenderer")) {
+    const c = channelFromSearchRenderer(cr);
+    if (c && !seen.has(c.id)) {
+      seen.add(c.id);
+      items.push(c);
+    }
+  }
+  // 双结构容错：channelRenderer 一条都没有时再扫新版 lockup 卡片
+  if (items.length === 0) {
+    for (const vm of collect<AnyRec>(data, "lockupViewModel")) {
+      const c = channelFromLockup(vm);
+      if (c && !seen.has(c.id)) {
+        seen.add(c.id);
+        items.push(c);
+      }
     }
   }
   return { items, nextPageToken: pageTokenOf(data, "CONTINUATION_REQUEST_TYPE_SEARCH") };

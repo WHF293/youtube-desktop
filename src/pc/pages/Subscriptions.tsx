@@ -6,6 +6,7 @@ import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { useChannels, type SubChannel } from "../../common/stores/channels";
 import { registerPageRefresh } from "../../common/lib/refresh";
 import { VideoRow, VideoRowSkeleton } from "../components/VideoCard";
+import ChannelSearchModal from "../components/ChannelSearchModal";
 import Icon from "../../common/components/Icon";
 import ScrollTopFab from "../../common/components/ScrollTopFab";
 import { ErrorBox } from "../../common/components/Spinner";
@@ -134,6 +135,8 @@ function FreeTubeFeed() {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  // 右岛「搜索博主直接添加订阅」弹窗（ChannelSearchModal）
+  const [channelSearchOpen, setChannelSearchOpen] = useState(false);
   // 分组区块展开状态（默认全开）
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
   // 触底加载：左岛视频流滚动容器（本页自己的滚动元素，不是 #main-scroll）
@@ -295,10 +298,19 @@ function FreeTubeFeed() {
               <h2 className="text-sm font-semibold text-ink">我的博主（{channels.length}）</h2>
               <button
                 type="button"
+                onClick={() => setChannelSearchOpen(true)}
+                title="搜索博主，直接添加订阅"
+                aria-label="搜索频道添加订阅"
+                className="ml-auto rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-ink"
+              >
+                <Icon name="search" size={16} />
+              </button>
+              <button
+                type="button"
                 onClick={() => setCollapsed(true)}
                 title="收起"
                 aria-label="收起我的博主"
-                className="ml-auto rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-ink"
+                className="rounded-full p-1.5 text-ink-3 transition-colors hover:bg-flat hover:text-ink"
               >
                 <Icon name="panelRight" size={16} />
               </button>
@@ -403,6 +415,11 @@ function FreeTubeFeed() {
 
       {/* 订阅分组筛选弹窗 */}
       {filterOpen && <FilterModal onClose={() => setFilterOpen(false)} />}
+
+      {/* 搜索博主直接添加订阅弹窗 */}
+      {channelSearchOpen && (
+        <ChannelSearchModal open onClose={() => setChannelSearchOpen(false)} />
+      )}
     </div>
   );
 }

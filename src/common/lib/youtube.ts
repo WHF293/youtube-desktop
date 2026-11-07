@@ -1,5 +1,5 @@
 import * as ft from "./innertube";
-import type { ChannelItem, CommentThreadItem, PlaylistItem, VideoItem } from "../types/youtube";
+import type { ChannelItem, ChannelSearchResult, CommentThreadItem, PlaylistItem, VideoItem } from "../types/youtube";
 
 /**
  * 数据层门面（FreeTube 模式）：官方 YouTube Data API 已于 2026-10-26 下线，
@@ -43,6 +43,20 @@ export const ytApi = {
   /** 兼容旧调用：只要列表 */
   async searchVideos(q: string, maxResults = 25, extra?: Params): Promise<VideoItem[]> {
     return (await ytApi.searchVideosPage(q, maxResults, undefined, extra)).items;
+  },
+
+  /** 频道搜索（InnerTube Type=Channel 过滤，只返回博主不返回视频，分页）；
+   *  结果可直接用于本地订阅（useChannels.add） */
+  async searchChannelsPage(
+    q: string,
+    pageToken?: string,
+  ): Promise<{ items: ChannelSearchResult[]; nextPageToken: string | null }> {
+    return ft.ftSearchChannels(q, pageToken);
+  },
+
+  /** 兼容便捷调用：只要列表 */
+  async searchChannels(q: string): Promise<ChannelSearchResult[]> {
+    return (await ytApi.searchChannelsPage(q)).items;
   },
 
   /** 某频道最新视频 */

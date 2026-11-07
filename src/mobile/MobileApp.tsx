@@ -18,6 +18,7 @@ import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
 import CategoriesView from "./views/Categories";
 import SubscriptionsView from "./views/Subscriptions";
+import SubsSearchView from "./views/SubsSearch";
 import WatchView from "./views/Watch";
 import SearchView from "./views/Search";
 import HistoryView from "./views/History";
@@ -164,10 +165,11 @@ export default function MobileApp() {
   }, [pathname]);
 
   // 顶部 NavBar（对照 UI 稿 A0/A2/A4/A5）：Tab 页标题栏 + 二级页离线返回栏。
-  // 观看页（沉浸无栏）/ 搜索页（自带搜索栏 sticky）/ 频道页（自带返回栏，标题随频道加载）/
-  // 离线观看（播放器全宽）不渲染
+  // 观看页（沉浸无栏）/ 搜索页、订阅频道搜索页（自带搜索栏 sticky）/
+  // 频道页（自带返回栏，标题随频道加载）/ 离线观看（播放器全宽）不渲染
   const navBar =
     pathname !== "/search" &&
+    pathname !== "/subscriptions/search" &&
     !pathname.startsWith("/channel/") &&
     !pathname.startsWith("/offline/watch/") ? (
       <MobileNavBar
@@ -225,14 +227,25 @@ export default function MobileApp() {
         }
         right={
           pathname === "/subscriptions" ? (
-            <button
-              type="button"
-              aria-label="订阅管理"
-              onClick={() => navigate("/subscriptions/manage")}
-              className="m-nav__icon"
-            >
-              <Icon name="grip" size={19} />
-            </button>
+            <>
+              {/* 搜索频道直接添加订阅（订阅页专属入口，结果页自带搜索栏） */}
+              <button
+                type="button"
+                aria-label="搜索频道添加订阅"
+                onClick={() => navigate("/subscriptions/search")}
+                className="m-nav__icon"
+              >
+                <Icon name="search" size={19} />
+              </button>
+              <button
+                type="button"
+                aria-label="订阅管理"
+                onClick={() => navigate("/subscriptions/manage")}
+                className="m-nav__icon"
+              >
+                <Icon name="grip" size={19} />
+              </button>
+            </>
           ) : pathname === "/subscriptions/manage" ? (
             <button
               type="button"
@@ -355,6 +368,7 @@ export default function MobileApp() {
             <Route path="/home" element={<HomeView />} />
             <Route path="/categories" element={<CategoriesView />} />
             <Route path="/subscriptions" element={<SubscriptionsView />} />
+            <Route path="/subscriptions/search" element={<SubsSearchView />} />
             <Route path="/subscriptions/manage" element={<ChannelManageView />} />
             <Route path="/watch/:videoId" element={<WatchView />} />
             <Route path="/channel/:channelId" element={<ChannelView />} />

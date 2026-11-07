@@ -9,7 +9,7 @@ import { useFavorites, type FavVideo, type FavGroup } from "../common/stores/fav
 import { useDownloads, type DlTask } from "../common/stores/downloads";
 import { ytApi } from "../common/lib/youtube";
 import { videoIdOf } from "../common/lib/format";
-import type { ChannelItem, VideoItem, CommentThreadItem, PlaylistItem } from "../common/types/youtube";
+import type { ChannelItem, ChannelSearchResult, VideoItem, CommentThreadItem, PlaylistItem } from "../common/types/youtube";
 import type { ManifestEntry } from "../common/types/offline";
 
 /**
@@ -20,6 +20,7 @@ import type { ManifestEntry } from "../common/types/offline";
  * - 数据 store：首页 feed / 观看页（含评论）/ 订阅流 + 博主分组 / 收藏 / 待看 /
  *   观看记录 / 下载任务，全部铺静态数据并拦截 load 动作；
  * - ytApi.searchVideosPage：搜索页结果（标题带关键词回显，第二页走 mock token）；
+ *   ytApi.searchChannelsPage：订阅页频道搜索（结果 id 用 mockChN，博主主页/订阅可联动）；
  * - Tauri IPC shim：注入 window.__TAURI_INTERNALS__ 白名单命令，只服务浏览器里
  *   直接 invoke 的调用（离线清单读取/删除、版本号）。注意不设 globalThis.isTauri，
  *   isTauri() 保持 false——图片走 data URI 直连、Tauri effect 全部跳过，副作用最小。
@@ -456,6 +457,10 @@ export function installDevMock() {
     channel: (channelId: string) => Promise<ChannelItem | undefined>;
     channelVideos: (channelId: string, max?: number) => Promise<VideoItem[]>;
     channelPlaylists: (channelId: string, max?: number) => Promise<PlaylistItem[]>;
+    searchChannelsPage: (
+      q: string,
+      token?: string,
+    ) => Promise<{ items: ChannelSearchResult[]; nextPageToken: string | null }>;
     playlistVideosPage: (
       playlistId: string,
       token?: string,
@@ -485,6 +490,24 @@ export function installDevMock() {
         contentDetails: { itemCount: 14 - k * 4 },
       },
     }));
+  };
+  // 频道搜索：关键词回显 + 首页 4 条（token 翻第二页后到底）；id 用 mockChN 联动博主主页
+  ytApiPatch.searchChannelsPage = async (q, token) => {
+    const start = token ? 4 : 0;
+    const end = start + 4;
+    const items: ChannelSearchResult[] = CHANNELS.slice(start, end).map((title, k) => {
+      const i = start + k;
+      return {
+        id: `mockCh${i}`,
+        title: `${q} · ${title}`,
+        thumb: avatarSvg(i, title),
+        subscribers: String(324_000 - i * 47_000),
+        description: `${title}，专注${
+          ["数码测评", "前端技术", "系统底层", "硬件横评", "Rust 与系统编程", "界面设计"][i]
+        }的原创频道。`,
+      };
+    });
+    return { items, nextPageToken: token ? null : "mockChanPage2" };
   };
   // 播放列表详情：mockPl<i>-<k> → 标题回显 + 第一页 8 条（token 翻第二页后到底）
   ytApiPatch.playlistVideosPage = async (playlistId, token) => {

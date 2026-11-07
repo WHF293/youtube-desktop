@@ -78,6 +78,19 @@ export interface ChannelItem {
   brandingSettings?: ChannelBranding;
 }
 
+/** InnerTube 搜索（Type=Channel 过滤）返回的频道卡片，订阅页「搜索博主直接添加订阅」用 */
+export interface ChannelSearchResult {
+  /** UC 开头的频道 id（channelRenderer 的 browseId），可直接用于本地订阅 */
+  id: string;
+  title: string;
+  /** 频道头像（可为空串，UI 侧用首字占位兜底） */
+  thumb: string;
+  /** 订阅数（parseCountLoose 归一化后的数字串，如 "324000"；解析不出为 undefined） */
+  subscribers?: string;
+  /** 频道简介摘要（可空串） */
+  description: string;
+}
+
 export interface PlaylistItem {
   id: string;
   snippet: {
