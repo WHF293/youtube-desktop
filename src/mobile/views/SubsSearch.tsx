@@ -111,8 +111,10 @@ export default function SubsSearchView() {
 
   return (
     <div className="m-page">
-      {/* 搜索栏：返回 + 输入框（圆角胶囊）+ 清空；顶部让出状态栏安全区（本页不渲染 m-nav） */}
-      <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-line bg-surface px-2 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
+      {/* 搜索栏：返回 + 输入框（圆角胶囊）+ 清空；顶部安全区与 navbar 同源
+          （--m-inset-top 原生层注入，env() 兜底——Android WebView 里 env() 恒 0，
+          只写 env() 真机必被状态栏遮挡）。本页不渲染 m-nav */}
+      <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-line bg-surface px-2 pb-2 pt-[calc(var(--m-inset-top,env(safe-area-inset-top,0px))+8px)]">
         <button
           type="button"
           aria-label="返回"
