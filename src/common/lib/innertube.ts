@@ -679,9 +679,9 @@ export async function ftPopularPage(
 ): Promise<{ items: VideoItem[]; nextPageToken: string | null }> {
   const page = pageToken ? parseInt(pageToken, 10) || 0 : 0;
   const perPage = 24;
-  // 推荐分支用「推荐地区」（popularRegionCode）；分类分支为全球组与地区无关，
-  // 新闻分类走 search 端点跟随 ftContext 的 gl（= 分类地区 regionCode）
-  const { popularRegionCode } = useSettings.getState();
+  // 推荐分支用「推荐地区」（popularRegionCodes 多选，地区频道组合并去重）；
+  // 分类分支为全球组与地区无关，新闻分类走 search 端点跟随 ftContext 的 gl（= 分类地区 regionCode）
+  const { popularRegionCodes } = useSettings.getState();
 
   if (categoryId) {
     // 分类模式：内容有限，拉完即止
@@ -691,8 +691,11 @@ export async function ftPopularPage(
     return { items, nextPageToken: start + perPage < all.length ? String(page + 1) : null };
   }
 
-  // 全部模式：地区组在前（本地区内容优先），全球分类组在后兜底，两段各自按时间排序后拼接
-  const regionChannels = FT_REGION_GROUPS[popularRegionCode] ?? [];
+  // 全部模式：地区组在前（本地区内容优先），全球分类组在后兜底，两段各自按时间排序后拼接。
+  // 多地区：合并所选地区的频道组并去重（同一频道出现在多个地区只拉一次 RSS）
+  const regionChannels = [
+    ...new Set(popularRegionCodes.flatMap((code) => FT_REGION_GROUPS[code] ?? [])),
+  ];
   const [regionVideos, globalVideos] = await Promise.all([
     regionChannels.length ? fetchChannelsRSS(regionChannels) : Promise.resolve([] as VideoItem[]),
     fetchChannelsRSS(Object.values(FT_HOME_GROUPS).flat()),

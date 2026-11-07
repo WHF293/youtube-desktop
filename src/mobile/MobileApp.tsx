@@ -59,11 +59,16 @@ export default function MobileApp() {
   // 历史全部清除确认 sheet（历史页 navbar 右上角入口）
   const [histClearOpen, setHistClearOpen] = useState(false);
   const activeCount = useDownloads((s) => s.tasks.filter((t) => t.status === "downloading" || t.status === "muxing").length);
-  // 当前地区名（推荐/分类页 navbar 地区 icon 边上显示，弹层修改后实时联动）
-  const popularRegionCode = useSettings((s) => s.popularRegionCode);
+  // 当前地区名（推荐/分类页 navbar 地区 icon 边上显示，弹层修改后实时联动）。
+  // 推荐地区多选：单个显示地区名，多个显示「美国等3个」（完整列表见 sheet）
+  const popularRegionCodes = useSettings((s) => s.popularRegionCodes);
   const categoryRegionCode = useSettings((s) => s.regionCode);
-  const popularRegionName = REGIONS.find(([code]) => code === popularRegionCode)?.[1] ?? popularRegionCode;
-  const categoryRegionName = REGIONS.find(([code]) => code === categoryRegionCode)?.[1] ?? categoryRegionCode;
+  const regionLabel = (code: string) => REGIONS.find(([k]) => k === code)?.[1] ?? code;
+  const popularRegionName =
+    popularRegionCodes.length === 1
+      ? regionLabel(popularRegionCodes[0])
+      : `${regionLabel(popularRegionCodes[0] ?? "")}等${popularRegionCodes.length}个`;
+  const categoryRegionName = regionLabel(categoryRegionCode);
   // 观看页沉浸式：隐藏 TabBar（UI 稿 A1）
   const immersive = location.pathname.startsWith("/watch/");
   const pathname = location.pathname;

@@ -6,7 +6,7 @@ import RefreshFab from "../../common/components/RefreshFab";
 import { FeedCard, FeedSkeleton } from "../components/VideoCards";import { EmptyState, ErrorState } from "../components/StateViews";
 import { videoIdOf } from "../../common/lib/format";
 
-/** 移动端推荐页：地区频道组推荐流（内容跟随推荐地区 popularRegionCode，navbar 内选择），
+/** 移动端推荐页：地区频道组推荐流（内容跟随推荐地区 popularRegionCodes 多选，navbar 内选择），
  *  与分类页（/categories）拆分独立 */
 export default function HomeView() {
   const {

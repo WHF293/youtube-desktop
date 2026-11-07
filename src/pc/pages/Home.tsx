@@ -8,7 +8,7 @@ import { ErrorBox } from "../../common/components/Spinner";
 import { VideoGridSkeleton } from "../components/VideoCard";
 import RegionPicker from "../components/RegionPicker";
 
-/** 推荐页：地区频道组推荐流（内容跟随推荐地区 popularRegionCode，页头内选择即生效），
+/** 推荐页：地区频道组推荐流（内容跟随推荐地区 popularRegionCodes 多选，页头固钉内连续勾选），
  *  与分类页（/categories）拆分独立 */
 export default function Home() {
   const {

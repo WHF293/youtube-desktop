@@ -68,13 +68,19 @@ export const DOWNLOAD_QUALITIES = [
 
 export type DownloadQuality = (typeof DOWNLOAD_QUALITIES)[number][0];
 
+/** 把任意地区集合按 REGIONS 清单规范顺序重排（只保留合法地区） */
+function canonicalRegions(codes: string[]): string[] {
+  return REGIONS.map(([code]) => code).filter((code) => codes.includes(code));
+}
+
 interface SettingsState {
   /** 数据模式（固定 freeTube） */
   mode: DataMode;
   /** 分类地区：分类页（新闻分类 search 地区化）与搜索结果的 InnerTube gl 地区偏好 */
   regionCode: string;
-  /** 推荐地区：首页「推荐」地区频道组（FT_REGION_GROUPS）专用，与分类地区独立设置 */
-  popularRegionCode: string;
+  /** 推荐地区（多选，至少 1 个）：首页「推荐」地区频道组（FT_REGION_GROUPS）合并展示，
+   *  与分类地区独立设置；数组按 REGIONS 规范顺序存储 */
+  popularRegionCodes: string[];
   /** 搜索内容语言偏好（单选，InnerTube context.hl；历史多选数据取第一个） */
   languages: string[];
   /** API 请求代理（PC/Android 通用，经 Rust reqwest 即时生效；留空则不走代理） */
@@ -86,7 +92,10 @@ interface SettingsState {
   /** ffmpeg 路径覆盖（留空 = 首次使用时自动下载到应用数据目录） */
   ffmpegPath: string;
   setRegionCode: (code: string) => void;
-  setPopularRegionCode: (code: string) => void;
+  /** 多选设置（内部按 REGIONS 规范顺序重排；空数组视为全不选不落盘，调用方保证至少 1 个） */
+  setPopularRegionCodes: (codes: string[]) => void;
+  /** 多选切换：选中则取消、未选中则加入；至少保留 1 个（最后一个不可取消） */
+  togglePopularRegion: (code: string) => void;
   setLanguages: (langs: string[]) => void;
   setProxy: (proxy: string) => void;
   setDownloadDir: (dir: string) => void;
@@ -99,14 +108,21 @@ export const useSettings = create<SettingsState>()(
     (set) => ({
       mode: "freeTube",
       regionCode: "US",
-      popularRegionCode: "US",
+      popularRegionCodes: ["US"],
       languages: DEFAULT_LANGS,
       proxy: DEFAULT_PROXY,
       downloadDir: DEFAULT_DOWNLOAD_DIR,
       defaultQuality: "auto",
       ffmpegPath: "",
       setRegionCode: (regionCode) => set({ regionCode }),
-      setPopularRegionCode: (popularRegionCode) => set({ popularRegionCode }),
+      // 入参统一按 REGIONS 规范顺序重排，展示与合并顺序稳定
+      setPopularRegionCodes: (codes) => set({ popularRegionCodes: canonicalRegions(codes) }),
+      togglePopularRegion: (code) => {
+        const cur = useSettings.getState().popularRegionCodes;
+        // 最后一个选中项不可取消（至少保留 1 个地区）
+        const next = cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code];
+        if (next.length > 0) set({ popularRegionCodes: canonicalRegions(next) });
+      },
       setLanguages: (languages) => set({ languages }),
       setProxy: (proxy) => set({ proxy }),
       setDownloadDir: (downloadDir) => set({ downloadDir }),
@@ -119,7 +135,8 @@ export const useSettings = create<SettingsState>()(
       // v3：地区候选移除 CN（gl=CN 搜索返回空），已存的 CN 迁移为 US
       // v4：新增视频下载配置（downloadDir/defaultQuality/ffmpegPath）
       // v5：地区拆分（推荐地区/分类地区独立设置），popularRegionCode 继承原 regionCode
-      version: 5,
+      // v6：推荐地区改多选（popularRegionCodes），popularRegionCode 单值迁为单元素数组
+      version: 6,
       migrate: (state, version) => {
         let s = state as Record<string, unknown>;
         if (version < 2) {
@@ -129,6 +146,12 @@ export const useSettings = create<SettingsState>()(
         }
         if (version < 3 && s.regionCode === "CN") s = { ...s, regionCode: "US" };
         if (version < 5) s = { ...s, popularRegionCode: s.regionCode ?? "US" };
+        if (version < 6) {
+          const { popularRegionCode: _prc, ...rest } = s;
+          void _prc;
+          const first = typeof _prc === "string" && _prc ? _prc : "US";
+          s = { ...rest, popularRegionCodes: [first] };
+        }
         return s;
       },
     },

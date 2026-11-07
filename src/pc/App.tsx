@@ -31,10 +31,12 @@ export default function App() {
   const theme = useTheme((s) => s.theme);
   const videosStatus = useVideos((s) => s.status);
   const loadPopular = useVideos((s) => s.loadPopular);
-  const popularRegionCode = useSettings((s) => s.popularRegionCode);
+  const popularRegionCodes = useSettings((s) => s.popularRegionCodes);
   const regionCode = useSettings((s) => s.regionCode);
   const location = useLocation();
-  const prevPopularRegion = useRef(popularRegionCode);
+  // 数组引用稳定性不可靠（迁移/重排），用内容签名判断是否真的变了
+  const popularRegionSig = popularRegionCodes.join(",");
+  const prevPopularRegion = useRef(popularRegionSig);
   const prevRegion = useRef(regionCode);
 
   // 明暗模式：class 挂在 <html> 上
@@ -42,12 +44,12 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // 推荐地区变化：正处在推荐页时立刻刷新推荐流（地区频道组）
+  // 推荐地区（多选）变化：正处在推荐页时立刻刷新推荐流（地区频道组合并）
   useEffect(() => {
-    if (prevPopularRegion.current === popularRegionCode) return;
-    prevPopularRegion.current = popularRegionCode;
+    if (prevPopularRegion.current === popularRegionSig) return;
+    prevPopularRegion.current = popularRegionSig;
     if (location.pathname === "/home") void loadPopular(undefined, true);
-  }, [popularRegionCode, location.pathname, loadPopular]);
+  }, [popularRegionSig, location.pathname, loadPopular]);
 
   // 分类地区变化：正处在分类页且当前是「新闻」分类时刷新（search 端点地区化）；
   // 其余分类为全球精选频道组，与地区无关不刷新
