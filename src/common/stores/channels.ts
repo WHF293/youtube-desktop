@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { ytApi } from "../lib/youtube";
+import type { ChannelSearchResult } from "../types/youtube";
 
 /**
  * FreeTube 模式的订阅频道列表（本地存储，不依赖 Google 登录）。
@@ -241,3 +243,22 @@ export const useChannels = create<ChannelsState>()(
     { name: "yt-desktop-channels" },
   ),
 );
+
+/** 搜索结果添加订阅（订阅页频道搜索共用）：写本地列表 + 头像即刻落库；
+ *  搜索结果没带头像时（字段漂移兜底）就地拉频道详情补齐（ftChannel 带模块缓存，
+ *  与博主主页共享），不等应用下次启动的自愈（refreshChannelsMeta） */
+export async function subscribeFromSearch(c: ChannelSearchResult): Promise<void> {
+  const { add, setThumb } = useChannels.getState();
+  add(c.id, c.title);
+  if (c.thumb) {
+    setThumb(c.id, c.thumb);
+    return;
+  }
+  try {
+    const ch = await ytApi.channel(c.id);
+    const thumb = ch?.snippet.thumbnails.medium?.url ?? ch?.snippet.thumbnails.high?.url;
+    if (thumb) setThumb(c.id, thumb);
+  } catch {
+    /* 头像补拉失败不阻塞订阅；启动自愈 refreshChannelsMeta 会再补 */
+  }
+}

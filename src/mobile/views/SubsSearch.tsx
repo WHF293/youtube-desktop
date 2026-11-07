@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ytApi } from "../../common/lib/youtube";
-import { useChannels } from "../../common/stores/channels";
+import { useChannels, subscribeFromSearch } from "../../common/stores/channels";
 import { formatCount } from "../../common/lib/format";
 import type { ChannelSearchResult } from "../../common/types/youtube";
 import Icon from "../../common/components/Icon";
@@ -37,8 +37,6 @@ export default function SubsSearchView() {
 
   // 订阅态取自 store：订阅后按钮即时翻转，订阅页横滑岛同步出现新博主
   const channels = useChannels((s) => s.channels);
-  const add = useChannels((s) => s.add);
-  const setThumb = useChannels((s) => s.setThumb);
 
   // 防抖直播搜索（≥2 字符触发）
   useEffect(() => {
@@ -104,8 +102,8 @@ export default function SubsSearchView() {
   }, [status, nextPageToken, q, reload]);
 
   const subscribe = (c: ChannelSearchResult) => {
-    add(c.id, c.title);
-    if (c.thumb) setThumb(c.id, c.thumb); // 头像即刻落库，订阅页不用等自愈补图
+    // add 同步生效；头像缺失时就地补拉频道详情（异步，不阻塞 toast）
+    void subscribeFromSearch(c);
     showToast(`已订阅「${c.title}」`);
   };
 

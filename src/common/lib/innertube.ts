@@ -121,10 +121,13 @@ function runsText(node: { runs?: { text?: string }[]; simpleText?: string } | un
   return node.simpleText ?? node.runs?.map((r) => r.text ?? "").join("") ?? undefined;
 }
 
-/** 缩略图分片域名归一化（i1~i9.ytimg.com → i.ytimg.com）：分片内容等价，
- *  统一后前端/缓存的去重键一致，也避免个别分片域名直连失败 */
+/** 缩略图/头像 URL 归一化：协议相对（InnerTube 部分字段返回 //host/...，如搜索
+ *  channelRenderer 的头像）补 https——落库后若按当前页面协议解析，Tauri WebView
+ *  下会打到 tauri 域；分片域名归一化（i1~i9.ytimg.com → i.ytimg.com）保证去重键一致 */
 function normalizeThumb(url: string | undefined): string | undefined {
-  return url?.replace(/^https?:\/\/i\d+\.ytimg\.com\//, "https://i.ytimg.com/");
+  if (!url) return undefined;
+  const absolute = url.startsWith("//") ? `https:${url}` : url;
+  return absolute.replace(/^https?:\/\/i\d+\.ytimg\.com\//, "https://i.ytimg.com/");
 }
 
 /** 递归收集整棵响应树里某种 key 的节点 */
@@ -249,7 +252,10 @@ const CHANNEL_SEARCH_PARAMS = "EgIQAg%3D%3D";
 function channelFromSearchRenderer(r: AnyRec): ChannelSearchResult | undefined {
   const id = (r.channelId ?? r.navigationEndpoint?.browseEndpoint?.browseId) as string | undefined;
   if (!id || !/^UC[\w-]{22}$/.test(id)) return undefined;
-  const thumb = normalizeThumb(r.avatar?.thumbnails?.at(-1)?.url as string | undefined);
+  // 头像在 thumbnail 字段（2026-11 实测；avatar 是旧响应形状，留作兼容兜底）
+  const thumb = normalizeThumb(
+    (r.thumbnail?.thumbnails?.at(-1) ?? r.avatar?.thumbnails?.at(-1))?.url as string | undefined,
+  );
   // InnerTube 已知怪癖：subscriberCountText / videoCountText 两字段互换且可能混入
   // @handle（2026-11 实测：两字段可能为 "@handle" + "5.25亿位订阅者"，也可能
   // "2680万位订阅者" + "@handle"），不能按字段名取——两个文本里哪个含

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "../../common/components/Icon";
 import { ytApi } from "../../common/lib/youtube";
 import { errorMessage } from "../../common/stores/videos";
-import { useChannels } from "../../common/stores/channels";
+import { useChannels, subscribeFromSearch } from "../../common/stores/channels";
 import { formatCount } from "../../common/lib/format";
 import type { ChannelSearchResult } from "../../common/types/youtube";
 
@@ -34,8 +34,6 @@ export default function ChannelSearchModal({ open, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   // 订阅态取自 store：订阅后按钮即时翻转，右岛「我的博主」列表同步出现新博主
   const channels = useChannels((s) => s.channels);
-  const add = useChannels((s) => s.add);
-  const setThumb = useChannels((s) => s.setThumb);
 
   const isIdle = keyword.trim().length < 2;
 
@@ -91,8 +89,8 @@ export default function ChannelSearchModal({ open, onClose }: Props) {
   const close = () => onClose();
 
   const subscribe = (c: ChannelSearchResult) => {
-    add(c.id, c.title);
-    if (c.thumb) setThumb(c.id, c.thumb); // 头像即刻落库，右岛列表不用等自愈补图
+    // add 同步生效（按钮/右岛即时翻转）；头像缺失时就地补拉频道详情（异步，不阻塞）
+    void subscribeFromSearch(c);
   };
 
   const loadMore = () => {
