@@ -120,7 +120,15 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" "src-tauri-tiktok/target/release/tiktok.exe" --clobber
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # tauri-action 建 Release（draft→发布）与本步骤存在时序竞态：等待 Release 可见后再上传
+          for i in 1 2 3 4 5 6; do
+            gh release view "$TAG" >/dev/null 2>&1 && break
+            echo "release 未就绪，30s 后重试（$i/6）"
+            sleep 30
+          done
+          gh release upload "$TAG" "src-tauri-tiktok/target/release/tiktok.exe" --clobber
 
   android:
     name: Android（arm64 APK）
