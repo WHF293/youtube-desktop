@@ -56,16 +56,17 @@ gh release view vX.Y.Z
 
 Release notes 要点：面向使用者的语言（不写内部实现细节）、分「新增/修复/说明」三节、涉及行为变化时写明迁移提示（如数据自愈、需重启等）。CI 的 release notes 生成较简略，发版确认后可手动 `gh release edit` 补充成三节格式。
 
-## 本地构建成功后清理构建缓存（硬性，王总 2026-10-27 指定）
+## 构建缓存清理（agent 禁止自动清理，王总 2026-11-03 改定）
 
-发版不走本地打包，但本地执行过 `pnpm tauri build`（或长期 `tauri dev`）并确认产物已产出/使用后，**必须**清理 `src-tauri/target/` 构建缓存：
+**任何构建、提交、推送、发版操作之后，都不要自动清理 `src-tauri/target/` 构建缓存，也不要建议立即清理**——删除大目录会塞满回收站，清理由王总本人自行择时手动进行。此前「构建成功后必须 cargo clean」的硬性规定已废止。
+
+`target/` 是 Cargo 构建产物缓存（debug 含完整符号 `.pdb` + 增量编译缓存），只增不减，长期不清理可能积累数十 GB；这是王总自己掌握的事，agent 不用催。仅当王总**明确要求**清理时才执行：
 
 ```bash
 cd src-tauri && cargo clean
-# 或直接删除 target 下的构建产物目录（debug / release）
 ```
 
-原因：`target/` 是 Cargo 构建产物缓存（debug 含完整符号 `.pdb` + 增量编译缓存 + 依赖升级残留），只增不减，两个 Tauri 项目曾累计积累近 50GB。删除仅导致下次 `tauri dev` / `tauri build` 全量重编译（首次约 5–15 分钟），不影响任何源码与用户数据。
+删除仅导致下次 `tauri dev` / `tauri build` 全量重编译（首次约 5–15 分钟），不影响任何源码与用户数据。
 
 ## 红线（违反即事故）
 
@@ -112,3 +113,10 @@ Android 原生层（manifest / MainActivity）改动不在 git 内（`src-tauri/
 - 频道/地区等枚举数据经搜索反查 + RSS 实测验证后才可写入代码（参考 `FT_REGION_GROUPS` 的注释规范）。
 - **下载抽流层（`src/lib/extract.ts`）与数据层分离**：youtubei.js + ANDROID_VR client（2026-10-26 实测全分辨率经典流唯一可用 client，无需 PO Token；WEB client 的 adaptive 流已 SABR 化）。流地址不落盘、6h 过期，重试必须重新提取。任何环节失败直接报错展示（无降级方案），可经 `.ai/smoke-download.mjs` 复验。
 - **观看记录存 SQLite**（tauri-plugin-sql，`sqlite:history.db`，迁移在 main.rs 注册）：仅保留 7 天，应用启动时清理；重看同一视频刷新时间（置顶）而非新增记录。
+
+<!-- agent-hub:start -->
+本项目所有 AI agent 共享记忆位于 `.ai/`：
+- 开始任务前，先读 `.ai/MEMORY.md` 和最近几天的 `.ai/memory/` 日志
+- 完成实质工作后，把做了什么/为什么追加到 `.ai/memory/YYYY-MM-DD.md`
+- 稳定的项目约定写入 `.ai/PROJECT.md`
+<!-- agent-hub:end -->
