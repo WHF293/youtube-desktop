@@ -112,6 +112,16 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      # TikTok 官网壳（独立 exe，直接加载 tiktok.com，无本地前端）
+      - name: Build TikTok shell
+        run: cargo build --release --manifest-path src-tauri-tiktok/Cargo.toml
+
+      - name: Upload tiktok.exe
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" "src-tauri-tiktok/target/release/tiktok.exe" --clobber
+
   android:
     name: Android（arm64 APK）
     runs-on: ubuntu-latest

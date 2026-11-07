@@ -1,0 +1,19 @@
+[package]
+name = "tiktok-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "TikTok 官网壳应用（独立窗口直接加载 tiktok.com）"
+
+[lib]
+name = "tiktok_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "tiktok"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

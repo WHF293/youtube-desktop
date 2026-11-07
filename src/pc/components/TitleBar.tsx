@@ -126,6 +126,7 @@ export default function TitleBar() {
     "/home": "推荐",
     "/categories": "分类",
     "/subscriptions": "订阅",
+    "/tiktok": "TikTok",
     "/history": "观看记录",
     "/watchlater": "待看",
     "/favorites": "收藏",
@@ -211,7 +212,7 @@ export default function TitleBar() {
             </button>
             <VersionTag />
           </>
-        ) : (
+        ) : location.pathname === "/tiktok" ? null : (
           <button
             type="button"
             onClick={() => navigate(-1)}

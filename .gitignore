@@ -25,3 +25,7 @@ src-tauri/gen
 
 # 代码索引
 .codegraph
+
+# TikTok 壳应用
+src-tauri-tiktok/target
+src-tauri-tiktok/gen

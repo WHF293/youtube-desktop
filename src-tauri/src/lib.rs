@@ -836,7 +836,7 @@ fn init_webview_proxy_env() {}
 /// - Windows 桌面：代码创建（tauri.conf.json 不声明窗口），以便按代理配置创建 WebView；
 /// - 非 Windows（Android）：窗口由 tauri.android.conf.json 的 app.windows 声明创建——
 ///   Android System WebView 无 --proxy-server 注入通道，按代理建窗无意义，
-///   且回退桌面默认代理（127.0.0.1:7897）在真机上必然不可达。
+///   且回退桌面默认代理（127.0.0.1:7900）在真机上必然不可达。
 #[cfg(windows)]
 fn build_main_window(app: &tauri::App) -> tauri::Result<()> {
     let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
@@ -903,7 +903,8 @@ pub fn run() {
             list_download_dir,
             delete_offline_video,
             read_text_file,
-            write_text_file
+            write_text_file,
+            open_tiktok_window
         ])
         .setup(|app| {
             // 上次运行残留的下载临时目录（>24h）后台清理
@@ -970,7 +971,7 @@ fn normalize_proxy(proxy: &str) -> Option<String> {
 /// 文件不存在（全新安装、前端还没落盘过）时回退默认代理，
 /// 保证首次启动 WebView 就能挂代理；文件存在但为空 = 用户主动直连。
 fn read_webview_proxy() -> Option<String> {
-    const DEFAULT_PROXY: &str = "127.0.0.1:7897";
+    const DEFAULT_PROXY: &str = "127.0.0.1:7900";
     let content = proxy_file_path().and_then(|p| std::fs::read_to_string(p).ok());
     match content {
         Some(s) => normalize_proxy(&s),
@@ -997,3 +998,40 @@ fn save_webview_proxy(proxy: String) -> Result<(), String> {
 fn save_webview_proxy(_proxy: String) -> Result<(), String> {
     Ok(())
 }
+
+/// 打开 TikTok 官网独立窗口（已存在则聚焦）。
+/// 官网在 iframe 内会被软拦截（实测永久卡 loading），顶层窗口正常；
+/// 必须带与主窗口同一份 additional_browser_args（WebView2 同数据目录环境一致性，
+/// 否则 0x8007139F）；代理走进程级 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS 注入
+#[cfg(windows)]
+#[tauri::command]
+async fn open_tiktok_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("tiktok") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let url: tauri::Url = "https://www.tiktok.com/foryou"
+        .parse()
+        .map_err(|e| format!("TikTok URL 解析失败：{e}"))?;
+    tauri::WebviewWindowBuilder::new(&app, "tiktok", tauri::WebviewUrl::External(url))
+        .title("TikTok")
+        .inner_size(480.0, 820.0)
+        .min_inner_size(380.0, 600.0)
+        .resizable(true)
+        .additional_browser_args(
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-pinch",
+        )
+        .build()
+        .map_err(|e| format!("创建 TikTok 窗口失败：{e}"))?;
+    Ok(())
+}
+
+// 非 Windows（Android）：Tauri v2 移动端单窗口限制，回退系统浏览器（前端处理）
+#[cfg(not(windows))]
+#[tauri::command]
+async fn open_tiktok_window() -> Result<(), String> {
+    Err("移动端请在系统浏览器打开 TikTok".into())
+}
+

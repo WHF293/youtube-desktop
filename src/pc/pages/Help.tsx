@@ -122,11 +122,22 @@ export default function Help() {
 
       <Section title="网络与播放">
         <Step>
-          国内直连 YouTube 不可达，需在设置页配置代理（默认 127.0.0.1:7897）；数据与图片请求即时生效，
+          国内直连 YouTube 不可达，需在设置页配置代理（默认 127.0.0.1:7900，与 Clash Verge 混合端口一致）；数据与图片请求即时生效，
           <b>视频播放走 WebView 代理，修改代理后需重启应用</b>。
         </Step>
         <Step>
           个别视频限制站外播放会黑屏，点播放器右上角按钮在系统浏览器中观看。
+        </Step>
+      </Section>
+
+      <Section title="TikTok（官网窗口）">
+        <Step>
+          侧栏「TikTok」打开官网独立窗口：浏览/搜索/关注/评论/登录均为官方功能，账号状态保存在
+          本机（cookie 持久）。地区跟随<b>代理出口节点</b>——在 Clash 里换节点即切换地区推荐。
+        </Step>
+        <Step>
+          窗口需代理可达 tiktok.com；官网异常时显示 TikTok 自己的提示，不影响 YouTube 数据链路。
+          移动端在系统浏览器中打开。
         </Step>
       </Section>
 

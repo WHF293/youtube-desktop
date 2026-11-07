@@ -5,6 +5,7 @@ import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import InfoPin from "../common/components/InfoPin";
 import Home from "./pages/Home";
+import TikTokEmbed from "./pages/TikTokEmbed";
 import Categories from "./pages/Categories";
 import Search from "./pages/Search";
 import Watch from "./pages/Watch";
@@ -128,6 +129,7 @@ export default function App() {
             {/* 默认页 = 订阅（打开软件直接进订阅流，2026-10-30 王总指定）；推荐/分类各自独立路由 */}
             <Route path="/" element={<Navigate to="/subscriptions" replace />} />
             <Route path="/home" element={<Home />} />
+            <Route path="/tiktok" element={<TikTokEmbed />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/trending" element={<Navigate to="/home" replace />} />
             <Route path="/search" element={<Search />} />

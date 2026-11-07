@@ -8,7 +8,9 @@ import { persist } from "zustand/middleware";
  */
 export type DataMode = "freeTube";
 
-/** 默认本地代理（国内直连 youtube 不可达） */
+/** 默认本地代理（国内直连 youtube 不可达）。
+ *  7897 = 本机 Clash Verge 混合端口（2026-11-07 晚间实测 204/200；当天端口曾在
+ *  7897↔7900 间漂移，均已由 v7/v8 迁移归一到当前值） */
 export const DEFAULT_PROXY = "127.0.0.1:7897";
 
 /** 内容语言候选（BCP-47，hl 与 relevanceLanguage 共用此值） */
@@ -136,7 +138,10 @@ export const useSettings = create<SettingsState>()(
       // v4：新增视频下载配置（downloadDir/defaultQuality/ffmpegPath）
       // v5：地区拆分（推荐地区/分类地区独立设置），popularRegionCode 继承原 regionCode
       // v6：推荐地区改多选（popularRegionCodes），popularRegionCode 单值迁为单元素数组
-      version: 6,
+      // v7：代理端口迁移 7897→7900（当日 Clash Verge 运行时端口漂移）
+      // v8：代理端口归一到 7897（当晚端口漂回；7900/7897 两个历史值都归到当前默认），
+      //     用户自定义的其他代理值不动
+      version: 8,
       migrate: (state, version) => {
         let s = state as Record<string, unknown>;
         if (version < 2) {
@@ -151,6 +156,10 @@ export const useSettings = create<SettingsState>()(
           void _prc;
           const first = typeof _prc === "string" && _prc ? _prc : "US";
           s = { ...rest, popularRegionCodes: [first] };
+        }
+        if (version < 7 && s.proxy === "127.0.0.1:7897") s = { ...s, proxy: "127.0.0.1:7900" };
+        if (version < 8 && (s.proxy === "127.0.0.1:7900" || s.proxy === "127.0.0.1:7897")) {
+          s = { ...s, proxy: DEFAULT_PROXY };
         }
         return s;
       },

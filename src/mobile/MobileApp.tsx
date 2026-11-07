@@ -16,6 +16,7 @@ import RegionSheet from "./components/RegionSheet";
 import BottomSheet from "./components/BottomSheet";
 import Icon, { YouTubeLogo } from "../common/components/Icon";
 import HomeView from "./views/Home";
+import TikTokEmbedView from "./views/TikTokEmbedView";
 import CategoriesView from "./views/Categories";
 import SubscriptionsView from "./views/Subscriptions";
 import SubsSearchView from "./views/SubsSearch";
@@ -34,12 +35,13 @@ import ChannelManageView from "./views/ChannelManage";
 /** 底部 Tab 根路由（TabBar 高亮与 Android 返回的「根页」判定共用）。
  *  根路径 "/" 重定向到 /subscriptions（打开软件默认进订阅，2026-10-30 王总指定），
  *  推荐/分类拆分独立路由，待看降为「我的」下的二级入口（2026-10-31） */
-const TAB_PATHS = new Set(["/home", "/subscriptions", "/categories", "/me"]);
+const TAB_PATHS = new Set(["/home", "/subscriptions", "/categories", "/tiktok", "/me"]);
 
 /** TabBar 高亮映射：/search、/offline、/watchlater、/subscriptions/manage 归属位（首页 / 我的 / 订阅） */
 function activeTabOf(pathname: string): string {
   if (TAB_PATHS.has(pathname)) return pathname;
   if (pathname.startsWith("/subscriptions")) return "/subscriptions";
+  if (pathname.startsWith("/tiktok")) return "/tiktok";
   if (
     pathname.startsWith("/search") ||
     pathname === "/history" ||
@@ -86,7 +88,7 @@ export default function MobileApp() {
   }, [theme]);
 
   // 代理：移动端固定直连（Android 真机无本机代理可用），启动即清掉历史遗留的
-  // persist 代理配置（PC 端默认 127.0.0.1:7897 在手机上必失败），设置页不再提供代理入口
+  // persist 代理配置（PC 端默认 127.0.0.1:7900 在手机上必失败），设置页不再提供代理入口
   useEffect(() => {
     const s = useSettings.getState();
     if (s.proxy !== "") s.setProxy("");
@@ -195,6 +197,8 @@ export default function MobileApp() {
             <span className="truncate">
               {plChannelTitle && plTitle ? `${plChannelTitle}-${plTitle}` : plTitle || "播放列表"}
             </span>
+          ) : pathname === "/tiktok" ? (
+            <span>TikTok</span>
           ) : pathname.startsWith("/watch/") ? (
             <span>视频详情</span>
           ) : (
@@ -366,6 +370,7 @@ export default function MobileApp() {
             {/* 根路径默认进订阅页（打开软件默认 tab，2026-10-30 王总指定）；推荐/分类各自独立路由 */}
             <Route path="/" element={<Navigate to="/subscriptions" replace />} />
             <Route path="/home" element={<HomeView />} />
+            <Route path="/tiktok" element={<TikTokEmbedView />} />
             <Route path="/categories" element={<CategoriesView />} />
             <Route path="/subscriptions" element={<SubscriptionsView />} />
             <Route path="/subscriptions/search" element={<SubsSearchView />} />
