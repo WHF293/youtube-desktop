@@ -30,3 +30,4 @@ src-tauri/gen
 src-tauri-tiktok/target
 src-tauri-tiktok/gen
 src-tauri-tiktok/*.apk
+src-tauri-tiktok/*.idsig
