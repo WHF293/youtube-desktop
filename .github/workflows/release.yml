@@ -255,3 +255,46 @@ jobs:
           tag_name: ${{ env.VERSION_TAG }}
           files: youtubedesktop_*_arm64.apk
           fail_on_unmatched_files: true
+
+      # ---- TikTok 壳 APK（独立应用：主窗口直接加载 tiktok.com，无本地前端、无补丁） ----
+      # 注意：必须直调 node CLI 且 cwd 在 src-tauri-tiktok——pnpm tauri 会解析回根部的
+      # youtube tauri.conf.json（实测 gen/android/tiktok_desktop 生成不了的根因）
+      - name: Init TikTok Android project
+        working-directory: src-tauri-tiktok
+        run: node ../node_modules/@tauri-apps/cli/tauri.js android init
+
+      - name: Regenerate TikTok launcher icons
+        working-directory: src-tauri-tiktok
+        run: node ../node_modules/@tauri-apps/cli/tauri.js icon app-icon.png
+
+      - name: Build TikTok APK (arm64)
+        working-directory: src-tauri-tiktok
+        run: node ../node_modules/@tauri-apps/cli/tauri.js android build --apk --target aarch64
+
+      - name: Sign TikTok APK
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "$ANDROID_KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          IN=$(find src-tauri-tiktok/gen/android/app/build/outputs/apk -name '*unsigned.apk' | head -1)
+          echo "unsigned apk: $IN"
+          OUT="tiktok_${VERSION_TAG}_arm64.apk"
+          "$BT/zipalign" -p -f 4 "$IN" "$RUNNER_TEMP/tiktok-aligned.apk"
+          "$BT/apksigner" sign \
+            --ks "$RUNNER_TEMP/release.keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --key-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --out "$OUT" "$RUNNER_TEMP/tiktok-aligned.apk"
+          "$BT/apksigner" verify --print-certs "$OUT"
+          rm -f "$RUNNER_TEMP/release.keystore"
+
+      - name: Upload TikTok APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION_TAG }}
+          files: tiktok_*_arm64.apk
+          fail_on_unmatched_files: true

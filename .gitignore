@@ -29,3 +29,4 @@ src-tauri/gen
 # TikTok 壳应用
 src-tauri-tiktok/target
 src-tauri-tiktok/gen
+src-tauri-tiktok/*.apk

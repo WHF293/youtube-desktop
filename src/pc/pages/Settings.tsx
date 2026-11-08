@@ -206,18 +206,6 @@ export default function Settings() {
 
       <hr className="my-6 border-accent/80" />
 
-      <GroupTitle>TikTok（官网窗口）</GroupTitle>
-      <div className="mt-3">
-        <FieldTitle>数据源说明</FieldTitle>
-        <FieldDesc>
-          TikTok 页打开官网独立窗口：浏览/搜索/关注/评论/登录均为 TikTok 官方功能，账号状态保存在
-          本机（cookie 持久）。地区跟随代理出口节点（换节点即换地区）。需代理可达 tiktok.com；
-          官网异常时显示 TikTok 自己的提示，不影响 YouTube 功能。
-        </FieldDesc>
-      </div>
-
-      <hr className="my-6 border-accent/80" />
-
       <GroupTitle>关于</GroupTitle>
       <div className="mt-1 flex items-center justify-between gap-3">
         <div className="min-w-0">

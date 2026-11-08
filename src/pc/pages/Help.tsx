@@ -130,17 +130,6 @@ export default function Help() {
         </Step>
       </Section>
 
-      <Section title="TikTok（官网窗口）">
-        <Step>
-          侧栏「TikTok」打开官网独立窗口：浏览/搜索/关注/评论/登录均为官方功能，账号状态保存在
-          本机（cookie 持久）。地区跟随<b>代理出口节点</b>——在 Clash 里换节点即切换地区推荐。
-        </Step>
-        <Step>
-          窗口需代理可达 tiktok.com；官网异常时显示 TikTok 自己的提示，不影响 YouTube 数据链路。
-          移动端在系统浏览器中打开。
-        </Step>
-      </Section>
-
       <Section title="网络要求提示">
         <Step>
           推荐/分类/订阅内容来自博主与频道组的 RSS 聚合；搜索、评论、相关视频与「新闻」分类走 InnerTube 接口。

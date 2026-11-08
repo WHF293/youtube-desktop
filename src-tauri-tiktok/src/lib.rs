@@ -23,6 +23,8 @@ fn read_proxy() -> Option<String> {
     Some(DEFAULT_PROXY.to_string())
 }
 
+/// 桌面/移动共用启动入口：mobile_entry_point 在 Android/iOS 生成原生 main 桥接
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(windows)]
     if let Some(p) = read_proxy() {

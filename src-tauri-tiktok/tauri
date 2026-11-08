@@ -1,0 +1,8 @@
+// Gradle BuildTask 经 `node tauri android android-studio-script` 回调本壳的 CLI：
+// node 把 "tauri" 当入口文件解析到本文件（cwd=src-tauri-tiktok），这里转发到根
+// node_modules 的 @tauri-apps/cli（tauri.js 是 ESM，须 pathToFileURL + 动态 import；
+// 本文件含 import 语法会被 node v24 语法探测为 ESM，故全文件纯 ESM 写法）。构建链使用，勿删。
+import { pathToFileURL } from "node:url";
+import path from "node:path";
+const cli = pathToFileURL(path.join(import.meta.dirname, "..", "node_modules", "@tauri-apps", "cli", "tauri.js")).href;
+await import(cli);

@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { to: "/home", label: "推荐", icon: "home", end: true },
   { to: "/categories", label: "分类", icon: "category", end: true },
   { to: "/subscriptions", label: "订阅", icon: "subscriptions", end: false },
-  { to: "/tiktok", label: "TikTok", icon: "tiktok", end: false },
   { to: "/history", label: "历史", icon: "history", end: false },
   { to: "/watchlater", label: "待看", icon: "watchLater", end: false },
   { to: "/favorites", label: "收藏", icon: "star", end: false },
