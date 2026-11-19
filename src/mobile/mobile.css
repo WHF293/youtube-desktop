@@ -82,8 +82,7 @@
   bottom: calc(10px + var(--m-inset-bottom, env(safe-area-inset-bottom, 0px)));
   z-index: 100;
   display: grid;
-  /* 4 等分 = 四主 Tab（历史 2026-10-28 移入「我的」页；TikTok 入口 2026-11-07 移除，
-     TikTok 改独立应用）；指示气泡宽度 .m-tabbar__thumb 的 /4 需一并改 */
+  /* 4 等分 = 四主 Tab（历史 2026-10-28 移入「我的」页）；指示气泡宽度 .m-tabbar__thumb 的 /4 需一并改 */
   grid-template-columns: repeat(4, 1fr);
   padding: 6px;
   border-radius: 999px;
