@@ -22,6 +22,15 @@ interface Props {
   onClose: () => void;
 }
 
+/** 搜索会话缓存（模块级）：点行进频道页返回后重开弹窗，恢复上次输入与结果列表
+ *  （跳转后订阅页整个卸载，弹窗 state 丢失，靠这里续命）。显式关闭
+ *  （Esc / 遮罩 / ✕）= 结束会话清缓存；进频道页离开则保留。 */
+let searchCache: {
+  keyword: string;
+  results: ChannelSearchResult[];
+  nextPageToken: string | null;
+} | null = null;
+
 export default function ChannelSearchModal({ open, onClose }: Props) {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
@@ -32,12 +41,14 @@ export default function ChannelSearchModal({ open, onClose }: Props) {
   const [error, setError] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // open 变 true 的首轮标记：搜索 effect 据此恢复会话缓存（结果直接用缓存，免「搜索中…」闪一次）
+  const justOpenedRef = useRef(false);
   // 订阅态取自 store：订阅后按钮即时翻转，右岛「我的博主」列表同步出现新博主
   const channels = useChannels((s) => s.channels);
 
   const isIdle = keyword.trim().length < 2;
 
-  // 打开时重置并聚焦
+  // 打开时重置输入并聚焦；会话恢复在搜索 effect 里做（要配合其防抖跳过）
   useEffect(() => {
     if (open) {
       setKeyword("");
@@ -45,13 +56,42 @@ export default function ChannelSearchModal({ open, onClose }: Props) {
       setNextPageToken(null);
       setError("");
       setActiveIndex(0);
+      justOpenedRef.current = true;
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
 
-  // 防抖直播搜索
+  // 会话快照：结果就绪时持续更新缓存（点行进频道页再重开弹窗可恢复）
   useEffect(() => {
     if (!open) return;
+    if (!searching && !loadingMore && !error && results.length > 0) {
+      searchCache = { keyword, results, nextPageToken };
+    }
+  }, [open, keyword, results, nextPageToken, searching, loadingMore, error]);
+
+  // 防抖直播搜索；打开首轮恢复会话缓存（点行进频道页返回后重开弹窗直接出结果）
+  useEffect(() => {
+    if (!open) return;
+    if (justOpenedRef.current) {
+      justOpenedRef.current = false;
+      const cached = searchCache;
+      if (cached) {
+        // 恢复输入与结果；下一轮（keyword 到位触发）靠下方引用比对跳过重搜
+        setKeyword(cached.keyword);
+        setResults(cached.results);
+        setNextPageToken(cached.nextPageToken);
+        setError("");
+        setActiveIndex(0);
+        return;
+      }
+    } else if (
+      searchCache &&
+      keyword === searchCache.keyword &&
+      results === searchCache.results
+    ) {
+      // 恢复写入到位的渲染轮（keyword 从 "" 变为缓存值触发）：直接用缓存结果，不重搜
+      return;
+    }
     const q = keyword.trim();
     if (q.length < 2) {
       setResults([]);
@@ -86,7 +126,11 @@ export default function ChannelSearchModal({ open, onClose }: Props) {
 
   if (!open) return null;
 
-  const close = () => onClose();
+  // 显式关闭 = 结束会话（清缓存）；点行进频道页走 openChannel 的 onClose 保留缓存
+  const close = () => {
+    searchCache = null;
+    onClose();
+  };
 
   const subscribe = (c: ChannelSearchResult) => {
     // add 同步生效（按钮/右岛即时翻转）；头像缺失时就地补拉频道详情（异步，不阻塞）
@@ -110,7 +154,8 @@ export default function ChannelSearchModal({ open, onClose }: Props) {
   };
 
   const openChannel = (id: string) => {
-    close();
+    // 保留会话缓存（不经过 close 清缓存）：从频道页返回重开弹窗恢复上次搜索
+    onClose();
     navigate(`/channel/${id}`);
   };
 

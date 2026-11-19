@@ -8,27 +8,60 @@ import Icon from "../../common/components/Icon";
 import Img from "../../common/components/Img";
 import { EmptyState, ErrorState } from "../components/StateViews";
 
+/** 搜索会话缓存（模块级）：点结果行进频道页再返回时恢复输入框与结果列表
+ *  （组件卸载即丢 state，靠这里续命）。ready 态才快照，避免 loading/error
+ *  中途离开留下不一致的半成品；UI 返回键离开 = 结束会话，缓存清空。
+ *  滚动位置不用管——MobileApp 的 scrollMem 按 pathname 自动记忆/恢复。 */
+let searchCache: {
+  q: string;
+  items: ChannelSearchResult[];
+  nextPageToken: string | null;
+} | null = null;
+
 /** 移动端频道搜索页（订阅页 navbar 搜索入口）：只搜博主（InnerTube Type=Channel 过滤），
  *  结果行直接「订阅」——摆脱「首页搜视频 → 点进视频页 → 再点订阅」的绕路。
  *  布局同 /search 页（自带搜索栏，不渲染 MobileNavBar），但为输入即搜（450ms 防抖）。 */
 export default function SubsSearchView() {
   const navigate = useNavigate();
-  const [q, setQ] = useState("");
-  const [items, setItems] = useState<ChannelSearchResult[]>([]);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [q, setQ] = useState(searchCache?.q ?? "");
+  const [items, setItems] = useState<ChannelSearchResult[]>(searchCache?.items ?? []);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(searchCache?.nextPageToken ?? null);
   const [status, setStatus] = useState<"idle" | "loading" | "loadingMore" | "ready" | "error">(
-    "idle",
+    searchCache ? "ready" : "idle",
   );
   const [error, setError] = useState("");
   // 直播搜索乱序响应防护：输入连打时旧请求后到不能覆盖新结果
   const seqRef = useRef(0);
+  // 从缓存恢复的首轮不重搜（列表直接用缓存结果，免骨架屏闪一次）
+  const restoredRef = useRef(searchCache != null);
+  // 返回键离开标记：卸载时据此清缓存（点行进频道页则快照保留会话）
+  const backRef = useRef(false);
   // 错误重试触发器（effect 依赖项，重试时自增重跑搜索）
   const [reload, setReload] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // 卸载快照取最新状态用
+  const snapRef = useRef({ q, items, nextPageToken, status });
+  snapRef.current = { q, items, nextPageToken, status };
   // 轻提示 toast（订阅成功反馈，1.8s 自动消失，同观看页）
   const [toast, setToast] = useState("");
   const toastTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+  // 卸载快照：点行进频道页离开 → ready 态保存会话（返回可恢复）；返回键离开 → 清缓存，
+  // 下次从订阅页进入是新会话（搜索历史式体验）
+  useEffect(
+    () => () => {
+      const s = snapRef.current;
+      if (backRef.current) {
+        searchCache = null;
+        return;
+      }
+      searchCache =
+        s.status === "ready" && s.items.length > 0
+          ? { q: s.q, items: s.items, nextPageToken: s.nextPageToken }
+          : null;
+    },
+    [],
+  );
   const showToast = (text: string) => {
     setToast(text);
     window.clearTimeout(toastTimer.current);
@@ -38,8 +71,12 @@ export default function SubsSearchView() {
   // 订阅态取自 store：订阅后按钮即时翻转，订阅页横滑岛同步出现新博主
   const channels = useChannels((s) => s.channels);
 
-  // 防抖直播搜索（≥2 字符触发）
+  // 防抖直播搜索（≥2 字符触发）；从频道页返回的首轮直接用缓存结果，不重搜
   useEffect(() => {
+    if (restoredRef.current) {
+      restoredRef.current = false;
+      return;
+    }
     const query = q.trim();
     if (query.length < 2) {
       seqRef.current++;
@@ -116,7 +153,10 @@ export default function SubsSearchView() {
         <button
           type="button"
           aria-label="返回"
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            backRef.current = true;
+            navigate(-1);
+          }}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-2"
         >
           <Icon name="arrowLeft" size={20} />

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { usePlayer } from "../../common/stores/player";
 import { useFavorites } from "../../common/stores/favorites";
 import { useHistory } from "../../common/stores/history";
-import { useChannels } from "../../common/stores/channels";
+import SubscribeButton from "../components/SubscribeButton";
 import { useWatchLater } from "../../common/stores/watchLater";
 import { useVideoNavQueue, toNavEntries, getVideoNavNeighbors } from "../../common/stores/videoNav";
 import DownloadModal from "../components/DownloadModal";
@@ -426,103 +426,6 @@ function VideoNavSwitch({ videoId }: { videoId: string }) {
         下一个
         <Icon name="chevronRight" size={14} />
       </button>
-    </div>
-  );
-}
-
-/** 订阅按钮：数据写本地订阅 store（useChannels，与设置页/博主管理共用）。
- *  未订阅 → 「添加订阅」点击即订；已订阅 → 「已订阅」点击弹二级弹窗，确认态 3 秒自动复位（删除类二次确认约定） */
-function SubscribeButton({
-  channelId,
-  channelTitle,
-  menuOpen,
-  onMenuOpenChange,
-}: {
-  channelId: string;
-  channelTitle: string;
-  menuOpen: boolean;
-  onMenuOpenChange: (open: boolean) => void;
-}) {
-  const isSub = useChannels((s) => s.channels.some((c) => c.id === channelId));
-  const add = useChannels((s) => s.add);
-  const remove = useChannels((s) => s.remove);
-  const [confirming, setConfirming] = useState(false);
-
-  // 退订确认态 3 秒无操作自动复位
-  useEffect(() => {
-    if (!confirming) return;
-    const t = window.setTimeout(() => setConfirming(false), 3000);
-    return () => window.clearTimeout(t);
-  }, [confirming]);
-
-  if (!isSub) {
-    return (
-      <button
-        type="button"
-        onClick={() => add(channelId, channelTitle)}
-        title={`订阅 ${channelTitle}`}
-        className="shrink-0 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white transition-[filter] hover:brightness-110"
-      >
-        添加订阅
-      </button>
-    );
-  }
-
-  return (
-    <div className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => {
-          if (menuOpen) onMenuOpenChange(false);
-          else {
-            setConfirming(false);
-            onMenuOpenChange(true);
-          }
-        }}
-        className="rounded-full bg-flat px-4 py-1.5 text-sm text-ink-2 transition-colors hover:text-ink"
-      >
-        已订阅
-      </button>
-      {menuOpen && (
-        <>
-          {/* 点击弹窗外任意区域关闭 */}
-          <div className="fixed inset-0 z-40" onClick={() => onMenuOpenChange(false)} aria-hidden="true" />
-          <div className="absolute left-0 top-full z-50 mt-2 w-60 rounded-xl border border-line bg-surface p-3 shadow-island">
-            <p className="text-sm text-ink">
-              {confirming ? "确认取消订阅？" : `取消订阅「${channelTitle}」？`}
-            </p>
-            <div className="mt-3 flex items-center justify-end gap-2">
-              {confirming ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    remove(channelId);
-                    onMenuOpenChange(false);
-                  }}
-                  className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:brightness-110"
-                >
-                  确认退订
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirming(true)}
-                  className="rounded-lg px-3 py-1.5 text-xs text-accent transition-colors hover:bg-flat"
-                >
-                  取消订阅
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => onMenuOpenChange(false)}
-                className="rounded-lg glass-btn px-3 py-1.5 text-xs text-ink hover:brightness-110"
-              >
-                保留
-              </button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

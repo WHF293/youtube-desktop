@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useChannel } from "../../common/stores/channel";
+import { useChannels } from "../../common/stores/channels";
 import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { bestThumb, formatCount } from "../../common/lib/format";
 import Img from "../../common/components/Img";
@@ -65,30 +66,39 @@ export default function ChannelView() {
         <>
           {/* 频道信息岛 + Tab chips 固定头：sticky 吸顶（top 让出吸顶 navbar），列表滚动时保持不动 */}
           <div className="m-sticky-under-nav sticky z-10">
-          {/* 频道信息岛 */}
-          <div className="flex items-center gap-3 border-b border-line bg-surface px-3.5 py-3.5">
-            <Img
-              src={bestThumb(detail.snippet)}
-              alt=""
-              className="h-14 w-14 shrink-0 rounded-full bg-flat object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-extrabold text-ink">{detail.snippet.title}</p>
-              <p className="mt-0.5 truncate text-[11px] text-ink-2">
-                {[
-                  detail.statistics?.subscriberCount
-                    ? `${formatCount(detail.statistics.subscriberCount)}位订阅者`
-                    : "",
-                  detail.statistics?.videoCount ? `${formatCount(detail.statistics.videoCount)}个视频` : "",
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              {detail.snippet.description && (
-                <p className="clamp-2 mt-1 text-[11px] leading-relaxed text-ink-3">
-                  {detail.snippet.description}
+          {/* 频道信息岛：头像 + 信息一行，订阅按钮独立一行（搜索列表可直接订阅，进详情页同样可订阅/退订） */}
+          <div className="border-b border-line bg-surface px-3.5 py-3.5">
+            <div className="flex items-center gap-3">
+              <Img
+                src={bestThumb(detail.snippet)}
+                alt=""
+                className="h-14 w-14 shrink-0 rounded-full bg-flat object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-extrabold text-ink">{detail.snippet.title}</p>
+                <p className="mt-0.5 truncate text-[11px] text-ink-2">
+                  {[
+                    detail.statistics?.subscriberCount
+                      ? `${formatCount(detail.statistics.subscriberCount)}位订阅者`
+                      : "",
+                    detail.statistics?.videoCount ? `${formatCount(detail.statistics.videoCount)}个视频` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </p>
-              )}
+                {detail.snippet.description && (
+                  <p className="clamp-2 mt-1 text-[11px] leading-relaxed text-ink-3">
+                    {detail.snippet.description}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <SubscribePill
+                channelId={channelId}
+                channelTitle={detail.snippet.title}
+                thumb={bestThumb(detail.snippet)}
+              />
             </div>
           </div>
 
@@ -161,5 +171,61 @@ export default function ChannelView() {
         </>
       )}
     </div>
+  );
+}
+
+/** 订阅按钮：未订阅点击即订（头像同步落库）；已订阅两步确认退订，
+ *  确认态 3 秒自动复位（删除类二次确认约定，同搜索历史清空按钮） */
+function SubscribePill({
+  channelId,
+  channelTitle,
+  thumb,
+}: {
+  channelId: string;
+  channelTitle: string;
+  thumb?: string;
+}) {
+  const subscribed = useChannels((s) => s.channels.some((c) => c.id === channelId));
+  const add = useChannels((s) => s.add);
+  const setThumb = useChannels((s) => s.setThumb);
+  const remove = useChannels((s) => s.remove);
+  const [confirming, setConfirming] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  if (!subscribed) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          add(channelId, channelTitle);
+          if (thumb) setThumb(channelId, thumb);
+        }}
+        className="rounded-full bg-accent px-4 py-1.5 text-[12.5px] font-bold text-white active:brightness-110"
+      >
+        订阅
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!confirming) {
+          setConfirming(true);
+          timer.current = window.setTimeout(() => setConfirming(false), 3000);
+          return;
+        }
+        window.clearTimeout(timer.current);
+        setConfirming(false);
+        remove(channelId);
+      }}
+      className={`rounded-full px-4 py-1.5 text-[12.5px] font-bold active:opacity-80 ${
+        confirming ? "bg-accent text-white" : "bg-flat text-ink-3"
+      }`}
+    >
+      {confirming ? "确认退订？" : "已订阅"}
+    </button>
   );
 }

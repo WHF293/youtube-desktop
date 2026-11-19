@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { useChannel } from "../../common/stores/channel";
 import { useVideoNavQueue, toNavEntries } from "../../common/stores/videoNav";
 import { VideoCard, VideoGridSkeleton, VideoRowSkeleton } from "../components/VideoCard";
+import SubscribeButton from "../components/SubscribeButton";
 import { ErrorBox } from "../../common/components/Spinner";
 import { bestThumb, formatCount } from "../../common/lib/format";
 
@@ -73,6 +74,12 @@ export default function Channel() {
             <p className="clamp-2 mt-1 max-w-2xl text-sm text-ink-3">{detail.snippet.description}</p>
           )}
         </div>
+        {/* 订阅按钮：搜索列表可直接订阅，进详情页也应有订阅入口（退订二级确认在组件内） */}
+        <SubscribeButton
+          channelId={channelId}
+          channelTitle={detail.snippet.title}
+          thumb={bestThumb(detail.snippet)}
+        />
       </div>
 
       {/* Tab 切换 */}
